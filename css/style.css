@@ -102,7 +102,9 @@ html, body {
   align-items: center;
   width: 100%;
   max-width: 100%;
-  gap: 0.35em;
+  max-height: 100%;
+  overflow: hidden;
+  gap: 0.2em;
   /* Soft veil so text stays readable over pixel scene */
   background: linear-gradient(
     180deg,
@@ -212,6 +214,44 @@ html, body {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+#ui-title.ui-screen {
+  justify-content: space-between;
+  padding: 3% 4% 2%;
+}
+
+#ui-title .ui-start-btn {
+  flex-shrink: 0;
+  margin-top: 0.4em;
+  margin-bottom: 0.15em;
+  position: relative;
+  z-index: 5;
+}
+
+#ui-title .ui-flourish,
+#ui-title .ui-prompt,
+#ui-title .ui-footer {
+  display: none;
+}
+
+#ui-title .ui-portrait {
+  width: 48px;
+  height: 48px;
+  margin: 0.15em 0;
+}
+
+#ui-title .ui-card {
+  margin-top: 0.25em;
+  padding: 0.4em 0.7em;
+}
+
+#ui-title .ui-title-name {
+  font-size: clamp(18px, 6vw, 32px);
+}
+
+#ui-title .ui-title-sub {
+  font-size: clamp(13px, 4.2vw, 22px);
 }
 
 .ui-start-btn:active,
