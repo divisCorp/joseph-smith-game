@@ -317,7 +317,62 @@ html, body {
 }
 
 #ui-win:not([hidden]),
-#ui-lose:not([hidden]) {
+#ui-lose:not([hidden]),
+#ui-clear:not([hidden]) {
+  pointer-events: auto;
+}
+
+.ui-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em 0.65em;
+  margin-top: 0.75em;
+  width: 100%;
+  pointer-events: none;
+}
+
+.ui-actions .ui-start-btn {
+  margin-top: 0;
+  pointer-events: auto;
+}
+
+.ui-share-btn {
+  pointer-events: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 40px;
+  min-width: 120px;
+  padding: 0.45em 1.1em;
+  font: inherit;
+  font-size: clamp(12px, 3.4vw, 15px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #f0e6d0;
+  background: rgba(20, 16, 12, 0.85);
+  border: 2px solid rgba(212, 168, 75, 0.75);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #3a2a14, 0 6px 16px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.ui-share-btn:active,
+.ui-share-btn.is-active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #3a2a14, 0 3px 10px rgba(0, 0, 0, 0.35);
+  background: rgba(40, 32, 22, 0.95);
+}
+
+.ui-panel .ui-share-btn {
   pointer-events: auto;
 }
 

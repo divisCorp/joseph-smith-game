@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=12" />
+  <link rel="stylesheet" href="css/style.css?v=13" />
   <script>
     (function () {
       var touch =
@@ -77,8 +77,11 @@
             <p class="ui-body">Joseph stood firm through every trial.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
             <p class="ui-muted">Temple Hill cleared. Well done.</p>
-            <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Continue</button>
-            <p class="ui-prompt" data-ui-blink>Tap · Enter / Z — Title</p>
+            <div class="ui-actions">
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Continue</button>
+              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+            </div>
+            <p class="ui-prompt" data-ui-blink>START · Enter / Z — Title</p>
           </div>
         </div>
 
@@ -87,8 +90,11 @@
             <h2 class="ui-heading ui-heading--danger">Defeated</h2>
             <p class="ui-body">Rise again, Joseph.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
-            <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Try Again</button>
-            <p class="ui-prompt" data-ui-blink>Tap · Enter / Z — Title</p>
+            <div class="ui-actions">
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Try Again</button>
+              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+            </div>
+            <p class="ui-prompt" data-ui-blink>START · Enter / Z — Title</p>
           </div>
         </div>
       </div>
@@ -117,6 +123,6 @@
 
     <p id="hint">Arrows / WASD move · ↓ / S duck · Space / Z fling gold plates · Enter start · On phones: virtual stick + A/B</p>
   </div>
-  <script type="module" src="js/main.js?v=12"></script>
+  <script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>

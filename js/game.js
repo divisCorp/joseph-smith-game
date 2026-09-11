@@ -152,6 +152,7 @@ function tickPlay(game, dt) {
     if (level.num >= MAX_LEVEL) {
       game.state = STATES.WIN;
       game.messageT = 0;
+      clearAll();
     } else {
       game.state = STATES.CLEAR;
       game.clearTimer = 0;
@@ -162,6 +163,7 @@ function tickPlay(game, dt) {
 
   if (!player.alive) {
     game.state = STATES.LOSE;
+    clearAll();
   }
 }
 

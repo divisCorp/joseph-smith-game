@@ -2,7 +2,7 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js';
+import { STATES, LEVEL_META } from './constants.js';
 import { setAction } from './input.js';
 
 const SCREENS = {
@@ -12,6 +12,8 @@ const SCREENS = {
   [STATES.WIN]: 'ui-win',
   [STATES.LOSE]: 'ui-lose',
 };
+
+const PLAY_URL = 'https://palmyra-quest.netlify.app';
 
 let lastState = null;
 let startHeld = false;
@@ -31,6 +33,8 @@ function bindStartTarget(el) {
   if (!el) return;
   const down = (e) => {
     if (e.button != null && e.button !== 0) return;
+    // Share (and other non-dismiss controls) must not trigger start/dismiss
+    if (e.target?.closest?.('[data-ui-share]')) return;
     e.preventDefault();
     e.stopPropagation();
     try {
@@ -42,6 +46,7 @@ function bindStartTarget(el) {
     el.classList?.add('is-active');
   };
   const up = (e) => {
+    if (e.target?.closest?.('[data-ui-share]')) return;
     e.preventDefault();
     e.stopPropagation();
     releaseStart();
@@ -57,12 +62,45 @@ function bindStartTarget(el) {
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
+function buildShareText(game) {
+  const score = game.score ?? 0;
+  const levelNum = game.levelNum ?? 1;
+  const levelName = LEVEL_META[levelNum]?.name;
+  const levelBit = levelName
+    ? ` Reached Level ${levelNum} (${levelName}).`
+    : ` Reached level ${levelNum}.`;
+  return `I scored ${score} in Joseph Smith — Palmyra Quest!${levelBit} Play free: ${PLAY_URL}`;
+}
+
+function shareIntentUrl(game) {
+  const text = buildShareText(game);
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
+function bindShareLinks() {
+  document.querySelectorAll('[data-ui-share]').forEach((el) => {
+    el.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Ensure we never navigate the game tab away if href was stale
+      const href = el.getAttribute('href');
+      if (!href || href === '#') {
+        e.preventDefault();
+      }
+    });
+  });
+}
+
 export function initOverlays() {
   bindStartTarget(document.getElementById('ui-title'));
   document.querySelectorAll('[data-ui-start]').forEach(bindStartTarget);
+  // Whole-screen dismiss for win/lose/clear (START keys + touch START still work via input map)
   bindStartTarget(document.getElementById('ui-win'));
   bindStartTarget(document.getElementById('ui-lose'));
   bindStartTarget(document.getElementById('ui-clear'));
+  bindShareLinks();
 }
 
 function setVisible(id, show) {
@@ -120,6 +158,10 @@ export function syncOverlays(game) {
     const root = document.getElementById(SCREENS[state]);
     root?.querySelectorAll('[data-ui-score]').forEach((n) => {
       n.textContent = `Score: ${game.score}`;
+    });
+    const intent = shareIntentUrl(game);
+    root?.querySelectorAll('[data-ui-share]').forEach((n) => {
+      n.setAttribute('href', intent);
     });
   }
 
