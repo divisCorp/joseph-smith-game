@@ -40,7 +40,7 @@ const P_JOSEPH = {
   D: '#0e2848', // coat dark
   S: '#e8dcc8', // shirt
   B: '#3a2818', // boot
-  T: '#2a2a4a', // trousers
+  T: '#3a4568', // trousers (visible vs grass)
   G: '#8b6914', // staff / gold
   L: '#c4a060', // staff light
   R: '#c07050', // lip / cheek
@@ -101,7 +101,7 @@ const P_HEART = {
 };
 
 // ── Joseph Smith (16×32) ──────────────────────────────────
-// Standing / walk A
+// Full-height maps (30 rows @ oy+1 → feet at oy+30). Coat→pants→boots continuous.
 const JOSEPH_IDLE = [
   '....HHHHHH....',
   '...HHHHHHHH...',
@@ -113,15 +113,26 @@ const JOSEPH_IDLE = [
   '..NNDNSSSNDN..',
   '..NNDNSSSNDN..',
   '..NNDNSSSNDN..',
+  '..NNDNSSSNDN..',
   '..NNNDSSDNNN..',
   '..NNNNNNNNNN..',
-  '..NN......NN..',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...BB....BB...',
-  '...BB....BB...',
+  '..NNSSSSSSNN..',
+  '..NNTTTTTTNN..',
+  '..NNTTTTTTNN..',
+  '...TTTTTTTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '..BBBB..BBBB..',
+  '..BBBB..BBBB..',
 ];
 
 const JOSEPH_WALK = [
@@ -135,15 +146,26 @@ const JOSEPH_WALK = [
   '..NNDNSSSNDN..',
   '..NNDNSSSNDN..',
   '..NNDNSSSNDN..',
+  '..NNDNSSSNDN..',
   '..NNNDSSDNNN..',
   '..NNNNNNNNNN..',
-  '..NN......NN..',
-  '...TT.....TT..',
-  '...TT.....TT..',
-  '..TT......TT..',
-  '..TT......TT..',
-  '..BB......BB..',
-  '..BB......BB..',
+  '..NNSSSSSSNN..',
+  '..NNTTTTTTNN..',
+  '..NNTTTTTTNN..',
+  '...TTTTTTTT...',
+  '...TTT...TTT..',
+  '...TTT...TTT..',
+  '..TTT....TTT..',
+  '..TTT....TTT..',
+  '..TTT....TTT..',
+  '.TTT.....TTT..',
+  '.TTT.....TTT..',
+  '.BBB.....BBB..',
+  '.BBB.....BBB..',
+  '.BBB.....BBB..',
+  'BBBB.....BBBB.',
+  'BBBB.....BBBB.',
+  'BBBB.....BBBB.',
 ];
 
 const JOSEPH_JUMP = [
@@ -157,15 +179,26 @@ const JOSEPH_JUMP = [
   '..NNDNSSSNDN..',
   '.FNNDNSSSNDNF.',
   '..NNDNSSSNDN..',
+  '..NNDNSSSNDN..',
   '..NNNDSSDNNN..',
   '..NNNNNNNNNN..',
-  '..NN......NN..',
-  '...TT....TT...',
-  '...TT....TT...',
-  '....TT..TT....',
-  '....TT..TT....',
-  '....BB..BB....',
-  '....BB..BB....',
+  '..NNSSSSSSNN..',
+  '..NNTTTTTTNN..',
+  '..NNTTTTTTNN..',
+  '...TTTTTTTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '....TTT.TTT...',
+  '....TTTTTT....',
+  '....TTTTTT....',
+  '....TTT.TTT...',
+  '....TTT.TTT...',
+  '....BBB.BBB...',
+  '....BBB.BBB...',
+  '....BBB.BBB...',
+  '...BBBB.BBBB..',
+  '...BBBB.BBBB..',
+  '...BBBB.BBBB..',
 ];
 
 const JOSEPH_ATTACK = [
@@ -179,15 +212,26 @@ const JOSEPH_ATTACK = [
   '..NNDNSSSNDN..',
   '..NNDNSSSNDNFF',
   '..NNDNSSSN.LG.',
-  '..NNNDSSD.LG..',
-  '..NNNNNNN.G...',
-  '..NN..........',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...BB....BB...',
-  '...BB....BB...',
+  '..NNDNSSD.LG..',
+  '..NNNDSS.LG...',
+  '..NNNNNNNG....',
+  '..NNSSSSSSNN..',
+  '..NNTTTTTTNN..',
+  '..NNTTTTTTNN..',
+  '...TTTTTTTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '..BBBB..BBBB..',
+  '..BBBB..BBBB..',
 ];
 
 /** Joseph Smith — coat, face, walk / jump / attack poses */
@@ -211,8 +255,8 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false)
   // coat button highlights (readable silhouette)
   if (!attacking) {
     const bx = flip ? ox + 6 : ox + 9;
-    drawRect(ctx, bx, oy + 14, 1, 1, '#d4a84b');
-    drawRect(ctx, bx, oy + 17, 1, 1, '#d4a84b');
+    drawRect(ctx, bx, oy + 12, 1, 1, '#d4a84b');
+    drawRect(ctx, bx, oy + 15, 1, 1, '#d4a84b');
   }
 }
 
@@ -228,15 +272,26 @@ const BRIGAND_A = [
   '...CCCSSSCCC..',
   '..CCDSSSSDCC..',
   '..CCDSSSSDCC..',
+  '..CCDSSSSDCC..',
   '..CCDSSMMDCC..',
   '..CCCCCCCCCC..',
-  '..CC......CC..',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...OO....OO...',
-  '...OO....OO...',
+  '..CCSSSSSSCC..',
+  '..CCTTTTTTCC..',
+  '..CCTTTTTTCC..',
+  '...TTTTTTTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...OOO..OOO...',
+  '...OOO..OOO...',
+  '...OOO..OOO...',
+  '...OOO..OOO...',
+  '..OOOO..OOOO..',
+  '..OOOO..OOOO..',
 ];
 
 const BRIGAND_B = [
@@ -250,15 +305,26 @@ const BRIGAND_B = [
   '...CCCSSSCCC..',
   '..CCDSSSSDCC..',
   '..CCDSSSSDCC..',
+  '..CCDSSSSDCC..',
   '..CCDSSMMDCC..',
   '..CCCCCCCCCC..',
-  '..CC......CC..',
-  '..TT......TT..',
-  '..TT......TT..',
-  '...TT....TT...',
-  '...TT....TT...',
-  '...OO....OO...',
-  '...OO....OO...',
+  '..CCSSSSSSCC..',
+  '..CCTTTTTTCC..',
+  '..CCTTTTTTCC..',
+  '...TTTTTTTT...',
+  '..TTT....TTT..',
+  '..TTT....TTT..',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '....TTTTTT....',
+  '....TTTTTT....',
+  '....OOOOOO....',
+  '....OOO.OOO...',
+  '....OOO.OOO...',
+  '...OOOO.OOOO..',
+  '...OOOO.OOOO..',
+  '...OOOO.OOOO..',
 ];
 
 export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
@@ -275,7 +341,7 @@ export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
 
   // dagger hint at hip
   const dx = facing > 0 ? ox + 13 : ox + 1;
-  drawRect(ctx, dx, oy + 18, 2, 4, '#8a8a9a');
+  drawRect(ctx, dx, oy + 22, 2, 4, '#8a8a9a');
 }
 
 // ── Wolf (20×20 drawn into 16×32 slot with y offset) ──────
@@ -291,7 +357,10 @@ const WOLF_A = [
   '.DFFFFFFFFD...',
   '..DFFFFFFD....',
   '..DF....FD....',
+  '..DF....FD....',
   '..DP....PD....',
+  '..DP....PD....',
+  '..DD....DD....',
   '..DD....DD....',
 ];
 
@@ -307,16 +376,19 @@ const WOLF_B = [
   '.DFFFFFFFFD...',
   '..DFFFFFFD....',
   '.DF......FD...',
+  '.DF......FD...',
   '.DP......PD...',
+  '.DP......PD...',
+  '.DD......DD...',
   '.DD......DD...',
 ];
 
 export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const ox = Math.floor(x);
-  const oy = Math.floor(y) + 10;
+  const oy = Math.floor(y) + 14;
   const bob = frame % 2;
   ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 2, oy + 18, 12, 2);
+  ctx.fillRect(ox + 2, oy + 16, 12, 2);
 
   const pal = flash
     ? { ...P_WOLF, F: '#8a6060', L: '#aa8080', D: '#5a3030' }
@@ -342,19 +414,36 @@ const BOSS_BODY = [
   '..PPPP.CCDSSSSDCC.PPPP..',
   '..PPPP.CCDSSSSDCC.PPPP..',
   '..PPPP.CCDSSSSDCC.PPPP..',
+  '..PPPP.CCDSSSSDCC.PPPP..',
   '..QPPP.CCCDSSDCCC.PPPQ..',
   '..QPPP.CCCCCCCCCC.PPPQ..',
   '...PPP.CCCCCCCCCC.PPP...',
   '...PPP..CCCCCCCC..PPP...',
-  '....PP..CC....CC..PP....',
+  '....PP..CCTTTTCC..PP....',
+  '........TTTTTTTT........',
+  '........TTTTTTTT........',
+  '........TTTTTTTT........',
   '........TT....TT........',
   '........TT....TT........',
   '........TT....TT........',
   '........TT....TT........',
   '........TT....TT........',
+  '........TT....TT........',
+  '........TT....TT........',
+  '........TT....TT........',
+  '........TT....TT........',
+  '........TT....TT........',
+  '........TT....TT........',
+  '........BB....BB........',
+  '........BB....BB........',
+  '........BB....BB........',
+  '........BB....BB........',
   '........BB....BB........',
   '........BB....BB........',
   '.......BBB....BBB.......',
+  '.......BBB....BBB.......',
+  '......BBBB....BBBB......',
+  '......BBBB....BBBB......',
 ];
 
 const BOSS_WALK = [
@@ -372,19 +461,36 @@ const BOSS_WALK = [
   '..PPPP.CCDSSSSDCC.PPPP..',
   '..PPPP.CCDSSSSDCC.PPPP..',
   '..PPPP.CCDSSSSDCC.PPPP..',
+  '..PPPP.CCDSSSSDCC.PPPP..',
   '..QPPP.CCCDSSDCCC.PPPQ..',
   '..QPPP.CCCCCCCCCC.PPPQ..',
   '...PPP.CCCCCCCCCC.PPP...',
   '...PPP..CCCCCCCC..PPP...',
-  '....PP..CC....CC..PP....',
+  '....PP..CCTTTTCC..PP....',
+  '........TTTTTTTT........',
+  '........TTTTTTTT........',
+  '........TTTTTTTT........',
   '.......TT......TT.......',
   '.......TT......TT.......',
   '......TT........TT......',
   '......TT........TT......',
   '......TT........TT......',
-  '......BB........BB......',
-  '......BB........BB......',
-  '.....BBB........BBB.....',
+  '......TT........TT......',
+  '.....TT..........TT.....',
+  '.....TT..........TT.....',
+  '.....TT..........TT.....',
+  '.....TT..........TT.....',
+  '.....TT..........TT.....',
+  '.....BB..........BB.....',
+  '.....BB..........BB.....',
+  '.....BB..........BB.....',
+  '.....BB..........BB.....',
+  '.....BB..........BB.....',
+  '.....BB..........BB.....',
+  '....BBB..........BBB....',
+  '....BBB..........BBB....',
+  '...BBBB..........BBBB...',
+  '...BBBB..........BBBB...',
 ];
 
 export function drawBoss(ctx, x, y, facing, frame, flash) {
@@ -411,8 +517,8 @@ export function drawBoss(ctx, x, y, facing, frame, flash) {
 
   // gold buckle (imposing detail)
   const bx = facing > 0 ? ox + 14 : ox + 15;
-  drawRect(ctx, bx, oy + 28, 4, 2, flash ? '#fff0a0' : '#d4a84b');
-  drawRect(ctx, bx + 1, oy + 27, 2, 4, flash ? '#fff0a0' : '#8b6914');
+  drawRect(ctx, bx, oy + 30, 4, 2, flash ? '#fff0a0' : '#d4a84b');
+  drawRect(ctx, bx + 1, oy + 29, 2, 4, flash ? '#fff0a0' : '#8b6914');
 }
 
 // ── UI hearts ─────────────────────────────────────────────
