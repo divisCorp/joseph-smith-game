@@ -77,18 +77,48 @@ function shareIntentUrl(game) {
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 }
 
+function openShare(el, game) {
+  let href = el?.getAttribute?.('href') || '';
+  if (!href || href === '#') {
+    href = game ? shareIntentUrl(game) : '';
+  }
+  if (!href || href === '#') return false;
+  el?.setAttribute?.('href', href);
+  const win = window.open(href, '_blank', 'noopener,noreferrer');
+  if (win) {
+    try { win.opener = null; } catch (_) {}
+    return true;
+  }
+  // Popup blocked (some in-app browsers): same-tab fallback
+  window.location.href = href;
+  return true;
+}
+
+let shareGame = null;
+let shareLockUntil = 0;
+
 function bindShareLinks() {
   document.querySelectorAll('[data-ui-share]').forEach((el) => {
-    el.addEventListener('pointerdown', (e) => {
+    const blockDismiss = (e) => {
       e.stopPropagation();
-    });
-    el.addEventListener('click', (e) => {
+    };
+    el.addEventListener('pointerdown', blockDismiss, true);
+    el.addEventListener('touchstart', (e) => {
       e.stopPropagation();
-      // Ensure we never navigate the game tab away if href was stale
-      const href = el.getAttribute('href');
-      if (!href || href === '#') {
-        e.preventDefault();
-      }
+    }, { capture: true, passive: true });
+
+    const go = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now < shareLockUntil) return; // debounce pointerup+click double fire
+      shareLockUntil = now + 800;
+      openShare(el, shareGame);
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('pointerup', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      go(e);
     });
   });
 }
@@ -111,6 +141,7 @@ function setVisible(id, show) {
 }
 
 export function syncOverlays(game) {
+  shareGame = game;
   const state = game.state;
 
   if (state !== lastState) {
