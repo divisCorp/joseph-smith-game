@@ -389,6 +389,11 @@ html, body {
 html.touch-ui #touch-controls,
 body.touch-ui #touch-controls {
   display: flex;
+  /* Sit in the lower half of the screen */
+  margin-top: auto;
+  margin-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 html.touch-ui #hint,
@@ -396,17 +401,26 @@ body.touch-ui #hint {
   display: none;
 }
 
+html.touch-ui #game-wrap,
+body.touch-ui #game-wrap {
+  height: 100dvh;
+  min-height: 100dvh;
+  justify-content: flex-start;
+  gap: 0;
+}
+
 html.touch-ui #stage,
 body.touch-ui #stage {
-  /* Leave room for thumb controls; landscape-friendly */
-  width: min(96vw, calc((100dvh - 180px) * 256 / 240), 768px);
-  max-height: calc(100dvh - 180px);
+  /* Game stays in the upper half; controls occupy lower half */
+  width: min(96vw, calc(48dvh * 256 / 240), 768px);
+  max-height: 48dvh;
+  margin-top: 8px;
 }
 
 html.touch-ui body,
 body.touch-ui {
   justify-content: flex-start;
-  padding-top: 8px;
+  padding-top: 0;
 }
 
 .touch-start {
@@ -599,8 +613,14 @@ body.touch-ui {
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch-ui #stage,
   body.touch-ui #stage {
-    width: min(70vw, calc((100dvh - 120px) * 256 / 240));
-    max-height: calc(100dvh - 120px);
+    width: min(70vw, calc(52dvh * 256 / 240));
+    max-height: 52dvh;
+  }
+
+  html.touch-ui #touch-controls,
+  body.touch-ui #touch-controls {
+    margin-top: auto;
+    margin-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
   .touch-stick {
