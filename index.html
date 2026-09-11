@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
   <script>
     (function () {
       var touch =
@@ -40,11 +40,11 @@
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
-            <p class="ui-level">Level 1 · Woods Path</p>
+            <p class="ui-level">5 Levels · Palmyra Quest</p>
             <div class="ui-card">
-              <p>Defend the frontier path.</p>
-              <p>Reach the Ringleader.</p>
-              <p class="ui-muted">A family-friendly arcade adventure.</p>
+              <p>A frontier adventure near Palmyra.</p>
+              <p>Clear each path. Face every trial.</p>
+              <p class="ui-muted">Family-friendly arcade campaign.</p>
             </div>
             <button type="button" class="ui-start-btn" data-ui-start aria-label="Start game">Start</button>
             <p class="ui-prompt" data-ui-blink>Tap Start · Enter / Z</p>
@@ -59,13 +59,24 @@
           </div>
         </div>
 
+        <div id="ui-clear" class="ui-screen ui-screen--dim" hidden>
+          <div class="ui-panel ui-panel--wide">
+            <p class="ui-flourish">◆</p>
+            <h2 class="ui-heading ui-heading--gold" data-ui-clear-title>Path Cleared!</h2>
+            <p class="ui-body" data-ui-clear-next>Onward…</p>
+            <p class="ui-score" data-ui-score>Score: 0</p>
+            <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Continue to next level">Continue</button>
+            <p class="ui-prompt" data-ui-blink>Tap · Enter / Z — Next</p>
+          </div>
+        </div>
+
         <div id="ui-win" class="ui-screen ui-screen--dim" hidden>
           <div class="ui-panel ui-panel--wide">
             <p class="ui-flourish">◆</p>
-            <h2 class="ui-heading ui-heading--gold">Path Cleared!</h2>
-            <p class="ui-body">Joseph stood firm.</p>
+            <h2 class="ui-heading ui-heading--gold">Quest Complete!</h2>
+            <p class="ui-body">Joseph stood firm through every trial.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
-            <p class="ui-muted">Level 2 coming someday…</p>
+            <p class="ui-muted">Temple Hill cleared. Well done.</p>
             <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Continue</button>
             <p class="ui-prompt" data-ui-blink>Tap · Enter / Z — Title</p>
           </div>
@@ -99,6 +110,6 @@
 
     <p id="hint">Arrows / WASD move · Space / Z attack · Enter start · On phones: on-screen buttons</p>
   </div>
-  <script type="module" src="js/main.js?v=7"></script>
+  <script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>

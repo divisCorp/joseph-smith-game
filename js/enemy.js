@@ -1,7 +1,12 @@
 import { GRAVITY, MAX_FALL, FRICTION } from './constants.js';
-import { drawBrigand, drawWolf, drawBoss } from './sprites.js';
+import { drawBrigand, drawWolf, drawBoss, drawScout, drawThug } from './sprites.js';
 import { aabb } from './player.js';
 
+/**
+ * Enemy factory.
+ * types: brigand | wolf | scout | thug | boss
+ * opts.bossKind: ringleader | sentinel | captain | warden | overseer
+ */
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
     type,
@@ -27,6 +32,8 @@ export function createEnemy(type, x, y, opts = {}) {
     attackCd: 0,
     aiPhase: 0,
     aiTimer: 0,
+    bossKind: opts.bossKind || 'ringleader',
+    title: opts.title || '',
   };
 
   if (type === 'wolf') {
@@ -35,15 +42,52 @@ export function createEnemy(type, x, y, opts = {}) {
     base.h = 24;
     base.score = 150;
   }
+  if (type === 'scout') {
+    // Grove scout — quicker, lighter
+    base.hp = base.maxHp = 2;
+    base.speed = 0.75;
+    base.score = 120;
+  }
+  if (type === 'thug') {
+    // Village thug — tankier, slower
+    base.hp = base.maxHp = 3;
+    base.speed = 0.48;
+    base.score = 140;
+    base.damage = 1;
+  }
   if (type === 'boss') {
-    base.hp = base.maxHp = 12;
+    const kind = base.bossKind;
     base.w = 32;
     base.h = 48;
-    base.speed = 0.7;
-    base.damage = 2;
-    base.score = 1000;
     base.patrolMin = opts.patrolMin ?? x - 80;
     base.patrolMax = opts.patrolMax ?? x + 80;
+    if (kind === 'ringleader') {
+      base.hp = base.maxHp = 12;
+      base.speed = 0.7;
+      base.damage = 2;
+      base.score = 1000;
+    } else if (kind === 'sentinel') {
+      base.hp = base.maxHp = 14;
+      base.speed = 0.72;
+      base.damage = 2;
+      base.score = 1200;
+    } else if (kind === 'captain') {
+      base.hp = base.maxHp = 15;
+      base.speed = 0.78;
+      base.damage = 2;
+      base.score = 1400;
+    } else if (kind === 'warden') {
+      base.hp = base.maxHp = 16;
+      base.speed = 0.8;
+      base.damage = 2;
+      base.score = 1600;
+    } else if (kind === 'overseer') {
+      // Final boss — hardest
+      base.hp = base.maxHp = 20;
+      base.speed = 0.85;
+      base.damage = 2;
+      base.score = 2500;
+    }
   }
   return base;
 }
@@ -60,16 +104,15 @@ export function updateEnemy(e, solids, player, dt) {
   if (e.hurtFlash > 0) e.hurtFlash -= dt;
   if (e.attackCd > 0) e.attackCd -= dt;
 
-  // simple AI
   if (e.type === 'boss') {
     updateBossAI(e, player, dt);
   } else {
-    // patrol / chase if near
     const dx = player.x - e.x;
     const near = Math.abs(dx) < 100 && Math.abs(player.y - e.y) < 48;
+    const chaseMul = e.type === 'wolf' ? 1.3 : e.type === 'scout' ? 1.25 : 1.1;
     if (near && player.alive) {
       e.facing = dx > 0 ? 1 : -1;
-      e.vx = e.facing * e.speed * (e.type === 'wolf' ? 1.3 : 1.1);
+      e.vx = e.facing * e.speed * chaseMul;
     } else {
       if (e.x < e.patrolMin) e.facing = 1;
       if (e.x > e.patrolMax) e.facing = -1;
@@ -101,39 +144,41 @@ function updateBossAI(e, player, dt) {
   e.aiTimer += dt;
   const dx = player.x - e.x;
 
-  // phase by HP
   const enraged = e.hp <= e.maxHp / 2;
-  const spd = e.speed * (enraged ? 1.6 : 1);
+  let spd = e.speed * (enraged ? 1.6 : 1);
+  // Overseer enrages harder
+  if (e.bossKind === 'overseer' && enraged) spd = e.speed * 1.85;
+
+  const chaseT = e.bossKind === 'overseer' ? 70 : 90;
+  const leapT = e.bossKind === 'warden' || e.bossKind === 'overseer' ? 45 : 50;
+  const pauseT = e.bossKind === 'captain' ? 32 : 40;
+  const leapVy = e.bossKind === 'sentinel' ? -5.8 : e.bossKind === 'overseer' ? -6.0 : -5.5;
 
   if (e.aiPhase === 0) {
-    // chase
     e.facing = dx > 0 ? 1 : -1;
     e.vx = e.facing * spd;
-    if (e.aiTimer > 90) {
+    if (e.aiTimer > chaseT) {
       e.aiTimer = 0;
       e.aiPhase = 1;
     }
   } else if (e.aiPhase === 1) {
-    // leap toward player
     if (e.onGround && e.aiTimer < 5) {
-      e.vy = -5.5;
+      e.vy = leapVy;
       e.vx = e.facing * spd * 1.8;
     }
     e.facing = dx > 0 ? 1 : -1;
-    if (e.aiTimer > 50) {
+    if (e.aiTimer > leapT) {
       e.aiTimer = 0;
       e.aiPhase = 2;
     }
   } else {
-    // pause / telegraph
     e.vx *= FRICTION;
-    if (e.aiTimer > 40) {
+    if (e.aiTimer > pauseT) {
       e.aiTimer = 0;
       e.aiPhase = 0;
     }
   }
 
-  // clamp to arena
   if (e.x < e.patrolMin) { e.x = e.patrolMin; e.facing = 1; }
   if (e.x > e.patrolMax) { e.x = e.patrolMax; e.facing = -1; }
 }
@@ -178,6 +223,8 @@ export function drawEnemy(ctx, e, camX) {
   const flash = e.hurtFlash > 0;
   const dx = e.x - camX;
   if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
+  else if (e.type === 'scout') drawScout(ctx, dx, e.y, e.facing, e.anim, flash);
+  else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
-  else if (e.type === 'boss') drawBoss(ctx, dx, e.y, e.facing, e.anim, flash);
+  else if (e.type === 'boss') drawBoss(ctx, dx, e.y, e.facing, e.anim, flash, e.bossKind);
 }

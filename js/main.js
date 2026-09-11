@@ -29,7 +29,8 @@ canvas.addEventListener('pointerdown', (e) => {
   if (
     game.state !== STATES.TITLE &&
     game.state !== STATES.WIN &&
-    game.state !== STATES.LOSE
+    game.state !== STATES.LOSE &&
+    game.state !== STATES.CLEAR
   ) {
     return;
   }

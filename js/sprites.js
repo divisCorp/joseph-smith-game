@@ -344,6 +344,40 @@ export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
   drawRect(ctx, dx, oy + 22, 2, 4, '#8a8a9a');
 }
 
+/** Grove scout — green-brown coat, same silhouette */
+export function drawScout(ctx, x, y, facing, frame, flash = false) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  ctx.fillStyle = COLORS.shadow;
+  ctx.fillRect(ox + 3, oy + 30, 10, 2);
+
+  const pal = flash
+    ? { ...P_BRIGAND, C: '#a07040', D: '#806028', B: '#2a5a2a', T: '#2a3a20' }
+    : { ...P_BRIGAND, C: '#3a4a28', D: '#2a3818', B: '#2a5a28', T: '#2a3a1a', S: '#6a7a58' };
+  const rows = frame % 2 === 0 ? BRIGAND_A : BRIGAND_B;
+  drawPixels(ctx, ox + 1, oy + 1, rows, pal, facing < 0);
+  const dx = facing > 0 ? ox + 13 : ox + 1;
+  drawRect(ctx, dx, oy + 22, 2, 4, '#6a8a5a');
+}
+
+/** Village thug — darker coat, red sash */
+export function drawThug(ctx, x, y, facing, frame, flash = false) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  ctx.fillStyle = COLORS.shadow;
+  ctx.fillRect(ox + 3, oy + 30, 10, 2);
+
+  const pal = flash
+    ? { ...P_BRIGAND, C: '#a04050', D: '#802030', B: '#c04040' }
+    : { ...P_BRIGAND, C: '#2a2030', D: '#1a1020', B: '#8b2028', T: '#1a1a22', S: '#5a4858' };
+  const rows = frame % 2 === 0 ? BRIGAND_A : BRIGAND_B;
+  drawPixels(ctx, ox + 1, oy + 1, rows, pal, facing < 0);
+  const dx = facing > 0 ? ox + 13 : ox + 1;
+  drawRect(ctx, dx, oy + 22, 2, 4, '#c0a060');
+  // sash stripe
+  drawRect(ctx, ox + 4, oy + 18, 8, 2, flash ? '#ff8080' : '#a02828');
+}
+
 // ── Wolf (20×20 drawn into 16×32 slot with y offset) ──────
 const WOLF_A = [
   '..............',
@@ -493,16 +527,69 @@ const BOSS_WALK = [
   '...BBBB..........BBBB...',
 ];
 
-export function drawBoss(ctx, x, y, facing, frame, flash) {
+const BOSS_PALETTES = {
+  ringleader: P_BOSS,
+  sentinel: {
+    ...P_BOSS,
+    H: '#0a1810',
+    C: '#1a3020',
+    D: '#0e2014',
+    M: '#2a4030',
+    P: '#1a4028',
+    Q: '#2a5838',
+    T: '#142018',
+    B: '#081208',
+    G: '#6a8b4b',
+  },
+  captain: {
+    ...P_BOSS,
+    H: '#1a1018',
+    C: '#3a2030',
+    D: '#281018',
+    M: '#4a3040',
+    P: '#5a1830',
+    Q: '#7a2840',
+    T: '#201018',
+    B: '#100808',
+    G: '#c07040',
+  },
+  warden: {
+    ...P_BOSS,
+    H: '#081018',
+    C: '#1a2840',
+    D: '#101828',
+    M: '#2a3850',
+    P: '#183048',
+    Q: '#285070',
+    T: '#101828',
+    B: '#080c14',
+    G: '#6a90b0',
+  },
+  overseer: {
+    ...P_BOSS,
+    H: '#080810',
+    C: '#201028',
+    D: '#140818',
+    M: '#302038',
+    P: '#401020',
+    Q: '#602030',
+    T: '#100818',
+    B: '#08040c',
+    G: '#d4a84b',
+    S: '#e8d0b0',
+  },
+};
+
+export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader') {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   ctx.fillStyle = COLORS.shadow;
   ctx.fillRect(ox + 6, oy + 46, 20, 3);
 
-  let pal = P_BOSS;
+  let pal = BOSS_PALETTES[bossKind] || P_BOSS;
   if (flash) {
     pal = {
-      ...P_BOSS,
+      ...pal,
       C: '#c04040',
       D: '#a02828',
       M: '#e05050',
@@ -512,13 +599,18 @@ export function drawBoss(ctx, x, y, facing, frame, flash) {
   }
 
   const rows = frame % 2 === 0 ? BOSS_BODY : BOSS_WALK;
-  // 24-wide art centered in 32px
   drawPixels(ctx, ox + 4, oy + 2, rows, pal, facing < 0);
 
-  // gold buckle (imposing detail)
   const bx = facing > 0 ? ox + 14 : ox + 15;
-  drawRect(ctx, bx, oy + 30, 4, 2, flash ? '#fff0a0' : '#d4a84b');
+  const accent = bossKind === 'warden' ? '#6a90b0' : bossKind === 'sentinel' ? '#6a8b4b' : '#d4a84b';
+  drawRect(ctx, bx, oy + 30, 4, 2, flash ? '#fff0a0' : accent);
   drawRect(ctx, bx + 1, oy + 29, 2, 4, flash ? '#fff0a0' : '#8b6914');
+
+  // Overseer storm spark accents
+  if (bossKind === 'overseer' && !flash) {
+    drawRect(ctx, ox + 8, oy + 12, 2, 2, '#a0c0ff');
+    drawRect(ctx, ox + 22, oy + 16, 2, 2, '#c0e0ff');
+  }
 }
 
 // ── UI hearts ─────────────────────────────────────────────

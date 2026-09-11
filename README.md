@@ -1,6 +1,6 @@
 # Joseph Smith — Palmyra Quest
 
-Family-friendly NES-style side-scroller. Play as Joseph Smith on a frontier path near Palmyra—run, jump, and defend the road from brigands and wild animals, then face the Frontier Ringleader.
+Family-friendly NES-style side-scroller. Play as Joseph Smith on a frontier campaign near Palmyra—run, jump, and defend the road through five themed levels, then face the Storm Overseer on Temple Hill.
 
 Inspired by classic NES action/platformers (e.g. *Teenage Mutant Ninja Turtles*, 1989). Respectful historical-fantasy arcade tone—not parody.
 
@@ -38,13 +38,19 @@ Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 - Thumb-sized semi-transparent buttons sit under the canvas so they don’t cover the HUD.
 - Relative asset paths keep GitHub Pages (`/joseph-smith-game/`) working.
 
-## Goal (Level 1 — Palmyra Woods)
+## Campaign (Levels 1–5)
 
-1. Title screen → press **Enter**, **Z**, or tap **START**
-2. Cross the woods path; defeat brigands and wolves
-3. Watch gaps and platforms
-4. Enter the arena and defeat the **Frontier Ringleader**
-5. Win or lose screens → Enter/Z/START returns to title
+Start from the title screen (**Enter**, **Z**, or **START**). Defeat each level’s boss to advance; after Level 5 you get the win screen.
+
+| Level | Name | Theme | Boss |
+|-------|------|-------|------|
+| 1 | **Palmyra Woods** (Woods Path) | Dawn forest path, gaps & platforms | Frontier Ringleader |
+| 2 | **Sacred Grove** (Hill Path) | Night woods, denser trees, scouts & wolves | Grove Sentinel |
+| 3 | **Palmyra Streets** (Village) | Buildings, rooftop platforms, thugs | Street Captain |
+| 4 | **River Crossing** (Bridges) | Water hazards, bridge jumps | River Warden |
+| 5 | **Temple Hill** (Final Trial) | Stormy ascent, hardest foes | Storm Overseer |
+
+**Progression:** clear a boss (levels 1–4) → brief “path cleared” overlay → Continue / auto-advance to the next level (score carries). Clear Level 5 → **Quest Complete!** Lose / win → return to title and start again from Level 1.
 
 ## Project layout
 
@@ -53,17 +59,16 @@ index.html          Entry page (256×240 canvas, CSS-scaled)
 css/style.css       Pixel scaling + page chrome + touch UI
 js/
   main.js           Loop bootstrap + virtual controls init
-  game.js           State machine, HUD, win/lose
+  game.js           State machine, campaign progression, HUD
   player.js         Joseph movement, jump, melee, health
-  enemy.js          Brigands, wolves, boss AI
-  level.js          Level 1 map + createLevel2() stub
+  enemy.js          Brigands, scouts, thugs, wolves, bosses
+  level.js          Levels 1–5 maps, themes, decor
   input.js          Keyboard + virtual touch mapping
   sprites.js        Hand-drawn-style pixel sprites (maps + poses)
-  constants.js      Resolution & shared constants
+  constants.js      Resolution, states, level metadata
+  ui.js             HTML overlay menus (title / clear / win / lose)
 assets/             Optional sprite sheets (game uses canvas pixel art)
 ```
-
-Level 2 can plug in via `createLevel2()` in `js/level.js` and a level select / progression hook in `game.js`.
 
 ## Tech
 
@@ -71,12 +76,12 @@ Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal 
 
 ## Art
 
-Visuals upgraded from flat colored rectangles to richer hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/attack poses, distinct brigand/wolf/boss silhouettes, grass/dirt tiles, layered Palmyra woods background, cabin/fence accents, and clearer HUD hearts / title flourishes. Assets stay compact for phones.
-
+Visuals use hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/attack poses, brigand/scout/thug/wolf and themed boss palettes, grass/dirt/water tiles, themed parallax backgrounds (woods, grove night, village, river mist, storm), cabin/buildings/fence accents, and clearer HUD hearts. Assets stay compact for phones.
 
 ## Changelog notes
 
-- **Soft-lock fix (Palmyra Woods):** The boss-arena entrance used a full-height solid timber column (“the pole”) that was taller than Joseph’s jump, blocking progress. Entrance posts are decorative/non-solid now; the far arena wall remains. Path from spawn to the Frontier Ringleader is clear.
+- **Soft-lock fix (Palmyra Woods):** The boss-arena entrance used a full-height solid timber column (“the pole”) that was taller than Joseph’s jump, blocking progress. Entrance posts are decorative/non-solid now; the far arena wall remains.
+- **Campaign (v8):** Levels 2–5 added with unique layouts, enemy mixes, bosses, level-clear transitions, and win screen after Temple Hill.
 
 ## License / credit
 
