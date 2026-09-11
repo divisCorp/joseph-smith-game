@@ -344,8 +344,8 @@ body.touch-ui #hint {
 html.touch-ui #stage,
 body.touch-ui #stage {
   /* Leave room for thumb controls; landscape-friendly */
-  width: min(96vw, calc((100dvh - 150px) * 256 / 240), 768px);
-  max-height: calc(100dvh - 150px);
+  width: min(96vw, calc((100dvh - 180px) * 256 / 240), 768px);
+  max-height: calc(100dvh - 180px);
 }
 
 html.touch-ui body,
@@ -380,6 +380,109 @@ body.touch-ui {
   display: flex;
   gap: 12px;
   pointer-events: auto;
+  align-items: flex-end;
+}
+
+/* Circular virtual stick / D-pad (left thumb) */
+.touch-stick {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.touch-stick-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(212, 168, 75, 0.7);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(40, 32, 22, 0.35) 0%, rgba(12, 10, 8, 0.72) 70%),
+    rgba(16, 12, 10, 0.55);
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.touch-stick-cross {
+  position: absolute;
+  background: rgba(212, 168, 75, 0.22);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.touch-stick-cross--h {
+  left: 18%;
+  right: 18%;
+  top: 50%;
+  height: 18px;
+  transform: translateY(-50%);
+}
+
+.touch-stick-cross--v {
+  top: 18%;
+  bottom: 18%;
+  left: 50%;
+  width: 18px;
+  transform: translateX(-50%);
+}
+
+.touch-stick-hint {
+  position: absolute;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(240, 230, 208, 0.55);
+  pointer-events: none;
+  font-weight: 700;
+}
+
+.touch-stick-hint--u { top: 10px; left: 50%; transform: translateX(-50%); }
+.touch-stick-hint--d { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.touch-stick-hint--l { left: 12px; top: 50%; transform: translateY(-50%); }
+.touch-stick-hint--r { right: 12px; top: 50%; transform: translateY(-50%); }
+
+.touch-stick.dir-up .touch-stick-hint--u,
+.touch-stick.dir-down .touch-stick-hint--d,
+.touch-stick.dir-left .touch-stick-hint--l,
+.touch-stick.dir-right .touch-stick-hint--r {
+  color: #ffd878;
+  text-shadow: 0 0 8px rgba(255, 216, 120, 0.55);
+}
+
+.touch-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(240, 208, 120, 0.85);
+  background: linear-gradient(160deg, rgba(80, 64, 40, 0.95) 0%, rgba(28, 22, 14, 0.95) 100%);
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 240, 200, 0.25);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.touch-stick.is-active .touch-stick-base {
+  border-color: #d4a84b;
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.45),
+    0 0 14px rgba(212, 168, 75, 0.35),
+    0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.touch-stick.is-active .touch-stick-knob {
+  background: linear-gradient(160deg, rgba(212, 168, 75, 0.85) 0%, rgba(90, 64, 28, 0.95) 100%);
+  border-color: #ffe08a;
 }
 
 .touch-btn {
@@ -413,17 +516,12 @@ body.touch-ui {
   transform: scale(0.96);
 }
 
-
-.touch-crouch {
-  background: rgba(90, 120, 180, 0.4);
-  border-color: rgba(120, 150, 210, 0.75);
-  font-size: 26px;
-  border-radius: 16px;
-}
-
 .touch-jump {
   background: rgba(64, 160, 96, 0.4);
   border-color: rgba(64, 160, 96, 0.75);
+  width: 58px;
+  height: 58px;
+  font-size: 20px;
 }
 
 .touch-attack {
@@ -441,14 +539,30 @@ body.touch-ui {
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch-ui #stage,
   body.touch-ui #stage {
-    width: min(70vw, calc((100dvh - 100px) * 256 / 240));
-    max-height: calc(100dvh - 100px);
+    width: min(70vw, calc((100dvh - 120px) * 256 / 240));
+    max-height: calc(100dvh - 120px);
+  }
+
+  .touch-stick {
+    width: 104px;
+    height: 104px;
+  }
+
+  .touch-stick-knob {
+    width: 42px;
+    height: 42px;
   }
 
   .touch-btn {
     width: 52px;
     height: 52px;
     font-size: 18px;
+  }
+
+  .touch-jump {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
   }
 
   .touch-start {
@@ -483,8 +597,23 @@ body.touch-ui {
 @media (max-width: 480px) {
   #hint { font-size: 10px; padding: 0 8px; }
 
+  .touch-stick {
+    width: 140px;
+    height: 140px;
+  }
+
+  .touch-stick-knob {
+    width: 58px;
+    height: 58px;
+  }
+
   .touch-btn {
     width: 70px;
     height: 70px;
+  }
+
+  .touch-jump {
+    width: 62px;
+    height: 62px;
   }
 }

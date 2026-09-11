@@ -24,9 +24,9 @@ Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 
 | Action | Keys | Touch (phones) |
 |--------|------|----------------|
-| Move | ← → / A D | ◀ ▶ buttons |
-| Duck / crouch (hold) | ↓ / S | **↓** button |
-| Jump | ↑ / W (release duck first) | **A** button |
+| Move | ← → / A D | **Virtual stick** left / right |
+| Duck / crouch (hold) | ↓ / S | **Virtual stick** down |
+| Jump | ↑ / W (release duck first) | **Virtual stick** up · or **A** |
 | Fling gold plates | Space / Z | **B** button |
 | Start / confirm | Enter (or Z on title) | **START** |
 | Pause | P | START (resume) |
@@ -34,9 +34,11 @@ Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 ### Mobile notes
 
 - On-screen controls appear whenever the device has touch (`maxTouchPoints` / `ontouchstart`) or a coarse/narrow viewport—including iPhone Safari desktop-site mode; keyboard still works.
+- **Virtual D-pad / stick (left thumb):** circular base + movable knob. Drag maps to left / right / up (jump) / down (crouch) with a small dead zone; diagonals can hold two directions. Holding keeps the action down; release clears directions.
+- Separate ◀ ▶ and ↓ duck buttons were removed; **A** remains a secondary jump for muscle memory; **B** stays gold-plate attack.
 - Canvas scales to fit the viewport (portrait or landscape); landscape leaves more play area.
 - Touch scrolling and pinch-zoom are blocked on the game area (`touch-action: none` + `preventDefault`).
-- Thumb-sized semi-transparent buttons sit under the canvas so they don’t cover the HUD.
+- Thumb-sized semi-transparent controls sit under the canvas so they don’t cover the HUD.
 - Relative asset paths keep GitHub Pages (`/joseph-smith-game/`) working.
 
 ## Campaign (Levels 1–5)
@@ -65,7 +67,7 @@ js/
   projectiles.js    Gold-plate projectiles (flight, despawn)
   enemy.js          Brigands, scouts, thugs, wolves, bosses
   level.js          Levels 1–5 maps, themes, decor
-  input.js          Keyboard + virtual touch mapping
+  input.js          Keyboard + virtual stick / touch mapping
   sprites.js        Hand-drawn-style pixel sprites (maps + poses)
   constants.js      Resolution, states, level metadata
   ui.js             HTML overlay menus (title / clear / win / lose)
@@ -85,6 +87,7 @@ Visuals use hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph
 - **Soft-lock fix (Palmyra Woods):** The boss-arena entrance used a full-height solid timber column (“the pole”) that was taller than Joseph’s jump, blocking progress. Entrance posts are decorative/non-solid now; the far arena wall remains.
 - **Campaign (v8):** Levels 2–5 added with unique layouts, enemy mixes, bosses, level-clear transitions, and win screen after Temple Hill.
 - **Crouch (v10):** Hold ↓ / S (or touch **↓**) on the ground to duck — shorter hurtbox, slow crawl, release duck to jump; crouch sprite pose.
+- **Virtual stick (v11):** Mobile direction uses a circular D-pad / virtual stick (L/R/U/D); stick-up jumps, stick-down crouches; **A** kept as secondary jump; **B** attack unchanged.
 
 ## License / credit
 
