@@ -413,6 +413,14 @@ body.touch-ui {
   transform: scale(0.96);
 }
 
+
+.touch-crouch {
+  background: rgba(90, 120, 180, 0.4);
+  border-color: rgba(120, 150, 210, 0.75);
+  font-size: 26px;
+  border-radius: 16px;
+}
+
 .touch-jump {
   background: rgba(64, 160, 96, 0.4);
   border-color: rgba(64, 160, 96, 0.75);

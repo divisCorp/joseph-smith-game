@@ -8,6 +8,12 @@ import {
   PLATE_H,
 } from './projectiles.js';
 
+export const STAND_H = 32;
+export const CROUCH_H = 20;
+const STAND_SPEED = 1.55;
+const CROUCH_SPEED = 0.55;
+const JUMP_V = -6.2;
+
 export function createPlayer(spawnX, spawnY) {
   return {
     x: spawnX,
@@ -15,9 +21,10 @@ export function createPlayer(spawnX, spawnY) {
     vx: 0,
     vy: 0,
     w: 16,
-    h: 32,
+    h: STAND_H,
     facing: 1,
     onGround: false,
+    crouching: false,
     hp: 5,
     maxHp: 5,
     invuln: 0,
@@ -32,6 +39,10 @@ export function createPlayer(spawnX, spawnY) {
 }
 
 export function playerHitbox(p) {
+  // Shorter hurtbox while crouched (duck under low hazards)
+  if (p.crouching) {
+    return { x: p.x + 2, y: p.y + 2, w: p.w - 4, h: p.h - 2 };
+  }
   return { x: p.x + 2, y: p.y + 2, w: p.w - 4, h: p.h - 2 };
 }
 
@@ -43,11 +54,45 @@ export function playerAttackBox(_p) {
   return null;
 }
 
+function tryStand(p, solids) {
+  if (!p.crouching) return;
+  const rise = STAND_H - CROUCH_H;
+  const probe = {
+    x: p.x + 2,
+    y: p.y - rise + 2,
+    w: p.w - 4,
+    h: STAND_H - 2,
+  };
+  for (const s of solids) {
+    if (aabb(probe, s)) return; // blocked — stay crouched
+  }
+  p.y -= rise;
+  p.h = STAND_H;
+  p.crouching = false;
+}
+
 export function updatePlayer(p, solids, dt) {
   if (!p.alive) return;
 
-  const speed = 1.55;
-  const jump = -6.2;
+  const wantCrouch = isDown('down') && p.onGround;
+
+  if (wantCrouch && !p.crouching) {
+    const drop = STAND_H - CROUCH_H;
+    p.y += drop;
+    p.h = CROUCH_H;
+    p.crouching = true;
+  } else if (!wantCrouch && p.crouching) {
+    tryStand(p, solids);
+  }
+
+  // Airborne always stands (crouch is ground-only); expand upward
+  if (!p.onGround && p.crouching) {
+    p.y -= STAND_H - CROUCH_H;
+    p.h = STAND_H;
+    p.crouching = false;
+  }
+
+  const speed = p.crouching ? CROUCH_SPEED : STAND_SPEED;
 
   if (isDown('left')) {
     p.vx = -speed;
@@ -60,8 +105,9 @@ export function updatePlayer(p, solids, dt) {
     if (Math.abs(p.vx) < 0.05) p.vx = 0;
   }
 
-  if (isDown('up') && p.onGround) {
-    p.vy = jump;
+  // Prefer clear feel: release crouch to jump (no jump while crouched)
+  if (isDown('up') && p.onGround && !p.crouching) {
+    p.vy = JUMP_V;
     p.onGround = false;
   }
 
@@ -73,7 +119,8 @@ export function updatePlayer(p, solids, dt) {
     p.attackCooldown = PLATE_COOLDOWN;
     // Spawn engraved gold plate slightly ahead at chest height
     const px = p.facing > 0 ? p.x + p.w - 2 : p.x - 10;
-    const py = p.y + 12 - Math.floor(PLATE_H / 2);
+    const chest = p.crouching ? 8 : 12;
+    const py = p.y + chest - Math.floor(PLATE_H / 2);
     p.plates.push(createPlate(px, py, p.facing));
   }
 
@@ -122,6 +169,7 @@ function resolve(p, solids, horizontal) {
         p.vy = 0;
       }
       box.y = p.y + 2;
+      box.h = p.h - 2;
     }
   }
 }
@@ -141,7 +189,18 @@ export function hurtPlayer(p, dmg = 1) {
 export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
-  drawJoseph(ctx, p.x - camX, p.y, p.facing, p.anim, p.attackTimer > 0, !p.onGround);
+  // Draw crouched sprite bottom-aligned in the standing slot
+  const drawY = p.crouching ? p.y - (STAND_H - CROUCH_H) : p.y;
+  drawJoseph(
+    ctx,
+    p.x - camX,
+    drawY,
+    p.facing,
+    p.anim,
+    p.attackTimer > 0,
+    !p.onGround,
+    p.crouching
+  );
 }
 
 function aabb(a, b) {

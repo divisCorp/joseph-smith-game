@@ -235,29 +235,60 @@ const JOSEPH_ATTACK = [
   '..BBBB..BBBB..',
 ];
 
-/** Joseph Smith — coat, face, walk / jump / throw (gold-plate) poses */
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false) {
+
+const JOSEPH_CROUCH = [
+  // Compressed / ducked — coat scrunched, knees bent (18 rows, drawn lower)
+  '....HHHHHH....',
+  '...HHHHHHHH...',
+  '...HHFFFFFFH..',
+  '...HFFFEFFF...',
+  '...HFFFFFFR...',
+  '....FFFFFF....',
+  '...NNNSSSNNN..',
+  '..NNDNSSSNDN..',
+  '..NNDNSSSNDN..',
+  '..NNNDSSDNNN..',
+  '..NNNNNNNNNN..',
+  '..NNTTTTTTNN..',
+  '...TTTTTTTT...',
+  '...TTT..TTT...',
+  '...TTT..TTT...',
+  '...BBB..BBB...',
+  '...BBB..BBB...',
+  '..BBBB..BBBB..',
+];
+
+/** Joseph Smith — coat, face, walk / jump / crouch / throw (gold-plate) poses */
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
 
-  // soft shadow
+  // soft shadow (feet stay at oy+30 whether standing or crouched draw offset)
   ctx.fillStyle = COLORS.shadow;
   ctx.fillRect(ox + 3, oy + 30, 10, 2);
 
   let rows = JOSEPH_IDLE;
-  if (attacking) rows = JOSEPH_ATTACK;
+  let rowOy = oy + 1;
+  if (crouching && !jumping) {
+    rows = JOSEPH_CROUCH;
+    // 18-row map: pin feet to same baseline as 30-row standing maps (oy+30)
+    rowOy = oy + 1 + (30 - rows.length);
+  } else if (attacking) rows = JOSEPH_ATTACK;
   else if (jumping) rows = JOSEPH_JUMP;
   else if (frame % 2 === 1) rows = JOSEPH_WALK;
 
   // maps are 14 wide; center in 16px slot
-  drawPixels(ctx, ox + 1, oy + 1, rows, P_JOSEPH, flip);
+  drawPixels(ctx, ox + 1, rowOy, rows, P_JOSEPH, flip);
 
   // coat button highlights (readable silhouette)
-  if (!attacking) {
+  if (!attacking && !crouching) {
     const bx = flip ? ox + 6 : ox + 9;
     drawRect(ctx, bx, oy + 12, 1, 1, '#d4a84b');
     drawRect(ctx, bx, oy + 15, 1, 1, '#d4a84b');
+  } else if (crouching && !attacking) {
+    const bx = flip ? ox + 6 : ox + 9;
+    drawRect(ctx, bx, rowOy + 8, 1, 1, '#d4a84b');
   }
 }
 

@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=9" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
   <script>
     (function () {
       var touch =
@@ -48,7 +48,7 @@
             </div>
             <button type="button" class="ui-start-btn" data-ui-start aria-label="Start game">Start</button>
             <p class="ui-prompt" data-ui-blink>Tap Start · Enter / Z</p>
-            <p class="ui-footer">Arrows / WASD · Space / Z · touch</p>
+            <p class="ui-footer">Arrows / WASD · ↓ / S duck · Space / Z · touch</p>
           </div>
         </div>
 
@@ -102,14 +102,15 @@
           <button type="button" class="touch-btn" data-action="right" aria-label="Right">▶</button>
         </div>
         <div class="touch-cluster touch-actions" aria-label="Actions">
+          <button type="button" class="touch-btn touch-crouch" data-action="down" aria-label="Duck">↓</button>
           <button type="button" class="touch-btn touch-jump" data-action="up" aria-label="Jump">A</button>
           <button type="button" class="touch-btn touch-attack" data-action="attack" aria-label="Attack">B</button>
         </div>
       </div>
     </div>
 
-    <p id="hint">Arrows / WASD move · Space / Z fling gold plates · Enter start · On phones: on-screen buttons</p>
+    <p id="hint">Arrows / WASD move · ↓ / S duck · Space / Z fling gold plates · Enter start · On phones: on-screen buttons</p>
   </div>
-  <script type="module" src="js/main.js?v=9"></script>
+  <script type="module" src="js/main.js?v=10"></script>
 </body>
 </html>

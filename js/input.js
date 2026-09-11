@@ -1,4 +1,4 @@
-/** Keyboard + virtual (touch) input — arrows/WASD + Space/Z attack, Enter start */
+/** Keyboard + virtual (touch) input — arrows/WASD + ↓/S crouch, Space/Z attack, Enter start */
 const keys = Object.create(null);
 
 const map = {
