@@ -41,8 +41,8 @@ const P_JOSEPH = {
   S: '#e8dcc8', // shirt
   B: '#3a2818', // boot
   T: '#3a4568', // trousers (visible vs grass)
-  G: '#8b6914', // staff / gold
-  L: '#c4a060', // staff light
+  G: '#8b6914', // gold plate / trim
+  L: '#c4a060', // plate highlight
   R: '#c07050', // lip / cheek
   W: '#f0e8d8', // highlight
 };
@@ -202,6 +202,7 @@ const JOSEPH_JUMP = [
 ];
 
 const JOSEPH_ATTACK = [
+  // Throwing pose — arm extended, releasing an engraved gold plate
   '....HHHHHH....',
   '...HHHHHHHH...',
   '...HHFFFFFFH..',
@@ -210,11 +211,11 @@ const JOSEPH_ATTACK = [
   '....FFFFFF....',
   '...NNNSSSNNN..',
   '..NNDNSSSNDN..',
-  '..NNDNSSSNDNFF',
-  '..NNDNSSSN.LG.',
-  '..NNDNSSD.LG..',
-  '..NNNDSS.LG...',
-  '..NNNNNNNG....',
+  '..NNDNSSSNFFF.',
+  '..NNDNSSS.FF..',
+  '..NNDNSSD.GLG.',
+  '..NNNDSS.GLGLG',
+  '..NNNNNN.GLG..',
   '..NNSSSSSSNN..',
   '..NNTTTTTTNN..',
   '..NNTTTTTTNN..',
@@ -234,7 +235,7 @@ const JOSEPH_ATTACK = [
   '..BBBB..BBBB..',
 ];
 
-/** Joseph Smith — coat, face, walk / jump / attack poses */
+/** Joseph Smith — coat, face, walk / jump / throw (gold-plate) poses */
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
@@ -258,6 +259,35 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false)
     drawRect(ctx, bx, oy + 12, 1, 1, '#d4a84b');
     drawRect(ctx, bx, oy + 15, 1, 1, '#d4a84b');
   }
+}
+
+// ── Gold plate projectile (10×7 engraved sheet) ───────────
+const P_PLATE = {
+  K: '#5a4010', // rim / outline
+  G: '#d4a84b', // gold face
+  L: '#f0d878', // highlight
+  D: '#8b6914', // engraved line / shadow
+  E: '#c4983a', // mid engraving
+};
+
+const GOLD_PLATE = [
+  '.KKKKKKKK.',
+  'KGGLGLGGLK',
+  'KGEGEGEGEK',
+  'KGGLGLGGLK',
+  'KDEDEDEDEK',
+  'KLLLLLLLLK',
+  '.KKKKKKKK.',
+];
+
+/** Small engraved golden plate / metal sheet flying as a projectile */
+export function drawGoldPlate(ctx, x, y, facing = 1) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  drawPixels(ctx, ox, oy, GOLD_PLATE, P_PLATE, facing < 0);
+  // subtle leading edge gleam
+  const gx = facing > 0 ? ox + 8 : ox + 1;
+  drawRect(ctx, gx, oy + 2, 1, 3, 'rgba(255,245,200,0.55)');
 }
 
 // ── Brigand (16×32) ───────────────────────────────────────

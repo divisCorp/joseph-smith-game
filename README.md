@@ -26,7 +26,7 @@ Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 |--------|------|----------------|
 | Move | ← → / A D | ◀ ▶ buttons |
 | Jump | ↑ / W | **A** button |
-| Melee attack | Space / Z | **B** button |
+| Fling gold plates | Space / Z | **B** button |
 | Start / confirm | Enter (or Z on title) | **START** |
 | Pause | P | START (resume) |
 
@@ -60,7 +60,8 @@ css/style.css       Pixel scaling + page chrome + touch UI
 js/
   main.js           Loop bootstrap + virtual controls init
   game.js           State machine, campaign progression, HUD
-  player.js         Joseph movement, jump, melee, health
+  player.js         Joseph movement, jump, gold-plate attack, health
+  projectiles.js    Gold-plate projectiles (flight, despawn)
   enemy.js          Brigands, scouts, thugs, wolves, bosses
   level.js          Levels 1–5 maps, themes, decor
   input.js          Keyboard + virtual touch mapping
@@ -76,7 +77,7 @@ Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal 
 
 ## Art
 
-Visuals use hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/attack poses, brigand/scout/thug/wolf and themed boss palettes, grass/dirt/water tiles, themed parallax backgrounds (woods, grove night, village, river mist, storm), cabin/buildings/fence accents, and clearer HUD hearts. Assets stay compact for phones.
+Visuals use hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/throw poses, engraved **gold-plate** projectiles, brigand/scout/thug/wolf and themed boss palettes, grass/dirt/water tiles, themed parallax backgrounds (woods, grove night, village, river mist, storm), cabin/buildings/fence accents, and clearer HUD hearts. Assets stay compact for phones.
 
 ## Changelog notes
 

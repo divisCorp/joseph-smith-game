@@ -4,13 +4,13 @@ import {
   createPlayer,
   updatePlayer,
   drawPlayer,
-  playerAttackBox,
   playerHitbox,
   hurtPlayer,
   aabb,
 } from './player.js';
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
+import { updatePlates, drawPlates, plateHitbox } from './projectiles.js';
 import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph } from './sprites.js';
 
 export function createGame() {
@@ -129,15 +129,18 @@ function tickPlay(game, dt) {
     }
   }
 
-  const atk = playerAttackBox(player);
-  if (atk && !player.attackHit) {
+  // Gold-plate projectiles: move, then damage enemies/bosses on hit
+  updatePlates(player.plates, dt, game.camX, level.widthPx);
+  for (const plate of player.plates) {
+    if (!plate.alive) continue;
+    const ph = plateHitbox(plate);
     for (const e of level.enemies) {
       if (!e.alive) continue;
-      if (aabb(atk, enemyHitbox(e))) {
-        player.attackHit = true;
-        const killed = hurtEnemy(e, 1);
+      if (aabb(ph, enemyHitbox(e))) {
+        plate.alive = false;
+        const killed = hurtEnemy(e, plate.damage);
         if (killed) game.score += e.score;
-        e.vx = player.facing * 2;
+        e.vx = plate.facing * 2.2;
         e.vy = -2;
         break;
       }
@@ -180,11 +183,7 @@ export function drawGame(ctx, game) {
     drawEnemy(ctx, e, game.camX);
   }
   drawPlayer(ctx, game.player, game.camX);
-
-  const atk = playerAttackBox(game.player);
-  if (atk) {
-    drawRect(ctx, atk.x - game.camX, atk.y, atk.w, atk.h, 'rgba(212,168,75,0.45)');
-  }
+  drawPlates(ctx, game.player.plates, game.camX);
 
   drawHUD(ctx, game);
 

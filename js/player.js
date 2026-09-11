@@ -1,6 +1,12 @@
 import { GRAVITY, FRICTION, MAX_FALL } from './constants.js';
 import { drawJoseph } from './sprites.js';
 import { isDown, justPressed } from './input.js';
+import {
+  createPlate,
+  PLATE_COOLDOWN,
+  THROW_POSE,
+  PLATE_H,
+} from './projectiles.js';
 
 export function createPlayer(spawnX, spawnY) {
   return {
@@ -17,10 +23,11 @@ export function createPlayer(spawnX, spawnY) {
     invuln: 0,
     attackTimer: 0,
     attackCooldown: 0,
-    attackHit: false,
     alive: true,
     anim: 0,
     animT: 0,
+    /** Gold-plate projectiles currently in flight */
+    plates: [],
   };
 }
 
@@ -28,15 +35,12 @@ export function playerHitbox(p) {
   return { x: p.x + 2, y: p.y + 2, w: p.w - 4, h: p.h - 2 };
 }
 
-export function playerAttackBox(p) {
-  if (p.attackTimer <= 0) return null;
-  const reach = 14;
-  return {
-    x: p.facing > 0 ? p.x + p.w - 2 : p.x - reach + 2,
-    y: p.y + 10,
-    w: reach,
-    h: 10,
-  };
+/**
+ * Legacy melee staff box — retained as null so plates are the sole attack.
+ * (Call sites may still import this; always inactive.)
+ */
+export function playerAttackBox(_p) {
+  return null;
 }
 
 export function updatePlayer(p, solids, dt) {
@@ -63,12 +67,14 @@ export function updatePlayer(p, solids, dt) {
 
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
   if (p.attackTimer > 0) p.attackTimer -= dt;
-  else p.attackHit = false;
 
   if (justPressed('attack') && p.attackCooldown <= 0) {
-    p.attackTimer = 12;
-    p.attackCooldown = 18;
-    p.attackHit = false;
+    p.attackTimer = THROW_POSE;
+    p.attackCooldown = PLATE_COOLDOWN;
+    // Spawn engraved gold plate slightly ahead at chest height
+    const px = p.facing > 0 ? p.x + p.w - 2 : p.x - 10;
+    const py = p.y + 12 - Math.floor(PLATE_H / 2);
+    p.plates.push(createPlate(px, py, p.facing));
   }
 
   p.vy += GRAVITY;
