@@ -57,6 +57,10 @@ export function setAction(action, down) {
 }
 
 function prefersTouchUi() {
+  // iPhone Safari "Request Desktop Website" reports a wide viewport + fine pointer,
+  // so coarse/hover/max-width media queries alone miss real touch hardware.
+  if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) return true;
+  if (typeof window !== 'undefined' && 'ontouchstart' in window) return true;
   if (window.matchMedia('(pointer: coarse)').matches) return true;
   if (window.matchMedia('(hover: none)').matches) return true;
   if (window.matchMedia('(max-width: 900px)').matches) return true;

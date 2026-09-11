@@ -32,7 +32,7 @@ Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 
 ### Mobile notes
 
-- On-screen controls appear on touch / coarse-pointer / narrow screens; desktop keyboard still works.
+- On-screen controls appear whenever the device has touch (`maxTouchPoints` / `ontouchstart`) or a coarse/narrow viewport—including iPhone Safari desktop-site mode; keyboard still works.
 - Canvas scales to fit the viewport (portrait or landscape); landscape leaves more play area.
 - Touch scrolling and pinch-zoom are blocked on the game area (`touch-action: none` + `preventDefault`).
 - Thumb-sized semi-transparent buttons sit under the canvas so they don’t cover the HUD.

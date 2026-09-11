@@ -2,9 +2,9 @@
  * Joseph Smith — Palmyra Quest
  * NES-like fixed 256×240 canvas, scaled via CSS.
  */
-import { W, H } from './constants.js';
+import { W, H, STATES } from './constants.js';
 import { createGame, updateGame, drawGame } from './game.js';
-import { initVirtualControls } from './input.js';
+import { initVirtualControls, setAction } from './input.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -13,6 +13,34 @@ ctx.imageSmoothingEnabled = false;
 initVirtualControls();
 
 const game = createGame();
+
+/** Tap/click canvas to start / return to title when menus are up (phones + desktop). */
+let canvasStartHeld = false;
+function releaseCanvasStart() {
+  if (!canvasStartHeld) return;
+  canvasStartHeld = false;
+  setAction('start', false);
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button != null && e.button !== 0) return;
+  if (
+    game.state !== STATES.TITLE &&
+    game.state !== STATES.WIN &&
+    game.state !== STATES.LOSE
+  ) {
+    return;
+  }
+  canvasStartHeld = true;
+  try {
+    canvas.setPointerCapture(e.pointerId);
+  } catch (_) {
+    /* ignore */
+  }
+  setAction('start', true);
+});
+canvas.addEventListener('pointerup', releaseCanvasStart);
+canvas.addEventListener('pointercancel', releaseCanvasStart);
+canvas.addEventListener('lostpointercapture', releaseCanvasStart);
 
 let last = performance.now();
 const STEP = 1000 / 60; // fixed-ish timestep ms
