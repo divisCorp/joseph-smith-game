@@ -383,10 +383,10 @@ function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
   if (img) {
     const row = FOE_ROWS[kind] ?? 0;
     const col = frame % 2;
-    // ~Joseph-sized: sheet cells have padding; draw 48×80 so content ≈ Joseph 72h
-    const dw = 48;
-    const dh = 80;
-    return blitSimple(ctx, img, col * 64, row * 64, 64, 64, ox - Math.floor((dw - 36) / 2), oy, dw, dh, facing < 0, flash);
+    // Same family as Joseph: sheet cells 64×128, draw 36×72 (no squash/stretch)
+    const dw = JOSEPH_DW;
+    const dh = JOSEPH_DH;
+    return blitSimple(ctx, img, col * 64, row * 128, 64, 128, ox, oy, dw, dh, facing < 0, flash);
   }
   return false;
 }
@@ -487,10 +487,10 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const img = SHEETS.wolf;
   if (img) {
     const col = frame % 2;
-    // Similar mass to mid-size Joseph — draw ~64×56 (sheet has top padding)
-    const dw = 64;
-    const dh = 56;
-    blitSimple(ctx, img, col * 64, 0, 64, 64, ox - 4, oy, dw, dh, facing < 0, flash);
+    // Painted wolf sheet 96×64 cells; draw ~56×40 so it sits next to Joseph (36×72)
+    const dw = 56;
+    const dh = 40;
+    blitSimple(ctx, img, col * 96, 0, 96, 64, ox - 4, oy + 4, dw, dh, facing < 0, flash);
     return;
   }
   const bob = frame % 2;
@@ -533,10 +533,10 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   if (img) {
     const row = BOSS_ROWS[bossKind] ?? 0;
     const col = frame % 2;
-    // Larger than Joseph (72) but not enormous — draw 64×96
-    const dw = 64;
+    // Same 1:2 aspect as Joseph (64×128 → 36×72); bosses larger at 48×96 from 80×160 cells
+    const dw = 48;
     const dh = 96;
-    blitSimple(ctx, img, col * 80, row * 96, 80, 96, ox - 4, oy, dw, dh, facing < 0, flash);
+    blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox - 6, oy, dw, dh, facing < 0, flash);
     return;
   }
   const flip = facing < 0;
