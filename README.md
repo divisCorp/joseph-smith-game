@@ -18,38 +18,46 @@ python3 -m http.server 8080
 
 Then open the URL shown (often `http://localhost:3000` or `http://localhost:8080`).
 
-Or open GitHub Pages if enabled for this repo.
+Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
 
 ## Controls
 
-| Action | Keys |
-|--------|------|
-| Move | ← → / A D |
-| Jump | ↑ / W |
-| Melee attack | Space / Z |
-| Start / confirm | Enter (or Z on title) |
-| Pause | P |
+| Action | Keys | Touch (phones) |
+|--------|------|----------------|
+| Move | ← → / A D | ◀ ▶ buttons |
+| Jump | ↑ / W | **A** button |
+| Melee attack | Space / Z | **B** button |
+| Start / confirm | Enter (or Z on title) | **START** |
+| Pause | P | START (resume) |
+
+### Mobile notes
+
+- On-screen controls appear on touch / coarse-pointer / narrow screens; desktop keyboard still works.
+- Canvas scales to fit the viewport (portrait or landscape); landscape leaves more play area.
+- Touch scrolling and pinch-zoom are blocked on the game area (`touch-action: none` + `preventDefault`).
+- Thumb-sized semi-transparent buttons sit under the canvas so they don’t cover the HUD.
+- Relative asset paths keep GitHub Pages (`/joseph-smith-game/`) working.
 
 ## Goal (Level 1 — Palmyra Woods)
 
-1. Title screen → press **Enter** or **Z**
+1. Title screen → press **Enter**, **Z**, or tap **START**
 2. Cross the woods path; defeat brigands and wolves
 3. Watch gaps and platforms
 4. Enter the arena and defeat the **Frontier Ringleader**
-5. Win or lose screens → Enter/Z returns to title
+5. Win or lose screens → Enter/Z/START returns to title
 
 ## Project layout
 
 ```
 index.html          Entry page (256×240 canvas, CSS-scaled)
-css/style.css       Pixel scaling + page chrome
+css/style.css       Pixel scaling + page chrome + touch UI
 js/
-  main.js           Loop bootstrap
+  main.js           Loop bootstrap + virtual controls init
   game.js           State machine, HUD, win/lose
   player.js         Joseph movement, jump, melee, health
   enemy.js          Brigands, wolves, boss AI
   level.js          Level 1 map + createLevel2() stub
-  input.js          Keyboard mapping
+  input.js          Keyboard + virtual touch mapping
   sprites.js        Pixel-rect sprite drawing
   constants.js      Resolution & shared constants
 assets/             Reserved for future art

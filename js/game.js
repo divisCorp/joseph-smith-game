@@ -169,7 +169,7 @@ export function drawGame(ctx, game) {
   if (game.state === STATES.PAUSED) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.5)');
     drawCentered(ctx, 'PAUSED', 100, COLORS.uiCream, 14);
-    drawCentered(ctx, 'P / Enter to resume', 120, COLORS.uiGold, 8);
+    drawCentered(ctx, 'P / Enter / START to resume', 120, COLORS.uiGold, 8);
   }
 
   if (game.state === STATES.WIN) drawWin(ctx, game);
@@ -213,9 +213,9 @@ function drawTitle(ctx, game) {
 
   const blink = Math.floor(game.titleBlink / 30) % 2 === 0;
   if (blink) {
-    drawCentered(ctx, 'PRESS ENTER / Z', 175, COLORS.uiGold, 10);
+    drawCentered(ctx, 'PRESS ENTER / Z / START', 175, COLORS.uiGold, 10);
   }
-  drawCentered(ctx, 'Arrows/WASD move  Space/Z attack', 200, '#706050', 7);
+  drawCentered(ctx, 'Arrows/WASD · Space/Z · or touch buttons', 200, '#706050', 7);
   drawCentered(ctx, 'Inspired by classic NES action', 220, '#504030', 7);
 }
 
@@ -225,7 +225,7 @@ function drawWin(ctx, game) {
   drawCentered(ctx, 'Joseph stood firm.', 95, COLORS.uiCream, 10);
   drawCentered(ctx, `Score: ${game.score}`, 115, COLORS.uiCream, 10);
   drawCentered(ctx, 'Level 2 coming someday...', 140, '#80a080', 8);
-  drawCentered(ctx, 'ENTER / Z — Title', 175, COLORS.uiGold, 9);
+  drawCentered(ctx, 'ENTER / Z / START — Title', 175, COLORS.uiGold, 9);
 }
 
 function drawLose(ctx, game) {
@@ -233,5 +233,5 @@ function drawLose(ctx, game) {
   drawCentered(ctx, 'DEFEATED', 80, COLORS.uiRed, 14);
   drawCentered(ctx, 'Rise again, Joseph.', 110, COLORS.uiCream, 10);
   drawCentered(ctx, `Score: ${game.score}`, 130, COLORS.uiCream, 9);
-  drawCentered(ctx, 'ENTER / Z — Title', 170, COLORS.uiGold, 9);
+  drawCentered(ctx, 'ENTER / Z / START — Title', 170, COLORS.uiGold, 9);
 }

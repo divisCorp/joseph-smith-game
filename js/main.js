@@ -4,10 +4,13 @@
  */
 import { W, H } from './constants.js';
 import { createGame, updateGame, drawGame } from './game.js';
+import { initVirtualControls } from './input.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+
+initVirtualControls();
 
 const game = createGame();
 
@@ -31,7 +34,7 @@ function frame(now) {
 
 requestAnimationFrame(frame);
 
-// prevent space scroll
+// prevent space / arrow scroll on desktop
 window.addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
     e.preventDefault();
