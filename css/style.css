@@ -389,11 +389,11 @@ html, body {
 html.touch-ui #touch-controls,
 body.touch-ui #touch-controls {
   display: flex;
-  /* Sit in the lower half of the screen */
-  margin-top: auto;
-  margin-bottom: max(16px, env(safe-area-inset-bottom));
-  padding-top: 8px;
-  padding-bottom: 8px;
+  /* Mid-screen: under the stage with modest gap, not pinned to the bottom */
+  margin-top: clamp(12px, 4dvh, 28px);
+  margin-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 html.touch-ui #hint,
@@ -411,9 +411,9 @@ body.touch-ui #game-wrap {
 
 html.touch-ui #stage,
 body.touch-ui #stage {
-  /* Game stays in the upper half; controls occupy lower half */
-  width: min(96vw, calc(48dvh * 256 / 240), 768px);
-  max-height: 48dvh;
+  /* Larger playfield; controls sit about halfway down the phone */
+  width: min(96vw, calc(58dvh * 256 / 240), 768px);
+  max-height: 58dvh;
   margin-top: 8px;
 }
 
@@ -613,13 +613,13 @@ body.touch-ui {
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch-ui #stage,
   body.touch-ui #stage {
-    width: min(70vw, calc(52dvh * 256 / 240));
-    max-height: 52dvh;
+    width: min(70vw, calc(56dvh * 256 / 240));
+    max-height: 56dvh;
   }
 
   html.touch-ui #touch-controls,
   body.touch-ui #touch-controls {
-    margin-top: auto;
+    margin-top: clamp(8px, 3dvh, 20px);
     margin-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
