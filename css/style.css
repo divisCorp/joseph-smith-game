@@ -65,20 +65,24 @@ html, body {
   pointer-events: none;
 }
 
+html.touch-ui #touch-controls,
 body.touch-ui #touch-controls {
   display: flex;
 }
 
+html.touch-ui #hint,
 body.touch-ui #hint {
   display: none;
 }
 
+html.touch-ui #game,
 body.touch-ui #game {
   /* Leave room for thumb controls; landscape-friendly */
   width: min(96vw, calc((100dvh - 150px) * 256 / 240), 768px);
   max-height: calc(100dvh - 150px);
 }
 
+html.touch-ui body,
 body.touch-ui {
   justify-content: flex-start;
   padding-top: 8px;
@@ -161,6 +165,7 @@ body.touch-ui {
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
+  html.touch-ui #game,
   body.touch-ui #game {
     width: min(70vw, calc((100dvh - 100px) * 256 / 240));
     max-height: calc(100dvh - 100px);
