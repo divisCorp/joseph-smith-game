@@ -212,7 +212,10 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   return true;
 }
 
-// ── Joseph Smith (40×128 hitbox; sheet cells 64×128 from user art) ──
+// ── Joseph Smith (36×72 draw/hitbox; sheet cells 64×128 — never blit speak/preach busts for jump/throw) ──
+const JOSEPH_DW = 36;
+const JOSEPH_DH = 72;
+
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
@@ -226,20 +229,40 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   const img = SHEETS.joseph;
   if (img) {
     let fi = JOSEPH_IDLE[((frame % JOSEPH_IDLE.length) + JOSEPH_IDLE.length) % JOSEPH_IDLE.length];
-    if (pose === 'throw') {
-      fi = JOSEPH_THROW[((frame % JOSEPH_THROW.length) + JOSEPH_THROW.length) % JOSEPH_THROW.length];
-    } else if (pose === 'crouch') {
+    let dy = oy;
+    if (pose === 'crouch') {
       fi = JOSEPH_CROUCH;
     } else if (pose === 'jump') {
-      fi = JOSEPH_JUMP;
+      // Jump sheet cell is a speak/preach bust (no legs). Use walk-cycle full body + slight lift.
+      fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
+      dy = oy - 5;
+    } else if (pose === 'throw') {
+      // Throw/speak cells are busts (no legs). Use walk body + outstretched arm.
+      fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
+      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, oy, JOSEPH_DW, JOSEPH_DH, flip, false);
+      drawJosephThrowArm(ctx, ox, oy, flip);
+      return;
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
     }
-    // Feet at bottom of 128 cell → ground at oy + 128 (matches STAND_H). Center 64-wide art on 40-wide hitbox.
-    blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox - 12, oy, JOSEPH_FW, JOSEPH_FH, flip, false);
+    // Feet at bottom of scaled cell → ground at oy + JOSEPH_DH (matches STAND_H). Art width matches hitbox.
+    blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, JOSEPH_DW, JOSEPH_DH, flip, false);
     return;
   }
   drawJosephProcedural(ctx, ox, oy, flip, pose);
+}
+
+/** Outstretched arm for throw pose (composited onto full-body walk). */
+function drawJosephThrowArm(ctx, ox, oy, flip) {
+  withFlip(ctx, ox, oy, JOSEPH_DW, flip, (bx, by) => {
+    const coat = '#1a3a5c';
+    const coatD = '#0e2848';
+    const skin = '#e0b890';
+    // Arm out at mid-torso, matching mid-size Joseph proportions
+    roundRect(ctx, bx + 22, by + 22, 14, 5, 2, coat);
+    roundRect(ctx, bx + 24, by + 23, 10, 3, 1, coatD);
+    roundRect(ctx, bx + 34, by + 20, 6, 7, 2, skin);
+  });
 }
 
 /** Portrait icon (title / UI). index 0-3 from sheet. */
@@ -360,7 +383,10 @@ function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
   if (img) {
     const row = FOE_ROWS[kind] ?? 0;
     const col = frame % 2;
-    return blitSimple(ctx, img, col * 64, row * 64, 64, 64, ox - 16, oy, 64, 64, facing < 0, flash);
+    // ~Joseph-sized: sheet cells have padding; draw 48×80 so content ≈ Joseph 72h
+    const dw = 48;
+    const dh = 80;
+    return blitSimple(ctx, img, col * 64, row * 64, 64, 64, ox - Math.floor((dw - 36) / 2), oy, dw, dh, facing < 0, flash);
   }
   return false;
 }
@@ -461,7 +487,10 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const img = SHEETS.wolf;
   if (img) {
     const col = frame % 2;
-    blitSimple(ctx, img, col * 64, 0, 64, 64, ox - 16, oy, 64, 64, facing < 0, flash);
+    // Similar mass to mid-size Joseph — draw ~64×56 (sheet has top padding)
+    const dw = 64;
+    const dh = 56;
+    blitSimple(ctx, img, col * 64, 0, 64, 64, ox - 4, oy, dw, dh, facing < 0, flash);
     return;
   }
   const bob = frame % 2;
@@ -504,7 +533,10 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   if (img) {
     const row = BOSS_ROWS[bossKind] ?? 0;
     const col = frame % 2;
-    blitSimple(ctx, img, col * 80, row * 96, 80, 96, ox - 8, oy, 80, 96, facing < 0, flash);
+    // Larger than Joseph (72) but not enormous — draw 64×96
+    const dw = 64;
+    const dh = 96;
+    blitSimple(ctx, img, col * 80, row * 96, 80, 96, ox - 4, oy, dw, dh, facing < 0, flash);
     return;
   }
   const flip = facing < 0;

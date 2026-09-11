@@ -21,8 +21,8 @@ export function createEnemy(type, x, y, opts = {}) {
     speed: 0.55 * SCALE,
     damage: 1,
     score: 100,
-    w: 16 * SCALE,
-    h: 32 * SCALE,
+    w: 18 * SCALE, // ~Joseph-sized family (draw 48×80)
+    h: 40 * SCALE,
     onGround: false,
     attackCd: 0,
     aiPhase: 0,
@@ -34,7 +34,8 @@ export function createEnemy(type, x, y, opts = {}) {
   if (type === 'wolf') {
     base.hp = base.maxHp = 1;
     base.speed = 0.9 * SCALE;
-    base.h = 24 * SCALE;
+    base.w = 30 * SCALE;
+    base.h = 28 * SCALE; // draw ~64×56 — similar mass to mid-size Joseph
     base.score = 150;
   }
   if (type === 'scout') {
@@ -50,7 +51,7 @@ export function createEnemy(type, x, y, opts = {}) {
   }
   if (type === 'boss') {
     const kind = base.bossKind;
-    base.w = 32 * SCALE;
+    base.w = 30 * SCALE; // larger than Joseph (36×72) but not enormous
     base.h = 48 * SCALE;
     base.patrolMin = opts.patrolMin ?? x - 80 * SCALE;
     base.patrolMax = opts.patrolMax ?? x + 80 * SCALE;
@@ -89,7 +90,7 @@ export function enemyHitbox(e) {
     return { x: e.x + 4 * SCALE, y: e.y + 4 * SCALE, w: e.w - 8 * SCALE, h: e.h - 4 * SCALE };
   }
   if (e.type === 'wolf') {
-    return { x: e.x + 2 * SCALE, y: e.y + 10 * SCALE, w: e.w - 2 * SCALE, h: 20 * SCALE };
+    return { x: e.x + 2 * SCALE, y: e.y + 4 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
   }
   return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
 }

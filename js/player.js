@@ -9,8 +9,8 @@ import {
   PLATE_W,
 } from './projectiles.js';
 
-export const STAND_H = 64 * SCALE; // 128px — matches 64×128 joseph cells (~2× prior)
-export const CROUCH_H = 40 * SCALE;
+export const STAND_H = 36 * SCALE; // 72px — mid-size (~half of prior 64×128 draw)
+export const CROUCH_H = 22 * SCALE;
 const STAND_SPEED = 1.55 * SCALE;
 const CROUCH_SPEED = 0.55 * SCALE;
 const JUMP_V = -6.2 * SCALE;
@@ -21,7 +21,7 @@ export function createPlayer(spawnX, spawnY) {
     y: spawnY,
     vx: 0,
     vy: 0,
-    w: 20 * SCALE,
+    w: 18 * SCALE,
     h: STAND_H,
     facing: 1,
     onGround: false,
@@ -111,7 +111,7 @@ export function updatePlayer(p, solids, dt) {
     p.attackTimer = THROW_POSE;
     p.attackCooldown = PLATE_COOLDOWN;
     const px = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - PLATE_W;
-    const chest = (p.crouching ? 16 : 28) * SCALE;
+    const chest = (p.crouching ? 10 : 18) * SCALE;
     const py = p.y + chest - Math.floor(PLATE_H / 2);
     p.plates.push(createPlate(px, py, p.facing));
   }
