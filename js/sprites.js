@@ -85,128 +85,221 @@ function withFlip(ctx, ox, oy, w, flip, fn) {
   ctx.restore();
 }
 
-// ── Joseph Smith (32×64 slot) — navy coat, cream shirt, respectful stylized face ──
+// ── Sprite sheets (painterly 16-bit PNGs in assets/) ──
+const SHEETS = {
+  joseph: null,
+  foes: null,
+  wolf: null,
+  bosses: null,
+};
+let sheetsReady = false;
+let sheetsLoading = false;
+
+const JOSEPH_FRAMES = { idle: 0, walk: 1, jump: 2, crouch: 3, throw: 4 };
+const FOE_ROWS = { brigand: 0, scout: 1, thug: 2 };
+const BOSS_ROWS = { ringleader: 0, sentinel: 1, captain: 2, warden: 3, overseer: 4 };
+
+function assetUrl(name) {
+  // Relative to page — works on GH Pages + Netlify
+  try {
+    return new URL(`../assets/${name}`, import.meta.url).href;
+  } catch {
+    return `assets/${name}`;
+  }
+}
+
+export function preloadSprites() {
+  if (sheetsReady || sheetsLoading) return sheetsReady ? Promise.resolve(true) : sheetsLoading;
+  sheetsLoading = Promise.all(
+    Object.keys(SHEETS).map(
+      (key) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            SHEETS[key] = img;
+            resolve(true);
+          };
+          img.onerror = () => {
+            SHEETS[key] = null;
+            resolve(false);
+          };
+          const file =
+            key === 'joseph'
+              ? 'joseph.png'
+              : key === 'foes'
+                ? 'foes.png'
+                : key === 'wolf'
+                  ? 'wolf.png'
+                  : 'bosses.png';
+          img.src = assetUrl(file);
+        })
+    )
+  ).then(() => {
+    sheetsReady = !!(SHEETS.joseph || SHEETS.foes);
+    sheetsLoading = false;
+    return sheetsReady;
+  });
+  return sheetsLoading;
+}
+
+export function spritesReady() {
+  return sheetsReady;
+}
+
+function blitSheet(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
+  if (!img) return false;
+  ctx.save();
+  if (flash) ctx.globalAlpha = 0.85;
+  if (flip) {
+    ctx.translate(Math.floor(dx + dw), Math.floor(dy));
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+  } else {
+    ctx.drawImage(img, sx, sy, sw, sh, Math.floor(dx), Math.floor(dy), dw, dh);
+  }
+  if (flash) {
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = 'rgba(255,80,80,0.45)';
+    // flash overlay on destination — redraw with multiply-ish via second pass
+  }
+  ctx.restore();
+  if (flash) {
+    ctx.save();
+    if (flip) {
+      ctx.translate(Math.floor(dx + dw), Math.floor(dy));
+      ctx.scale(-1, 1);
+      ctx.globalCompositeOperation = 'source-atop';
+      // simpler: draw tinted by using filter
+    }
+    ctx.restore();
+    // Use filter for hurt flash (widely supported on modern mobile)
+    ctx.save();
+    ctx.filter = 'brightness(1.35) sepia(0.4) hue-rotate(-20deg) saturate(2)';
+    if (flip) {
+      ctx.translate(Math.floor(dx + dw), Math.floor(dy));
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+    } else {
+      ctx.drawImage(img, sx, sy, sw, sh, Math.floor(dx), Math.floor(dy), dw, dh);
+    }
+    ctx.restore();
+  }
+  return true;
+}
+
+function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
+  if (!img) return false;
+  ctx.save();
+  if (flash) ctx.filter = 'brightness(1.4) sepia(0.5) hue-rotate(-25deg) saturate(2.2)';
+  if (flip) {
+    ctx.translate(Math.floor(dx + dw), Math.floor(dy));
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+  } else {
+    ctx.drawImage(img, sx, sy, sw, sh, Math.floor(dx), Math.floor(dy), dw, dh);
+  }
+  ctx.restore();
+  return true;
+}
+
+// ── Joseph Smith (32×64 slot; sheet frames 64×64) ──
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
-  const walk = !jumping && !crouching && !attacking && frame % 2 === 1;
+  let pose = 'idle';
+  if (attacking) pose = 'throw';
+  else if (crouching && !jumping) pose = 'crouch';
+  else if (jumping) pose = 'jump';
+  else if (frame % 2 === 1) pose = 'walk';
 
-  // soft ground shadow (feet at oy+60)
+  const img = SHEETS.joseph;
+  if (img) {
+    const fi = JOSEPH_FRAMES[pose] ?? 0;
+    // Sheet frame 64×64; character feet near bottom. Align so feet sit on oy+62.
+    blitSimple(ctx, img, fi * 64, 0, 64, 64, ox - 16, oy, 64, 64, flip, false);
+    return;
+  }
+  drawJosephProcedural(ctx, ox, oy, flip, pose);
+}
+
+function drawJosephProcedural(ctx, ox, oy, flip, pose) {
   ellipse(ctx, ox + 16, oy + 62, 10, 3, COLORS.shadow);
-
   withFlip(ctx, ox, oy, 32, flip, (bx, by) => {
-    const legShift = walk ? 3 : jumping ? 2 : 0;
-    const crouch = crouching && !jumping;
-    const yOff = crouch ? 20 : 0; // compress toward feet baseline
-
-    // —— Legs / boots (drawn first so coat overlaps) ——
-    const pant = '#3a4568';
-    const pantDark = '#2a3348';
+    const crouch = pose === 'crouch';
+    const jump = pose === 'jump';
+    const walk = pose === 'walk';
+    const throwP = pose === 'throw';
+    const yOff = crouch ? 14 : 0;
+    const legA = walk ? -3 : jump ? -2 : 0;
+    const legB = walk ? 3 : jump ? 2 : 0;
+    const pant = '#6a4a30';
+    const pantDark = '#4a3220';
     const boot = '#3a2818';
     const bootHi = '#5a4030';
-
-    if (crouch) {
-      roundRect(ctx, bx + 8, by + 40, 7, 14, 2, pant);
-      roundRect(ctx, bx + 17, by + 40, 7, 14, 2, pantDark);
-      roundRect(ctx, bx + 7, by + 50, 9, 10, 2, boot);
-      roundRect(ctx, bx + 16, by + 50, 9, 10, 2, boot);
-      drawRect(ctx, bx + 8, by + 52, 7, 2, bootHi);
-      drawRect(ctx, bx + 17, by + 52, 7, 2, bootHi);
-    } else if (jumping) {
-      roundRect(ctx, bx + 9, by + 38, 6, 16, 2, pant);
-      roundRect(ctx, bx + 17, by + 40, 6, 14, 2, pantDark);
-      roundRect(ctx, bx + 8, by + 52, 8, 10, 2, boot);
-      roundRect(ctx, bx + 16, by + 50, 8, 10, 2, boot);
-    } else {
-      // left leg
-      roundRect(ctx, bx + 8 - (walk ? legShift : 0), by + 38, 7, 18, 2, pant);
-      roundRect(ctx, bx + 7 - (walk ? legShift : 0), by + 52, 9, 10, 2, boot);
-      drawRect(ctx, bx + 8 - (walk ? legShift : 0), by + 54, 7, 2, bootHi);
-      // right leg
-      roundRect(ctx, bx + 17 + (walk ? legShift : 0), by + 38, 7, 18, 2, pantDark);
-      roundRect(ctx, bx + 16 + (walk ? legShift : 0), by + 52, 9, 10, 2, boot);
-      drawRect(ctx, bx + 17 + (walk ? legShift : 0), by + 54, 7, 2, bootHi);
-    }
-
-    // —— Coat torso ——
-    const coatY = by + 14 + yOff;
-    const coatH = crouch ? 28 : 28;
-    // coat body with shade
-    roundRect(ctx, bx + 6, coatY, 20, coatH, 3, '#0e2848');
-    roundRect(ctx, bx + 7, coatY + 1, 18, coatH - 3, 3, '#1a3a5c');
-    strokeRound(ctx, bx + 6, coatY, 20, coatH, 3, '#081828', 1.25);
-    // center crease / shirt peek
-    drawRect(ctx, bx + 14, coatY + 4, 4, crouch ? 16 : 18, '#e8dcc8');
-    drawRect(ctx, bx + 15, coatY + 5, 2, crouch ? 14 : 16, '#f0e8d8');
-    // lapels
-    drawRect(ctx, bx + 7, coatY + 2, 5, 8, '#163450');
-    drawRect(ctx, bx + 20, coatY + 2, 5, 8, '#163450');
-    // gold buttons
-    ellipse(ctx, bx + 16, coatY + 10, 1.5, 1.5, '#d4a84b');
-    ellipse(ctx, bx + 16, coatY + 16, 1.5, 1.5, '#d4a84b');
-    if (!crouch) ellipse(ctx, bx + 16, coatY + 22, 1.5, 1.5, '#c4983a');
-    // shoulder highlight
-    drawRect(ctx, bx + 8, coatY + 1, 6, 2, 'rgba(80,120,180,0.35)');
-
-    // —— Arms ——
     const skin = '#e0b890';
     const skinHi = '#f0d0a8';
-    if (attacking) {
-      // extended throwing arm
-      roundRect(ctx, bx + 22, coatY + 6, 14, 6, 2, '#1a3a5c');
-      roundRect(ctx, bx + 34, coatY + 5, 6, 8, 2, skin);
-      // gold plate in hand
-      roundRect(ctx, bx + 38, coatY + 4, 10, 8, 1, '#d4a84b');
-      drawRect(ctx, bx + 39, coatY + 5, 8, 1, '#f0d878');
-      drawRect(ctx, bx + 39, coatY + 7, 8, 1, '#8b6914');
-      drawRect(ctx, bx + 39, coatY + 9, 8, 1, '#c4983a');
-      // trailing arm
-      roundRect(ctx, bx + 4, coatY + 8, 5, 12, 2, '#0e2848');
-      ellipse(ctx, bx + 6, coatY + 20, 3, 3, skin);
-    } else if (jumping) {
-      roundRect(ctx, bx + 2, coatY + 4, 5, 14, 2, '#0e2848');
-      roundRect(ctx, bx + 25, coatY + 4, 5, 14, 2, '#1a3a5c');
-      ellipse(ctx, bx + 4, coatY + 18, 3, 3, skin);
-      ellipse(ctx, bx + 28, coatY + 18, 3, 3, skin);
+
+    roundRect(ctx, bx + 9 + legA, by + 36 + yOff, 7, 18, 2, pant);
+    roundRect(ctx, bx + 16 + legB, by + 36 + yOff, 7, 18, 2, pantDark);
+    roundRect(ctx, bx + 8 + legA, by + 50, 9, 11, 2, boot);
+    roundRect(ctx, bx + 15 + legB, by + 50, 9, 11, 2, boot);
+    drawRect(ctx, bx + 9 + legA, by + 52, 7, 2, bootHi);
+    drawRect(ctx, bx + 16 + legB, by + 52, 7, 2, bootHi);
+    drawRect(ctx, bx + 8 + legA, by + 58, 9, 3, '#241808');
+    drawRect(ctx, bx + 15 + legB, by + 58, 9, 3, '#241808');
+
+    const coatY = by + 14 + yOff;
+    const coatH = crouch ? 26 : 26;
+    roundRect(ctx, bx + 5, coatY, 22, coatH, 3, '#0e2848');
+    roundRect(ctx, bx + 6, coatY + 1, 20, coatH - 3, 3, '#1a3a5c');
+    strokeRound(ctx, bx + 5, coatY, 22, coatH, 3, '#081828', 1.2);
+    drawRect(ctx, bx + 7, coatY + 2, 6, 2, 'rgba(80,120,180,0.35)');
+    drawRect(ctx, bx + 13, coatY + 4, 5, crouch ? 14 : 16, '#e8dcc8');
+    drawRect(ctx, bx + 14, coatY + 5, 3, crouch ? 12 : 14, '#f0e8d8');
+    drawRect(ctx, bx + 6, coatY + 2, 5, 8, '#163450');
+    drawRect(ctx, bx + 19, coatY + 2, 5, 8, '#163450');
+    ellipse(ctx, bx + 15.5, coatY + 9, 1.5, 1.5, '#d4a84b');
+    ellipse(ctx, bx + 15.5, coatY + 14, 1.5, 1.5, '#d4a84b');
+    if (!crouch) ellipse(ctx, bx + 15.5, coatY + 19, 1.5, 1.5, '#c4983a');
+    drawRect(ctx, bx + 6, coatY + coatH - 4, 20, 2, 'rgba(0,0,0,0.22)');
+
+    if (throwP) {
+      roundRect(ctx, bx + 22, coatY + 5, 14, 6, 2, '#1a3a5c');
+      roundRect(ctx, bx + 34, coatY + 4, 6, 8, 2, skin);
+      roundRect(ctx, bx + 38, coatY + 3, 10, 8, 1, '#d4a84b');
+      drawRect(ctx, bx + 39, coatY + 4, 8, 1, '#f0d878');
+      roundRect(ctx, bx + 3, coatY + 7, 5, 12, 2, '#0e2848');
+      ellipse(ctx, bx + 5, coatY + 19, 3, 3, skin);
+    } else if (jump) {
+      roundRect(ctx, bx + 1, coatY + 2, 5, 14, 2, '#0e2848');
+      roundRect(ctx, bx + 25, coatY + 2, 5, 14, 2, '#1a3a5c');
+      ellipse(ctx, bx + 3, coatY + 16, 3, 3, skin);
+      ellipse(ctx, bx + 28, coatY + 16, 3, 3, skinHi);
     } else {
-      roundRect(ctx, bx + 3, coatY + 6, 5, 14, 2, '#0e2848');
-      roundRect(ctx, bx + 24, coatY + 6, 5, 14, 2, '#1a3a5c');
-      ellipse(ctx, bx + 5, coatY + 20, 3, 3, skin);
-      ellipse(ctx, bx + 27, coatY + 20, 3, 3, skinHi);
+      roundRect(ctx, bx + 2, coatY + 5, 5, 14, 2, '#0e2848');
+      roundRect(ctx, bx + 24, coatY + 5, 5, 14, 2, '#1a3a5c');
+      ellipse(ctx, bx + 4, coatY + 19, 3, 3, skin);
+      ellipse(ctx, bx + 27, coatY + 19, 3, 3, skinHi);
     }
 
-    // —— Head ——
     const hx = bx + 16;
     const hy = by + 8 + yOff;
-    // hair mass
-    ellipse(ctx, hx, hy - 2, 9, 7, '#2a1810');
-    ellipse(ctx, hx - 1, hy - 4, 7, 5, '#3a2418');
-    strokeEllipse(ctx, hx, hy - 2, 9, 7, '#1a1008', 1.0);
-    // face
-    ellipse(ctx, hx, hy + 2, 7.5, 8, skin);
-    strokeEllipse(ctx, hx, hy + 2, 7.5, 8, '#8a6040', 1.1);
-    ellipse(ctx, hx - 1, hy + 1, 4, 4, skinHi); // cheek light
-    // eyes (simple respectful dots — not a likeness)
-    ellipse(ctx, hx - 3, hy + 1, 1.2, 1.4, '#2a1a10');
-    ellipse(ctx, hx + 3, hy + 1, 1.2, 1.4, '#2a1a10');
-    drawRect(ctx, hx - 3, hy, 1, 1, 'rgba(255,255,255,0.5)');
-    drawRect(ctx, hx + 3, hy, 1, 1, 'rgba(255,255,255,0.5)');
-    // brow
-    drawRect(ctx, hx - 5, hy - 2, 4, 1, '#2a1810');
-    drawRect(ctx, hx + 1, hy - 2, 4, 1, '#2a1810');
-    // nose hint
-    drawRect(ctx, hx, hy + 3, 2, 2, '#d4a080');
-    // calm mouth
-    drawRect(ctx, hx - 2, hy + 7, 4, 1, '#c07050');
-    // collar
-    drawRect(ctx, bx + 11, hy + 10, 10, 3, '#f0e8d8');
-    drawRect(ctx, bx + 12, hy + 11, 3, 2, '#e8dcc8');
-    drawRect(ctx, bx + 17, hy + 11, 3, 2, '#e8dcc8');
+    ellipse(ctx, hx, hy - 2, 8, 6, '#2a1810');
+    ellipse(ctx, hx - 1, hy - 3, 6, 4, '#3a2418');
+    ellipse(ctx, hx, hy + 2, 6.5, 7, skin);
+    ellipse(ctx, hx - 1, hy + 1, 3.5, 3.5, skinHi);
+    ellipse(ctx, hx - 2.5, hy + 1, 1.1, 1.3, '#2a1a10');
+    ellipse(ctx, hx + 2.5, hy + 1, 1.1, 1.3, '#2a1a10');
+    drawRect(ctx, hx - 4, hy - 1, 3, 1, '#2a1810');
+    drawRect(ctx, hx + 1, hy - 1, 3, 1, '#2a1810');
+    drawRect(ctx, hx - 0.5, hy + 3, 2, 2, '#d4a080');
+    drawRect(ctx, hx - 2, hy + 6, 4, 1, '#c07050');
+    drawRect(ctx, bx + 11, hy + 9, 10, 3, '#f0e8d8');
   });
 }
 
-// ── Gold plate projectile (20×14 engraved metallic sheet) ──
+// ── Gold plate projectile ──
 export function drawGoldPlate(ctx, x, y, facing = 1) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
@@ -218,25 +311,32 @@ export function drawGoldPlate(ctx, x, y, facing = 1) {
     ctx.scale(-1, 1);
     ctx.translate(-ox, -oy);
   }
-  // plate body
   roundRect(ctx, ox, oy, w, h, 2, '#5a4010');
   roundRect(ctx, ox + 1, oy + 1, w - 2, h - 2, 2, '#d4a84b');
-  // metallic gradient bands
   drawRect(ctx, ox + 2, oy + 2, w - 4, 2, '#f0d878');
   drawRect(ctx, ox + 2, oy + 5, w - 4, 1, '#8b6914');
   drawRect(ctx, ox + 2, oy + 7, w - 4, 1, '#c4983a');
   drawRect(ctx, ox + 2, oy + 9, w - 4, 1, '#8b6914');
   drawRect(ctx, ox + 2, oy + 11, w - 4, 1, '#e8c860');
-  // engraved characters suggestion (abstract marks)
   drawRect(ctx, ox + 4, oy + 4, 2, 2, '#8b6914');
   drawRect(ctx, ox + 8, oy + 4, 3, 2, '#8b6914');
   drawRect(ctx, ox + 13, oy + 4, 2, 2, '#8b6914');
-  // leading gleam
   drawRect(ctx, ox + w - 3, oy + 3, 1, 8, 'rgba(255,245,200,0.65)');
   ctx.restore();
 }
 
-// ── Brigand / variants (32×64) ──
+function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const img = SHEETS.foes;
+  if (img) {
+    const row = FOE_ROWS[kind] ?? 0;
+    const col = frame % 2;
+    return blitSimple(ctx, img, col * 64, row * 64, 64, 64, ox - 16, oy, 64, 64, facing < 0, flash);
+  }
+  return false;
+}
+
 function drawHumanoidFoe(ctx, x, y, facing, frame, flash, pal) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
@@ -254,30 +354,29 @@ function drawHumanoidFoe(ctx, x, y, facing, frame, flash, pal) {
     const skin = '#c4a080';
     const skinHi = '#d4b090';
 
-    roundRect(ctx, bx + 8 - shift, by + 38, 7, 18, 2, pant);
-    roundRect(ctx, bx + 17 + shift, by + 38, 7, 18, 2, '#2a1a10');
-    roundRect(ctx, bx + 7 - shift, by + 52, 9, 10, 2, boot);
-    roundRect(ctx, bx + 16 + shift, by + 52, 9, 10, 2, boot);
+    roundRect(ctx, bx + 8 - shift, by + 36, 7, 18, 2, pant);
+    roundRect(ctx, bx + 17 + shift, by + 36, 7, 18, 2, '#2a1a10');
+    roundRect(ctx, bx + 7 - shift, by + 50, 9, 11, 2, boot);
+    roundRect(ctx, bx + 16 + shift, by + 50, 9, 11, 2, boot);
+    drawRect(ctx, bx + 7 - shift, by + 58, 9, 3, '#1a1008');
+    drawRect(ctx, bx + 16 + shift, by + 58, 9, 3, '#1a1008');
 
-    roundRect(ctx, bx + 6, by + 16, 20, 26, 3, coatD);
-    roundRect(ctx, bx + 7, by + 17, 18, 24, 3, coat);
-    drawRect(ctx, bx + 14, by + 20, 4, 14, pal.shirt);
-    if (pal.sash) drawRect(ctx, bx + 7, by + 32, 18, 4, flash ? '#ff8080' : pal.sash);
-    // pouch
-    roundRect(ctx, bx + 18, by + 30, 6, 6, 1, '#6a5030');
+    roundRect(ctx, bx + 5, by + 15, 22, 26, 3, coatD);
+    roundRect(ctx, bx + 6, by + 16, 20, 24, 3, coat);
+    drawRect(ctx, bx + 13, by + 19, 5, 14, pal.shirt);
+    if (pal.sash) drawRect(ctx, bx + 6, by + 32, 20, 4, flash ? '#ff8080' : pal.sash);
+    roundRect(ctx, bx + 18, by + 28, 6, 6, 1, '#6a5030');
+    drawRect(ctx, bx + 7, by + 18, 5, 2, 'rgba(255,255,255,0.12)');
 
-    roundRect(ctx, bx + 3, by + 20, 5, 12, 2, coatD);
-    roundRect(ctx, bx + 24, by + 20, 5, 12, 2, coat);
-    ellipse(ctx, bx + 5, by + 32, 3, 3, skin);
-    ellipse(ctx, bx + 27, by + 32, 3, 3, skinHi);
+    roundRect(ctx, bx + 2, by + 18, 5, 13, 2, coatD);
+    roundRect(ctx, bx + 24, by + 18, 5, 13, 2, coat);
+    ellipse(ctx, bx + 4, by + 31, 3, 3, skin);
+    ellipse(ctx, bx + 27, by + 31, 3, 3, skinHi);
+    drawRect(ctx, bx + 26, by + 33, 3, 8, '#8a8a9a');
+    drawRect(ctx, bx + 25, by + 32, 5, 2, '#c0a060');
 
-    // dagger
-    drawRect(ctx, bx + 26, by + 34, 3, 8, '#8a8a9a');
-    drawRect(ctx, bx + 25, by + 33, 5, 2, '#c0a060');
-
-    // head + bandana
-    ellipse(ctx, bx + 16, by + 10, 8, 7, '#1a1a1a');
-    roundRect(ctx, bx + 8, by + 8, 16, 5, 2, band);
+    ellipse(ctx, bx + 16, by + 9, 8, 6, '#1a1a1a');
+    roundRect(ctx, bx + 7, by + 7, 18, 5, 2, band);
     ellipse(ctx, bx + 16, by + 12, 7, 7, skin);
     ellipse(ctx, bx + 13, by + 11, 1.3, 1.5, '#8b0000');
     ellipse(ctx, bx + 19, by + 11, 1.3, 1.5, '#8b0000');
@@ -286,6 +385,7 @@ function drawHumanoidFoe(ctx, x, y, facing, frame, flash, pal) {
 }
 
 export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
+  if (drawFoeFromSheet(ctx, x, y, facing, frame, flash, 'brigand')) return;
   drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
     coat: '#5a3020',
     coatDark: '#3a2010',
@@ -299,6 +399,7 @@ export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
 }
 
 export function drawScout(ctx, x, y, facing, frame, flash = false) {
+  if (drawFoeFromSheet(ctx, x, y, facing, frame, flash, 'scout')) return;
   drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
     coat: '#3a4a28',
     coatDark: '#2a3818',
@@ -312,6 +413,7 @@ export function drawScout(ctx, x, y, facing, frame, flash = false) {
 }
 
 export function drawThug(ctx, x, y, facing, frame, flash = false) {
+  if (drawFoeFromSheet(ctx, x, y, facing, frame, flash, 'thug')) return;
   drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
     coat: '#2a2030',
     coatDark: '#1a1020',
@@ -325,50 +427,40 @@ export function drawThug(ctx, x, y, facing, frame, flash = false) {
   });
 }
 
-// ── Wolf (drawn in 32×48 lower slot) ──
 export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const ox = Math.floor(x);
-  const oy = Math.floor(y) + 20;
+  const oy = Math.floor(y);
+  const img = SHEETS.wolf;
+  if (img) {
+    const col = frame % 2;
+    blitSimple(ctx, img, col * 64, 0, 64, 64, ox - 16, oy, 64, 64, facing < 0, flash);
+    return;
+  }
   const bob = frame % 2;
   const flip = facing < 0;
-  ellipse(ctx, ox + 16, oy + 28 + bob, 12, 3, COLORS.shadow);
-
-  withFlip(ctx, ox, oy + bob, 32, flip, (bx, by) => {
+  ellipse(ctx, ox + 16, oy + 48 + bob, 12, 3, COLORS.shadow);
+  withFlip(ctx, ox, oy + 20 + bob, 32, flip, (bx, by) => {
     const fur = flash ? '#8a6060' : '#5a5a5a';
     const furL = flash ? '#aa8080' : '#7a7a7a';
     const furD = flash ? '#5a3030' : '#3a3a3a';
-
-    // body
     ellipse(ctx, bx + 14, by + 14, 12, 8, furD);
     ellipse(ctx, bx + 14, by + 13, 11, 7, fur);
     ellipse(ctx, bx + 10, by + 11, 5, 4, furL);
-    // head / snout
     ellipse(ctx, bx + 24, by + 12, 7, 6, fur);
     ellipse(ctx, bx + 28, by + 13, 5, 3.5, '#e8e8e8');
     ellipse(ctx, bx + 30, by + 13, 2, 1.5, '#2a2a2a');
-    // ear
     ellipse(ctx, bx + 20, by + 5, 3, 4, furD);
-    ellipse(ctx, bx + 20, by + 5, 1.5, 2, '#8a6a5a');
     ellipse(ctx, bx + 24, by + 5, 3, 4, furD);
-    // eye
     ellipse(ctx, bx + 24, by + 11, 1.5, 1.5, '#ffcc00');
-    drawRect(ctx, bx + 24, by + 11, 1, 1, '#1a1a1a');
-    // legs
     const spread = bob ? 4 : 2;
     roundRect(ctx, bx + 6, by + 18, 4, 10, 1, furD);
     roundRect(ctx, bx + 12, by + 18, 4, 10, 1, fur);
     roundRect(ctx, bx + 18, by + 18, 4, 10 - spread / 2, 1, furD);
     roundRect(ctx, bx + 22, by + 18, 4, 10 + spread / 2, 1, fur);
-    ellipse(ctx, bx + 8, by + 28, 3, 2, '#8a6a5a');
-    ellipse(ctx, bx + 14, by + 28, 3, 2, '#8a6a5a');
-    ellipse(ctx, bx + 20, by + 28 - spread / 2, 3, 2, '#8a6a5a');
-    ellipse(ctx, bx + 24, by + 28 + spread / 2, 3, 2, '#8a6a5a');
-    // tail
     ellipse(ctx, bx + 2, by + 12, 5, 3, furL);
   });
 }
 
-// ── Boss (64×96) ──
 const BOSS_COLORS = {
   ringleader: { coat: '#2a1a40', coatD: '#1a1028', cape: '#4a1020', capeL: '#6a1830', accent: '#d4a84b', hat: '#1a0a08' },
   sentinel: { coat: '#1a3020', coatD: '#0e2014', cape: '#1a4028', capeL: '#2a5838', accent: '#6a8b4b', hat: '#0a1810' },
@@ -380,6 +472,13 @@ const BOSS_COLORS = {
 export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader') {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
+  const img = SHEETS.bosses;
+  if (img) {
+    const row = BOSS_ROWS[bossKind] ?? 0;
+    const col = frame % 2;
+    blitSimple(ctx, img, col * 80, row * 96, 80, 96, ox - 8, oy, 80, 96, facing < 0, flash);
+    return;
+  }
   const flip = facing < 0;
   const walk = frame % 2 === 1;
   const c = BOSS_COLORS[bossKind] || BOSS_COLORS.ringleader;
@@ -390,10 +489,8 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   const accent = flash ? '#fff0a0' : c.accent;
 
   ellipse(ctx, ox + 32, oy + 94, 18, 4, COLORS.shadow);
-
   withFlip(ctx, ox, oy, 64, flip, (bx, by) => {
     const shift = walk ? 5 : 0;
-    // cape
     ctx.fillStyle = cape;
     ctx.beginPath();
     ctx.moveTo(bx + 10, by + 28);
@@ -406,42 +503,25 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
     ctx.quadraticCurveTo(bx + 68, by + 50, bx + 56, by + 70);
     ctx.lineTo(bx + 46, by + 40);
     ctx.fill();
-
-    // legs
     roundRect(ctx, bx + 18 - shift, by + 58, 10, 28, 2, '#1a1a2a');
     roundRect(ctx, bx + 36 + shift, by + 58, 10, 28, 2, '#12121c');
     roundRect(ctx, bx + 16 - shift, by + 82, 14, 12, 2, '#0a0a12');
     roundRect(ctx, bx + 34 + shift, by + 82, 14, 12, 2, '#0a0a12');
-
-    // torso
     roundRect(ctx, bx + 14, by + 26, 36, 36, 4, coatD);
     roundRect(ctx, bx + 16, by + 28, 32, 32, 4, coat);
     drawRect(ctx, bx + 28, by + 32, 8, 20, '#e8dcc8');
-    // buckle
     roundRect(ctx, bx + 26, by + 50, 12, 6, 1, accent);
-    drawRect(ctx, bx + 29, by + 51, 6, 4, '#8b6914');
-
-    // arms
     roundRect(ctx, bx + 6, by + 30, 10, 22, 3, coatD);
     roundRect(ctx, bx + 48, by + 30, 10, 22, 3, coat);
     ellipse(ctx, bx + 10, by + 52, 5, 5, '#d4a880');
     ellipse(ctx, bx + 54, by + 52, 5, 5, '#e8c4a0');
-
-    // head + hat
     ellipse(ctx, bx + 32, by + 18, 12, 11, '#d4a880');
-    ellipse(ctx, bx + 30, by + 16, 5, 5, '#e8c4a0');
     ellipse(ctx, bx + 27, by + 16, 2, 2.2, '#200808');
     ellipse(ctx, bx + 37, by + 16, 2, 2.2, '#200808');
     drawRect(ctx, bx + 28, by + 22, 8, 2, '#c04040');
-    // wide hat
     ellipse(ctx, bx + 32, by + 8, 16, 5, c.hat);
     roundRect(ctx, bx + 22, by + 2, 20, 8, 2, c.hat);
     drawRect(ctx, bx + 24, by + 4, 16, 2, accent);
-
-    if (bossKind === 'overseer' && !flash) {
-      drawRect(ctx, bx + 18, by + 24, 3, 3, '#a0c0ff');
-      drawRect(ctx, bx + 44, by + 30, 3, 3, '#c0e0ff');
-    }
   });
 }
 

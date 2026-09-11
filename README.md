@@ -71,7 +71,7 @@ js/
   sprites.js        Hand-drawn-style pixel sprites (maps + poses)
   constants.js      Resolution, states, level metadata
   ui.js             HTML overlay menus (title / clear / win / lose)
-assets/             Optional sprite sheets (game uses canvas pixel art)
+assets/             Painterly PNG sprite sheets (joseph, foes, wolf, bosses)
 ```
 
 ## Tech

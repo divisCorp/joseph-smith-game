@@ -7,6 +7,7 @@ import { STATES } from './constants.js';
 import { createGame, updateGame, drawGame } from './game.js';
 import { initVirtualControls, setAction } from './input.js';
 import { initOverlays, syncOverlays } from './ui.js';
+import { preloadSprites } from './sprites.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -65,7 +66,10 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-requestAnimationFrame(frame);
+// Load painterly PNG sheets, then start loop (procedural fallback if missing)
+preloadSprites().finally(() => {
+  requestAnimationFrame(frame);
+});
 
 // prevent space / arrow scroll on desktop
 window.addEventListener('keydown', (e) => {

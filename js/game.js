@@ -221,21 +221,39 @@ function drawTitleScene(ctx, game) {
       drawRect(ctx, sx + 1, sy - 1, 1, 5, 'rgba(255,245,210,0.35)');
     }
   }
-  // painted treeline
-  for (let i = 0; i < 9; i++) {
-    const tx = 8 + i * 58;
-    drawRect(ctx, tx + 18, 310, 12, 110, '#0a160a');
-    ctx.fillStyle = '#0c1c0c';
+  // solid night forest wall + layered pine silhouettes (no sky holes)
+  drawRect(ctx, 0, 250, W, 140, '#0a140c');
+  for (let i = 0; i < 14; i++) {
+    const tx = -10 + i * 42;
+    const sc = 0.85 + (i % 3) * 0.08;
+    ctx.fillStyle = i % 2 ? '#0c1a10' : '#102014';
     ctx.beginPath();
-    ctx.ellipse(tx + 24, 290, 28, 36, 0, 0, Math.PI * 2);
+    ctx.moveTo(tx + 24, 250 - 40 * sc);
+    ctx.lineTo(tx + 24 + 30 * sc, 250 + 8 * sc);
+    ctx.lineTo(tx + 24 - 30 * sc, 250 + 8 * sc);
+    ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#081408';
     ctx.beginPath();
-    ctx.ellipse(tx + 24, 260, 18, 24, 0, 0, Math.PI * 2);
+    ctx.moveTo(tx + 24, 230 - 36 * sc);
+    ctx.lineTo(tx + 24 + 22 * sc, 250 - 8 * sc);
+    ctx.lineTo(tx + 24 - 22 * sc, 250 - 8 * sc);
+    ctx.closePath();
     ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(tx + 24, 210 - 28 * sc);
+    ctx.lineTo(tx + 24 + 14 * sc, 236 - 8 * sc);
+    ctx.lineTo(tx + 24 - 14 * sc, 236 - 8 * sc);
+    ctx.closePath();
+    ctx.fill();
+    drawRect(ctx, tx + 21, 250, 7, 40, '#081008');
   }
   drawRect(ctx, 0, 380, W, 100, '#081008');
   drawRect(ctx, 0, 380, W, 2, '#1a2818');
   drawRect(ctx, 160, 400, 192, 4, '#1e2c14');
+  // grass tufts
+  for (let i = 0; i < 24; i++) {
+    drawRect(ctx, 12 + i * 22, 372, 2, 8, '#143018');
+    drawRect(ctx, 15 + i * 22, 374, 2, 6, '#1e4020');
+  }
   drawJoseph(ctx, 36, 304, 1, Math.floor(game.titleBlink / 16) % 2, false, false);
 }
