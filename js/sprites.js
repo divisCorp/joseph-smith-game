@@ -547,50 +547,201 @@ export function drawHeart(ctx, x, y, filled) {
 }
 
 /** Pixel-bordered text panel */
-export function drawPanel(ctx, x, y, w, h, fill = 'rgba(20,12,8,0.88)') {
+export function drawPanel(ctx, x, y, w, h, fill = 'rgba(12,8,6,0.92)') {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   drawRect(ctx, ox, oy, w, h, fill);
-  // double pixel border
+  // outer gold border
   drawRect(ctx, ox, oy, w, 1, COLORS.uiGold);
   drawRect(ctx, ox, oy + h - 1, w, 1, COLORS.uiGold);
   drawRect(ctx, ox, oy, 1, h, COLORS.uiGold);
   drawRect(ctx, ox + w - 1, oy, 1, h, COLORS.uiGold);
-  drawRect(ctx, ox + 2, oy + 2, w - 4, 1, '#8b6914');
-  drawRect(ctx, ox + 2, oy + h - 3, w - 4, 1, '#8b6914');
-  drawRect(ctx, ox + 2, oy + 2, 1, h - 4, '#8b6914');
-  drawRect(ctx, ox + w - 3, oy + 2, 1, h - 4, '#8b6914');
+  // inner highlight / shadow
+  drawRect(ctx, ox + 2, oy + 2, w - 4, 1, '#c4983a');
+  drawRect(ctx, ox + 2, oy + h - 3, w - 4, 1, '#5a4010');
+  drawRect(ctx, ox + 2, oy + 2, 1, h - 4, '#c4983a');
+  drawRect(ctx, ox + w - 3, oy + 2, 1, h - 4, '#5a4010');
 }
 
-export function drawText(ctx, text, x, y, color = COLORS.uiCream, size = 8) {
+// ── Crisp 5×7 bitmap font (integer pixels; stays sharp when canvas is upscaled) ──
+const FONT_W = 5;
+const FONT_H = 7;
+const FONT_GAP = 1;
+
+/** Packed 5-wide rows as bitmasks (MSB = leftmost). */
+const FONT = {
+  " ": [0, 0, 0, 0, 0, 0, 0],
+  "!": [4, 4, 4, 4, 4, 0, 4],
+  "'": [4, 4, 8, 0, 0, 0, 0],
+  "(": [2, 4, 8, 8, 8, 4, 2],
+  ")": [8, 4, 2, 2, 2, 4, 8],
+  "+": [0, 4, 4, 31, 4, 4, 0],
+  ",": [0, 0, 0, 0, 4, 4, 8],
+  "-": [0, 0, 0, 31, 0, 0, 0],
+  ".": [0, 0, 0, 0, 0, 4, 4],
+  "/": [1, 2, 2, 4, 8, 8, 16],
+  "0": [14, 17, 19, 21, 25, 17, 14],
+  "1": [4, 12, 4, 4, 4, 4, 14],
+  "2": [14, 17, 1, 2, 4, 8, 31],
+  "3": [30, 1, 1, 14, 1, 1, 30],
+  "4": [2, 6, 10, 18, 31, 2, 2],
+  "5": [31, 16, 30, 1, 1, 17, 14],
+  "6": [14, 16, 16, 30, 17, 17, 14],
+  "7": [31, 1, 2, 4, 8, 8, 8],
+  "8": [14, 17, 17, 14, 17, 17, 14],
+  "9": [14, 17, 17, 15, 1, 1, 14],
+  ":": [0, 4, 4, 0, 4, 4, 0],
+  "?": [14, 17, 1, 2, 4, 0, 4],
+  A: [14, 17, 17, 31, 17, 17, 17],
+  B: [30, 17, 17, 30, 17, 17, 30],
+  C: [14, 17, 16, 16, 16, 17, 14],
+  D: [30, 17, 17, 17, 17, 17, 30],
+  E: [31, 16, 16, 30, 16, 16, 31],
+  F: [31, 16, 16, 30, 16, 16, 16],
+  G: [14, 17, 16, 23, 17, 17, 14],
+  H: [17, 17, 17, 31, 17, 17, 17],
+  I: [14, 4, 4, 4, 4, 4, 14],
+  J: [7, 2, 2, 2, 2, 18, 12],
+  K: [17, 18, 20, 24, 20, 18, 17],
+  L: [16, 16, 16, 16, 16, 16, 31],
+  M: [17, 27, 21, 17, 17, 17, 17],
+  N: [17, 25, 21, 19, 17, 17, 17],
+  O: [14, 17, 17, 17, 17, 17, 14],
+  P: [30, 17, 17, 30, 16, 16, 16],
+  Q: [14, 17, 17, 17, 21, 18, 13],
+  R: [30, 17, 17, 30, 20, 18, 17],
+  S: [15, 16, 16, 14, 1, 1, 30],
+  T: [31, 4, 4, 4, 4, 4, 4],
+  U: [17, 17, 17, 17, 17, 17, 14],
+  V: [17, 17, 17, 17, 17, 10, 4],
+  W: [17, 17, 17, 17, 21, 21, 10],
+  X: [17, 17, 10, 4, 10, 17, 17],
+  Y: [17, 17, 10, 4, 4, 4, 4],
+  Z: [31, 1, 2, 4, 8, 16, 31],
+  a: [0, 0, 14, 1, 15, 17, 15],
+  b: [16, 16, 30, 17, 17, 17, 30],
+  c: [0, 0, 14, 16, 16, 16, 14],
+  d: [1, 1, 15, 17, 17, 17, 15],
+  e: [0, 0, 14, 17, 31, 16, 14],
+  f: [6, 8, 8, 28, 8, 8, 8],
+  g: [0, 0, 15, 17, 15, 1, 14],
+  h: [16, 16, 30, 17, 17, 17, 17],
+  i: [4, 0, 12, 4, 4, 4, 14],
+  j: [2, 0, 6, 2, 2, 18, 12],
+  k: [16, 16, 18, 20, 24, 20, 18],
+  l: [12, 4, 4, 4, 4, 4, 14],
+  m: [0, 0, 26, 21, 21, 17, 17],
+  n: [0, 0, 30, 17, 17, 17, 17],
+  o: [0, 0, 14, 17, 17, 17, 14],
+  p: [0, 0, 30, 17, 30, 16, 16],
+  q: [0, 0, 15, 17, 15, 1, 1],
+  r: [0, 0, 22, 25, 16, 16, 16],
+  s: [0, 0, 15, 16, 14, 1, 30],
+  t: [8, 8, 28, 8, 8, 8, 6],
+  u: [0, 0, 17, 17, 17, 17, 15],
+  v: [0, 0, 17, 17, 17, 10, 4],
+  w: [0, 0, 17, 17, 21, 21, 10],
+  x: [0, 0, 17, 10, 4, 10, 17],
+  y: [0, 0, 17, 17, 15, 1, 14],
+  z: [0, 0, 31, 2, 4, 8, 31],
+  "·": [0, 0, 0, 4, 0, 0, 0],
+  "–": [0, 0, 0, 31, 0, 0, 0],
+  "—": [0, 0, 0, 31, 0, 0, 0],
+};
+
+/** Map CSS-ish size (legacy API) → integer pixel scale (1 or 2). */
+export function textScale(size = 8) {
+  return size >= 12 ? 2 : 1;
+}
+
+export function measureText(text, size = 8) {
+  const scale = textScale(size);
+  const s = String(text);
+  if (!s.length) return 0;
+  return s.length * (FONT_W + FONT_GAP) * scale - FONT_GAP * scale;
+}
+
+function glyphFor(ch) {
+  return FONT[ch] || FONT['?'] || FONT[' '];
+}
+
+function paintGlyph(ctx, glyph, x, y, scale, color) {
   ctx.fillStyle = color;
-  ctx.font = `${size}px "Courier New", monospace`;
-  ctx.textBaseline = 'top';
-  // subtle shadow for readability on busy scenes
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillText(text, Math.floor(x) + 1, Math.floor(y) + 1);
-  ctx.fillStyle = color;
-  ctx.fillText(text, Math.floor(x), Math.floor(y));
+  for (let row = 0; row < FONT_H; row++) {
+    const bits = glyph[row];
+    for (let col = 0; col < FONT_W; col++) {
+      if (bits & (0x10 >> col)) {
+        ctx.fillRect(x + col * scale, y + row * scale, scale, scale);
+      }
+    }
+  }
 }
 
-export function drawCentered(ctx, text, y, color = COLORS.uiCream, size = 8) {
-  ctx.font = `${size}px "Courier New", monospace`;
-  const w = ctx.measureText(text).width;
-  drawText(ctx, text, (256 - w) / 2, y, color, size);
+/**
+ * Pixel-perfect text. Integer positions only.
+ * Optional 1-canvas-px dark outline (not scale-thick) for contrast on busy BGs.
+ * size ~8 → 5×7, size ≥12 → 2× scale (10×14).
+ */
+export function drawText(ctx, text, x, y, color = COLORS.uiCream, size = 8, outline = true) {
+  const scale = textScale(size);
+  const px = Math.floor(x);
+  const py = Math.floor(y);
+  const s = String(text);
+  const outlineColor = '#050302';
+  // 1px outline in canvas space so 2× titles stay sharp (not a fat halo)
+  const ring = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+
+  if (outline) {
+    for (let i = 0; i < s.length; i++) {
+      const g = glyphFor(s[i]);
+      const gx = px + i * (FONT_W + FONT_GAP) * scale;
+      for (const [ox, oy] of ring) {
+        paintGlyph(ctx, g, gx + ox, py + oy, scale, outlineColor);
+      }
+    }
+  }
+
+  for (let i = 0; i < s.length; i++) {
+    const g = glyphFor(s[i]);
+    const gx = px + i * (FONT_W + FONT_GAP) * scale;
+    paintGlyph(ctx, g, gx, py, scale, color);
+  }
 }
 
-/** Title flourish: decorative diamond / leaf accents */
+export function drawCentered(ctx, text, y, color = COLORS.uiCream, size = 8, outline = true) {
+  const w = measureText(text, size);
+  drawText(ctx, text, Math.floor((256 - w) / 2), y, color, size, outline);
+}
+
+/** Title flourish: center gem + mirrored vine tips */
 export function drawTitleFlourish(ctx, cx, y) {
   const gold = COLORS.uiGold;
   const dim = '#8b6914';
-  // center gem
-  drawRect(ctx, cx - 2, y, 4, 4, gold);
-  drawRect(ctx, cx - 1, y + 1, 2, 2, '#fff0c0');
-  // side vines
+  cx = Math.floor(cx);
+  y = Math.floor(y);
+  // diamond gem
+  drawRect(ctx, cx - 1, y, 2, 1, gold);
+  drawRect(ctx, cx - 2, y + 1, 4, 1, gold);
+  drawRect(ctx, cx - 3, y + 2, 6, 1, gold);
+  drawRect(ctx, cx - 2, y + 3, 4, 1, gold);
+  drawRect(ctx, cx - 1, y + 4, 2, 1, gold);
+  drawRect(ctx, cx - 1, y + 2, 2, 1, '#fff0c0');
   for (const dir of [-1, 1]) {
-    drawRect(ctx, cx + dir * 6, y + 1, 8, 1, dim);
-    drawRect(ctx, cx + dir * 14, y, 2, 3, gold);
-    drawRect(ctx, cx + dir * 18, y + 1, 6, 1, dim);
-    drawRect(ctx, cx + dir * 24, y, 3, 3, '#3d6a35');
+    drawRect(ctx, cx + dir * 6, y + 2, 12, 1, dim);
+    drawRect(ctx, cx + dir * 18, y + 1, 2, 3, gold);
+    drawRect(ctx, cx + dir * 21, y + 2, 10, 1, dim);
+    // small leaf tip
+    drawRect(ctx, cx + dir * 31, y + 1, 3, 1, '#3d7a3a');
+    drawRect(ctx, cx + dir * 32, y + 2, 3, 1, '#4a8a40');
+    drawRect(ctx, cx + dir * 31, y + 3, 3, 1, '#3d7a3a');
   }
+}
+
+/** Double-line gold underline under titles */
+export function drawTitleUnderline(ctx, cx, y, halfW = 70) {
+  cx = Math.floor(cx);
+  y = Math.floor(y);
+  drawRect(ctx, cx - halfW, y, halfW * 2, 1, COLORS.uiGold);
+  drawRect(ctx, cx - halfW + 4, y + 2, halfW * 2 - 8, 1, '#8b6914');
+  drawRect(ctx, cx - 2, y - 1, 4, 1, '#fff0c0');
 }
