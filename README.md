@@ -73,6 +73,11 @@ Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal 
 
 Visuals upgraded from flat colored rectangles to richer hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/attack poses, distinct brigand/wolf/boss silhouettes, grass/dirt tiles, layered Palmyra woods background, cabin/fence accents, and clearer HUD hearts / title flourishes. Assets stay compact for phones.
 
+
+## Changelog notes
+
+- **Soft-lock fix (Palmyra Woods):** The boss-arena entrance used a full-height solid timber column (“the pole”) that was taller than Joseph’s jump, blocking progress. Entrance posts are decorative/non-solid now; the far arena wall remains. Path from spawn to the Frontier Ringleader is clear.
+
 ## License / credit
 
 Fan arcade tribute. Historical figure depicted respectfully as an arcade hero. Not affiliated with Nintendo or Konami.

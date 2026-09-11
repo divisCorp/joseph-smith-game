@@ -7,7 +7,7 @@ import { TILE, W, H, COLORS } from './constants.js';
 import { createEnemy } from './enemy.js';
 import { drawRect } from './sprites.js';
 
-/** Tile map codes: 0 empty, 1 solid ground, 2 platform, 3 cabin wall, 4 fence */
+/** Tile map codes: 0 empty, 1 solid ground, 2 platform, 3 cabin wall (solid). Fence/gate posts are decor only (non-solid). */
 export function createLevel1() {
   const cols = 120; // ~1920 px wide
   const rows = 15;  // 240 px
@@ -47,9 +47,10 @@ export function createLevel1() {
     tiles[groundR][c] = 1;
     tiles[groundR + 1][c] = 1;
   }
-  // arena side walls (visual solids)
+  // Far arena boundary only (right edge). Do NOT place a solid wall at the
+  // entrance (col 100): a full-height timber column was unjumpable (~80px vs
+  // ~55px jump) and soft-locked players at "the pole" before the boss.
   for (let r = 8; r < groundR; r++) {
-    tiles[r][100] = 3;
     tiles[r][cols - 1] = 3;
   }
 
@@ -86,6 +87,9 @@ export function createLevel1() {
       decor.push({ type: 'fence', x: c * TILE, y: (groundR - 1) * TILE });
     }
   }
+  // Boss-arena gate posts (visual only — non-solid so the path stays open)
+  decor.push({ type: 'gate', x: 100 * TILE, y: (groundR - 5) * TILE });
+  decor.push({ type: 'gate', x: 101 * TILE, y: (groundR - 5) * TILE });
 
   return {
     id: 'level1',
@@ -188,6 +192,7 @@ export function drawLevelBackground(ctx, camX, level) {
     if (dx < -48 || dx > W + 48) continue;
     if (d.type === 'tree') drawTree(ctx, dx, d.y, d.variant || 0);
     if (d.type === 'fence') drawFence(ctx, dx, d.y);
+    if (d.type === 'gate') drawGatePost(ctx, dx, d.y);
   }
 
   // cabin near start
@@ -292,6 +297,20 @@ function drawFence(ctx, x, y) {
   drawRect(ctx, ox, oy + 3, 16, 2, COLORS.fence);
   drawRect(ctx, ox, oy + 9, 16, 2, COLORS.fence);
   drawRect(ctx, ox, oy + 3, 16, 1, '#a09070');
+}
+
+function drawGatePost(ctx, x, y) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  // Tall timber post (decoration only — collision comes from tiles, not decor)
+  drawRect(ctx, ox + 4, oy, 8, 80, '#5a4030');
+  drawRect(ctx, ox + 5, oy + 1, 6, 78, '#6a4a35');
+  drawRect(ctx, ox + 4, oy + 18, 8, 1, '#3a2818');
+  drawRect(ctx, ox + 4, oy + 40, 8, 1, '#3a2818');
+  drawRect(ctx, ox + 4, oy + 62, 8, 1, '#3a2818');
+  drawRect(ctx, ox + 6, oy + 8, 2, 6, '#3a2818');
+  drawRect(ctx, ox + 6, oy + 48, 2, 6, '#3a2818');
+  drawRect(ctx, ox + 3, oy, 10, 3, '#8a6a48'); // cap
 }
 
 function drawCabin(ctx, x, y) {
