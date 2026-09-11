@@ -11,7 +11,7 @@ import {
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
 import { updatePlates, drawPlates, plateHitbox } from './projectiles.js';
-import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph } from './sprites.js';
+import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph, drawPortrait } from './sprites.js';
 
 export function createGame() {
   return {
@@ -255,5 +255,6 @@ function drawTitleScene(ctx, game) {
     drawRect(ctx, 12 + i * 22, 372, 2, 8, '#143018');
     drawRect(ctx, 15 + i * 22, 374, 2, 6, '#1e4020');
   }
-  drawJoseph(ctx, 36, 304, 1, Math.floor(game.titleBlink / 16) % 2, false, false);
+  drawPortrait(ctx, 36, 248, Math.floor(game.titleBlink / 40) % 4, 40);
+  drawJoseph(ctx, 36, 304, 1, Math.floor(game.titleBlink / 20) % 3, false, false, false, false);
 }

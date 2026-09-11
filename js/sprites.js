@@ -91,11 +91,19 @@ const SHEETS = {
   foes: null,
   wolf: null,
   bosses: null,
+  portraits: null,
 };
 let sheetsReady = false;
 let sheetsLoading = false;
 
-const JOSEPH_FRAMES = { idle: 0, walk: 1, jump: 2, crouch: 3, throw: 4 };
+/** User sheet slices: idle 0-2, walk 3-6, jump 7, crouch/pray 8, throw/speak 9-10 */
+const JOSEPH_FW = 64;
+const JOSEPH_FH = 64;
+const JOSEPH_IDLE = [0, 1, 2];
+const JOSEPH_WALK = [3, 4, 5, 6];
+const JOSEPH_JUMP = 7;
+const JOSEPH_CROUCH = 8;
+const JOSEPH_THROW = [9, 10];
 const FOE_ROWS = { brigand: 0, scout: 1, thug: 2 };
 const BOSS_ROWS = { ringleader: 0, sentinel: 1, captain: 2, warden: 3, overseer: 4 };
 
@@ -130,7 +138,9 @@ export function preloadSprites() {
                 ? 'foes.png'
                 : key === 'wolf'
                   ? 'wolf.png'
-                  : 'bosses.png';
+                  : key === 'portraits'
+                    ? 'portraits.png'
+                    : 'bosses.png';
           img.src = assetUrl(file);
         })
     )
@@ -202,8 +212,8 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   return true;
 }
 
-// ── Joseph Smith (32×64 slot; sheet frames 64×64) ──
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false) {
+// ── Joseph Smith (32×64 hitbox; sheet cells 64×64 from user art) ──
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
@@ -211,16 +221,34 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   if (attacking) pose = 'throw';
   else if (crouching && !jumping) pose = 'crouch';
   else if (jumping) pose = 'jump';
-  else if (frame % 2 === 1) pose = 'walk';
+  else if (moving) pose = 'walk';
 
   const img = SHEETS.joseph;
   if (img) {
-    const fi = JOSEPH_FRAMES[pose] ?? 0;
-    // Sheet frame 64×64; character feet near bottom. Align so feet sit on oy+62.
-    blitSimple(ctx, img, fi * 64, 0, 64, 64, ox - 16, oy, 64, 64, flip, false);
+    let fi = JOSEPH_IDLE[((frame % JOSEPH_IDLE.length) + JOSEPH_IDLE.length) % JOSEPH_IDLE.length];
+    if (pose === 'throw') {
+      fi = JOSEPH_THROW[((frame % JOSEPH_THROW.length) + JOSEPH_THROW.length) % JOSEPH_THROW.length];
+    } else if (pose === 'crouch') {
+      fi = JOSEPH_CROUCH;
+    } else if (pose === 'jump') {
+      fi = JOSEPH_JUMP;
+    } else if (pose === 'walk') {
+      fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
+    }
+    // Feet at bottom of 64 cell → ground at oy + 64 (matches STAND_H)
+    blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox - 16, oy, JOSEPH_FW, JOSEPH_FH, flip, false);
     return;
   }
   drawJosephProcedural(ctx, ox, oy, flip, pose);
+}
+
+/** Portrait icon (title / UI). index 0-3 from sheet. */
+export function drawPortrait(ctx, x, y, index = 0, size = 48) {
+  const img = SHEETS.portraits;
+  if (!img) return false;
+  const col = ((index % 4) + 4) % 4;
+  blitSimple(ctx, img, col * 48, 0, 48, 48, Math.floor(x), Math.floor(y), size, size, false, false);
+  return true;
 }
 
 function drawJosephProcedural(ctx, ox, oy, flip, pose) {

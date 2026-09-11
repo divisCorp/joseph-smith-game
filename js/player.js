@@ -132,7 +132,7 @@ export function updatePlayer(p, solids, dt) {
     p.animT += dt;
     if (p.animT > 8) {
       p.animT = 0;
-      p.anim = (p.anim + 1) % 2;
+      p.anim = (p.anim + 1) % 4;
     }
   }
 
@@ -182,6 +182,7 @@ export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
   const drawY = p.crouching ? p.y - (STAND_H - CROUCH_H) : p.y;
+  const moving = Math.abs(p.vx) > 0.2 * SCALE && p.onGround;
   drawJoseph(
     ctx,
     p.x - camX,
@@ -190,7 +191,8 @@ export function drawPlayer(ctx, p, camX) {
     p.anim,
     p.attackTimer > 0,
     !p.onGround,
-    p.crouching
+    p.crouching,
+    moving
   );
 }
 

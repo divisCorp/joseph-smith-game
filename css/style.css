@@ -701,3 +701,16 @@ body.touch-ui {
     font-size: 30px;
   }
 }
+
+.ui-portrait {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0.35rem auto 0.5rem;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid #d4a84b;
+  border-radius: 6px;
+  background: #0a0806;
+  box-shadow: 0 0 12px rgba(212, 168, 75, 0.35);
+}

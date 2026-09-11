@@ -68,10 +68,10 @@ js/
   enemy.js          Brigands, scouts, thugs, wolves, bosses
   level.js          Levels 1–5 maps, themes, decor
   input.js          Keyboard + virtual stick / touch mapping
-  sprites.js        Hand-drawn-style pixel sprites (maps + poses)
+  sprites.js        User sheet blit + procedural fallbacks (poses, UI)
   constants.js      Resolution, states, level metadata
   ui.js             HTML overlay menus (title / clear / win / lose)
-assets/             Painterly PNG sprite sheets (joseph, foes, wolf, bosses)
+assets/             User Joseph sheet slices + derived foe/boss/wolf PNGs (joseph, foes, wolf, bosses, portraits)
 ```
 
 ## Tech
