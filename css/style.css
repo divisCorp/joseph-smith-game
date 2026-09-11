@@ -516,12 +516,17 @@ body.touch-ui {
   transform: scale(0.96);
 }
 
+.touch-jump,
+.touch-attack {
+  width: 88px;
+  height: 88px;
+  font-size: 28px;
+  font-weight: 800;
+}
+
 .touch-jump {
   background: rgba(64, 160, 96, 0.4);
   border-color: rgba(64, 160, 96, 0.75);
-  width: 58px;
-  height: 58px;
-  font-size: 20px;
 }
 
 .touch-attack {
@@ -559,10 +564,11 @@ body.touch-ui {
     font-size: 18px;
   }
 
-  .touch-jump {
-    width: 48px;
-    height: 48px;
-    font-size: 16px;
+  .touch-jump,
+  .touch-attack {
+    width: 72px;
+    height: 72px;
+    font-size: 24px;
   }
 
   .touch-start {
@@ -612,8 +618,10 @@ body.touch-ui {
     height: 70px;
   }
 
-  .touch-jump {
-    width: 62px;
-    height: 62px;
+  .touch-jump,
+  .touch-attack {
+    width: 96px;
+    height: 96px;
+    font-size: 30px;
   }
 }
