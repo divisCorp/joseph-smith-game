@@ -58,7 +58,7 @@ Start from the title screen (**Enter**, **Z**, or **START**). Defeat each level�
 ## Project layout
 
 ```
-index.html          Entry page (256×240 canvas, CSS-scaled)
+index.html          Entry page (512×480 canvas, CSS-scaled)
 css/style.css       Pixel scaling + page chrome + touch UI
 js/
   main.js           Loop bootstrap + virtual controls init
@@ -76,7 +76,7 @@ assets/             Optional sprite sheets (game uses canvas pixel art)
 
 ## Tech
 
-Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal resolution **256×240** (NES-like), scaled up with `image-rendering: pixelated`.
+Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal resolution **512×480** (NES-like), scaled up with `image-rendering: auto (painterly)`.
 
 ## Art
 

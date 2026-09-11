@@ -1,21 +1,22 @@
 /**
- * Hand-drawn-style pixel sprites (canvas rects + compact pixel maps).
- * Respectful NES arcade look for Joseph Smith and frontier foes.
- * Kept lightweight for phones — no large image assets.
+ * HD illustrated / painterly 16-bit sprites (procedural canvas).
+ * Respectful stylized characters — not photoreal likenesses.
+ * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS } from './constants.js';
+import { COLORS, W, SCALE } from './constants.js';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
 }
 
-/** Draw a compact pixel map. rows: array of strings; palette: char→color. Transparent = ' ' or '.' */
-export function drawPixels(ctx, ox, oy, rows, palette, flipX = false) {
+/** Compact pixel map (used for hearts / small UI). Transparent = ' ' or '.' */
+export function drawPixels(ctx, ox, oy, rows, palette, flipX = false, pxScale = 1) {
   const h = rows.length;
   const w = rows[0].length;
   ox = Math.floor(ox);
   oy = Math.floor(oy);
+  const s = pxScale;
   for (let y = 0; y < h; y++) {
     const row = rows[y];
     for (let x = 0; x < w; x++) {
@@ -23,658 +24,437 @@ export function drawPixels(ctx, ox, oy, rows, palette, flipX = false) {
       if (ch === ' ' || ch === '.') continue;
       const c = palette[ch];
       if (!c) continue;
-      const px = flipX ? ox + (w - 1 - x) : ox + x;
+      const px = flipX ? ox + (w - 1 - x) * s : ox + x * s;
       ctx.fillStyle = c;
-      ctx.fillRect(px, oy + y, 1, 1);
+      ctx.fillRect(px, oy + y * s, s, s);
     }
   }
 }
 
-// ── palettes ──────────────────────────────────────────────
-const P_JOSEPH = {
-  K: '#1a1010', // outline / dark
-  H: '#2a1810', // hair
-  F: '#e8c4a0', // face / skin
-  E: '#2a1a10', // eye
-  N: '#1a3a5c', // navy coat
-  D: '#0e2848', // coat dark
-  S: '#e8dcc8', // shirt
-  B: '#3a2818', // boot
-  T: '#3a4568', // trousers (visible vs grass)
-  G: '#8b6914', // gold plate / trim
-  L: '#c4a060', // plate highlight
-  R: '#c07050', // lip / cheek
-  W: '#f0e8d8', // highlight
-};
+function ellipse(ctx, cx, cy, rx, ry, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
 
-const P_BRIGAND = {
-  K: '#1a1010',
-  H: '#1a1a1a',
-  F: '#c4a080',
-  E: '#8b0000',
-  C: '#5a3020', // coat
-  D: '#3a2010', // coat dark
-  B: '#8b2020', // bandana
-  T: '#3a2a1a', // trousers
-  O: '#2a1a10', // boots
-  S: '#8a7060', // shirt
-  M: '#6a5030', // pouch
-  W: '#d4b090', // skin light
-};
+function roundRect(ctx, x, y, w, h, r, color) {
+  ctx.fillStyle = color;
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+  ctx.fill();
+}
 
-const P_WOLF = {
-  K: '#1a1a1a',
-  D: '#3a3a3a', // dark fur
-  F: '#5a5a5a', // fur
-  L: '#7a7a7a', // light fur
-  W: '#e8e8e8', // snout / fang
-  E: '#ffcc00', // eye
-  N: '#2a2a2a', // nose
-  P: '#8a6a5a', // paw / inner ear
-};
+function strokeRound(ctx, x, y, w, h, r, color, line = 1.5) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = line;
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+  ctx.stroke();
+}
 
-const P_BOSS = {
-  K: '#0a0808',
-  H: '#1a0a08', // hat
-  F: '#d4a880', // face
-  E: '#200808', // eye
-  C: '#2a1a40', // coat
-  D: '#1a1028', // coat dark
-  P: '#4a1020', // cape
-  Q: '#6a1830', // cape light
-  S: '#e8dcc8', // shirt
-  T: '#1a1a2a', // trousers
-  B: '#0a0a12', // boots
-  G: '#8b6914', // buckle / trim
-  R: '#c04040', // flash red
-  W: '#e8c4a0', // highlight skin
-  M: '#3a2040', // mid coat
-};
+function strokeEllipse(ctx, cx, cy, rx, ry, color, line = 1.5) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = line;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
 
-const P_HEART = {
-  R: '#e04040',
-  D: '#a02020',
-  L: '#f08080',
-  K: '#401010',
-  E: '#602020', // empty
-  M: '#301818',
-};
+function withFlip(ctx, ox, oy, w, flip, fn) {
+  ctx.save();
+  if (flip) {
+    ctx.translate(Math.floor(ox + w), Math.floor(oy));
+    ctx.scale(-1, 1);
+    fn(0, 0);
+  } else {
+    fn(Math.floor(ox), Math.floor(oy));
+  }
+  ctx.restore();
+}
 
-// ── Joseph Smith (16×32) ──────────────────────────────────
-// Full-height maps (30 rows @ oy+1 → feet at oy+30). Coat→pants→boots continuous.
-const JOSEPH_IDLE = [
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFFH..',
-  '...HFFFEFFF...',
-  '...HFFFFFFR...',
-  '....FFFFFF....',
-  '...NNNSSSNNN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNNDSSDNNN..',
-  '..NNNNNNNNNN..',
-  '..NNSSSSSSNN..',
-  '..NNTTTTTTNN..',
-  '..NNTTTTTTNN..',
-  '...TTTTTTTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '..BBBB..BBBB..',
-  '..BBBB..BBBB..',
-];
-
-const JOSEPH_WALK = [
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFFH..',
-  '...HFFFEFFF...',
-  '...HFFFFFFR...',
-  '....FFFFFF....',
-  '...NNNSSSNNN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNNDSSDNNN..',
-  '..NNNNNNNNNN..',
-  '..NNSSSSSSNN..',
-  '..NNTTTTTTNN..',
-  '..NNTTTTTTNN..',
-  '...TTTTTTTT...',
-  '...TTT...TTT..',
-  '...TTT...TTT..',
-  '..TTT....TTT..',
-  '..TTT....TTT..',
-  '..TTT....TTT..',
-  '.TTT.....TTT..',
-  '.TTT.....TTT..',
-  '.BBB.....BBB..',
-  '.BBB.....BBB..',
-  '.BBB.....BBB..',
-  'BBBB.....BBBB.',
-  'BBBB.....BBBB.',
-  'BBBB.....BBBB.',
-];
-
-const JOSEPH_JUMP = [
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFFH..',
-  '...HFFFEFFF...',
-  '...HFFFFFFR...',
-  '....FFFFFF....',
-  '...NNNSSSNNN..',
-  '..NNDNSSSNDN..',
-  '.FNNDNSSSNDNF.',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNNDSSDNNN..',
-  '..NNNNNNNNNN..',
-  '..NNSSSSSSNN..',
-  '..NNTTTTTTNN..',
-  '..NNTTTTTTNN..',
-  '...TTTTTTTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '....TTT.TTT...',
-  '....TTTTTT....',
-  '....TTTTTT....',
-  '....TTT.TTT...',
-  '....TTT.TTT...',
-  '....BBB.BBB...',
-  '....BBB.BBB...',
-  '....BBB.BBB...',
-  '...BBBB.BBBB..',
-  '...BBBB.BBBB..',
-  '...BBBB.BBBB..',
-];
-
-const JOSEPH_ATTACK = [
-  // Throwing pose — arm extended, releasing an engraved gold plate
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFFH..',
-  '...HFFFEFFF...',
-  '...HFFFFFFR...',
-  '....FFFFFF....',
-  '...NNNSSSNNN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNFFF.',
-  '..NNDNSSS.FF..',
-  '..NNDNSSD.GLG.',
-  '..NNNDSS.GLGLG',
-  '..NNNNNN.GLG..',
-  '..NNSSSSSSNN..',
-  '..NNTTTTTTNN..',
-  '..NNTTTTTTNN..',
-  '...TTTTTTTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '..BBBB..BBBB..',
-  '..BBBB..BBBB..',
-];
-
-
-const JOSEPH_CROUCH = [
-  // Compressed / ducked — coat scrunched, knees bent (18 rows, drawn lower)
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFFH..',
-  '...HFFFEFFF...',
-  '...HFFFFFFR...',
-  '....FFFFFF....',
-  '...NNNSSSNNN..',
-  '..NNDNSSSNDN..',
-  '..NNDNSSSNDN..',
-  '..NNNDSSDNNN..',
-  '..NNNNNNNNNN..',
-  '..NNTTTTTTNN..',
-  '...TTTTTTTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...BBB..BBB...',
-  '...BBB..BBB...',
-  '..BBBB..BBBB..',
-];
-
-/** Joseph Smith — coat, face, walk / jump / crouch / throw (gold-plate) poses */
+// ── Joseph Smith (32×64 slot) — navy coat, cream shirt, respectful stylized face ──
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
+  const walk = !jumping && !crouching && !attacking && frame % 2 === 1;
 
-  // soft shadow (feet stay at oy+30 whether standing or crouched draw offset)
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 3, oy + 30, 10, 2);
+  // soft ground shadow (feet at oy+60)
+  ellipse(ctx, ox + 16, oy + 62, 10, 3, COLORS.shadow);
 
-  let rows = JOSEPH_IDLE;
-  let rowOy = oy + 1;
-  if (crouching && !jumping) {
-    rows = JOSEPH_CROUCH;
-    // 18-row map: pin feet to same baseline as 30-row standing maps (oy+30)
-    rowOy = oy + 1 + (30 - rows.length);
-  } else if (attacking) rows = JOSEPH_ATTACK;
-  else if (jumping) rows = JOSEPH_JUMP;
-  else if (frame % 2 === 1) rows = JOSEPH_WALK;
+  withFlip(ctx, ox, oy, 32, flip, (bx, by) => {
+    const legShift = walk ? 3 : jumping ? 2 : 0;
+    const crouch = crouching && !jumping;
+    const yOff = crouch ? 20 : 0; // compress toward feet baseline
 
-  // maps are 14 wide; center in 16px slot
-  drawPixels(ctx, ox + 1, rowOy, rows, P_JOSEPH, flip);
+    // —— Legs / boots (drawn first so coat overlaps) ——
+    const pant = '#3a4568';
+    const pantDark = '#2a3348';
+    const boot = '#3a2818';
+    const bootHi = '#5a4030';
 
-  // coat button highlights (readable silhouette)
-  if (!attacking && !crouching) {
-    const bx = flip ? ox + 6 : ox + 9;
-    drawRect(ctx, bx, oy + 12, 1, 1, '#d4a84b');
-    drawRect(ctx, bx, oy + 15, 1, 1, '#d4a84b');
-  } else if (crouching && !attacking) {
-    const bx = flip ? ox + 6 : ox + 9;
-    drawRect(ctx, bx, rowOy + 8, 1, 1, '#d4a84b');
-  }
+    if (crouch) {
+      roundRect(ctx, bx + 8, by + 40, 7, 14, 2, pant);
+      roundRect(ctx, bx + 17, by + 40, 7, 14, 2, pantDark);
+      roundRect(ctx, bx + 7, by + 50, 9, 10, 2, boot);
+      roundRect(ctx, bx + 16, by + 50, 9, 10, 2, boot);
+      drawRect(ctx, bx + 8, by + 52, 7, 2, bootHi);
+      drawRect(ctx, bx + 17, by + 52, 7, 2, bootHi);
+    } else if (jumping) {
+      roundRect(ctx, bx + 9, by + 38, 6, 16, 2, pant);
+      roundRect(ctx, bx + 17, by + 40, 6, 14, 2, pantDark);
+      roundRect(ctx, bx + 8, by + 52, 8, 10, 2, boot);
+      roundRect(ctx, bx + 16, by + 50, 8, 10, 2, boot);
+    } else {
+      // left leg
+      roundRect(ctx, bx + 8 - (walk ? legShift : 0), by + 38, 7, 18, 2, pant);
+      roundRect(ctx, bx + 7 - (walk ? legShift : 0), by + 52, 9, 10, 2, boot);
+      drawRect(ctx, bx + 8 - (walk ? legShift : 0), by + 54, 7, 2, bootHi);
+      // right leg
+      roundRect(ctx, bx + 17 + (walk ? legShift : 0), by + 38, 7, 18, 2, pantDark);
+      roundRect(ctx, bx + 16 + (walk ? legShift : 0), by + 52, 9, 10, 2, boot);
+      drawRect(ctx, bx + 17 + (walk ? legShift : 0), by + 54, 7, 2, bootHi);
+    }
+
+    // —— Coat torso ——
+    const coatY = by + 14 + yOff;
+    const coatH = crouch ? 28 : 28;
+    // coat body with shade
+    roundRect(ctx, bx + 6, coatY, 20, coatH, 3, '#0e2848');
+    roundRect(ctx, bx + 7, coatY + 1, 18, coatH - 3, 3, '#1a3a5c');
+    strokeRound(ctx, bx + 6, coatY, 20, coatH, 3, '#081828', 1.25);
+    // center crease / shirt peek
+    drawRect(ctx, bx + 14, coatY + 4, 4, crouch ? 16 : 18, '#e8dcc8');
+    drawRect(ctx, bx + 15, coatY + 5, 2, crouch ? 14 : 16, '#f0e8d8');
+    // lapels
+    drawRect(ctx, bx + 7, coatY + 2, 5, 8, '#163450');
+    drawRect(ctx, bx + 20, coatY + 2, 5, 8, '#163450');
+    // gold buttons
+    ellipse(ctx, bx + 16, coatY + 10, 1.5, 1.5, '#d4a84b');
+    ellipse(ctx, bx + 16, coatY + 16, 1.5, 1.5, '#d4a84b');
+    if (!crouch) ellipse(ctx, bx + 16, coatY + 22, 1.5, 1.5, '#c4983a');
+    // shoulder highlight
+    drawRect(ctx, bx + 8, coatY + 1, 6, 2, 'rgba(80,120,180,0.35)');
+
+    // —— Arms ——
+    const skin = '#e0b890';
+    const skinHi = '#f0d0a8';
+    if (attacking) {
+      // extended throwing arm
+      roundRect(ctx, bx + 22, coatY + 6, 14, 6, 2, '#1a3a5c');
+      roundRect(ctx, bx + 34, coatY + 5, 6, 8, 2, skin);
+      // gold plate in hand
+      roundRect(ctx, bx + 38, coatY + 4, 10, 8, 1, '#d4a84b');
+      drawRect(ctx, bx + 39, coatY + 5, 8, 1, '#f0d878');
+      drawRect(ctx, bx + 39, coatY + 7, 8, 1, '#8b6914');
+      drawRect(ctx, bx + 39, coatY + 9, 8, 1, '#c4983a');
+      // trailing arm
+      roundRect(ctx, bx + 4, coatY + 8, 5, 12, 2, '#0e2848');
+      ellipse(ctx, bx + 6, coatY + 20, 3, 3, skin);
+    } else if (jumping) {
+      roundRect(ctx, bx + 2, coatY + 4, 5, 14, 2, '#0e2848');
+      roundRect(ctx, bx + 25, coatY + 4, 5, 14, 2, '#1a3a5c');
+      ellipse(ctx, bx + 4, coatY + 18, 3, 3, skin);
+      ellipse(ctx, bx + 28, coatY + 18, 3, 3, skin);
+    } else {
+      roundRect(ctx, bx + 3, coatY + 6, 5, 14, 2, '#0e2848');
+      roundRect(ctx, bx + 24, coatY + 6, 5, 14, 2, '#1a3a5c');
+      ellipse(ctx, bx + 5, coatY + 20, 3, 3, skin);
+      ellipse(ctx, bx + 27, coatY + 20, 3, 3, skinHi);
+    }
+
+    // —— Head ——
+    const hx = bx + 16;
+    const hy = by + 8 + yOff;
+    // hair mass
+    ellipse(ctx, hx, hy - 2, 9, 7, '#2a1810');
+    ellipse(ctx, hx - 1, hy - 4, 7, 5, '#3a2418');
+    strokeEllipse(ctx, hx, hy - 2, 9, 7, '#1a1008', 1.0);
+    // face
+    ellipse(ctx, hx, hy + 2, 7.5, 8, skin);
+    strokeEllipse(ctx, hx, hy + 2, 7.5, 8, '#8a6040', 1.1);
+    ellipse(ctx, hx - 1, hy + 1, 4, 4, skinHi); // cheek light
+    // eyes (simple respectful dots — not a likeness)
+    ellipse(ctx, hx - 3, hy + 1, 1.2, 1.4, '#2a1a10');
+    ellipse(ctx, hx + 3, hy + 1, 1.2, 1.4, '#2a1a10');
+    drawRect(ctx, hx - 3, hy, 1, 1, 'rgba(255,255,255,0.5)');
+    drawRect(ctx, hx + 3, hy, 1, 1, 'rgba(255,255,255,0.5)');
+    // brow
+    drawRect(ctx, hx - 5, hy - 2, 4, 1, '#2a1810');
+    drawRect(ctx, hx + 1, hy - 2, 4, 1, '#2a1810');
+    // nose hint
+    drawRect(ctx, hx, hy + 3, 2, 2, '#d4a080');
+    // calm mouth
+    drawRect(ctx, hx - 2, hy + 7, 4, 1, '#c07050');
+    // collar
+    drawRect(ctx, bx + 11, hy + 10, 10, 3, '#f0e8d8');
+    drawRect(ctx, bx + 12, hy + 11, 3, 2, '#e8dcc8');
+    drawRect(ctx, bx + 17, hy + 11, 3, 2, '#e8dcc8');
+  });
 }
 
-// ── Gold plate projectile (10×7 engraved sheet) ───────────
-const P_PLATE = {
-  K: '#5a4010', // rim / outline
-  G: '#d4a84b', // gold face
-  L: '#f0d878', // highlight
-  D: '#8b6914', // engraved line / shadow
-  E: '#c4983a', // mid engraving
-};
-
-const GOLD_PLATE = [
-  '.KKKKKKKK.',
-  'KGGLGLGGLK',
-  'KGEGEGEGEK',
-  'KGGLGLGGLK',
-  'KDEDEDEDEK',
-  'KLLLLLLLLK',
-  '.KKKKKKKK.',
-];
-
-/** Small engraved golden plate / metal sheet flying as a projectile */
+// ── Gold plate projectile (20×14 engraved metallic sheet) ──
 export function drawGoldPlate(ctx, x, y, facing = 1) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
-  drawPixels(ctx, ox, oy, GOLD_PLATE, P_PLATE, facing < 0);
-  // subtle leading edge gleam
-  const gx = facing > 0 ? ox + 8 : ox + 1;
-  drawRect(ctx, gx, oy + 2, 1, 3, 'rgba(255,245,200,0.55)');
+  const w = 20;
+  const h = 14;
+  ctx.save();
+  if (facing < 0) {
+    ctx.translate(ox + w, oy);
+    ctx.scale(-1, 1);
+    ctx.translate(-ox, -oy);
+  }
+  // plate body
+  roundRect(ctx, ox, oy, w, h, 2, '#5a4010');
+  roundRect(ctx, ox + 1, oy + 1, w - 2, h - 2, 2, '#d4a84b');
+  // metallic gradient bands
+  drawRect(ctx, ox + 2, oy + 2, w - 4, 2, '#f0d878');
+  drawRect(ctx, ox + 2, oy + 5, w - 4, 1, '#8b6914');
+  drawRect(ctx, ox + 2, oy + 7, w - 4, 1, '#c4983a');
+  drawRect(ctx, ox + 2, oy + 9, w - 4, 1, '#8b6914');
+  drawRect(ctx, ox + 2, oy + 11, w - 4, 1, '#e8c860');
+  // engraved characters suggestion (abstract marks)
+  drawRect(ctx, ox + 4, oy + 4, 2, 2, '#8b6914');
+  drawRect(ctx, ox + 8, oy + 4, 3, 2, '#8b6914');
+  drawRect(ctx, ox + 13, oy + 4, 2, 2, '#8b6914');
+  // leading gleam
+  drawRect(ctx, ox + w - 3, oy + 3, 1, 8, 'rgba(255,245,200,0.65)');
+  ctx.restore();
 }
 
-// ── Brigand (16×32) ───────────────────────────────────────
-const BRIGAND_A = [
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFF...',
-  '..BBBBBBBBBB..',
-  '...HFFEFFFF...',
-  '...HFFFFFFW...',
-  '....FFFFFF....',
-  '...CCCSSSCCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSMMDCC..',
-  '..CCCCCCCCCC..',
-  '..CCSSSSSSCC..',
-  '..CCTTTTTTCC..',
-  '..CCTTTTTTCC..',
-  '...TTTTTTTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...OOO..OOO...',
-  '...OOO..OOO...',
-  '...OOO..OOO...',
-  '...OOO..OOO...',
-  '..OOOO..OOOO..',
-  '..OOOO..OOOO..',
-];
+// ── Brigand / variants (32×64) ──
+function drawHumanoidFoe(ctx, x, y, facing, frame, flash, pal) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const flip = facing < 0;
+  const walk = frame % 2 === 1;
+  ellipse(ctx, ox + 16, oy + 62, 10, 3, COLORS.shadow);
 
-const BRIGAND_B = [
-  '....HHHHHH....',
-  '...HHHHHHHH...',
-  '...HHFFFFFF...',
-  '..BBBBBBBBBB..',
-  '...HFFEFFFF...',
-  '...HFFFFFFW...',
-  '....FFFFFF....',
-  '...CCCSSSCCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSSSDCC..',
-  '..CCDSSMMDCC..',
-  '..CCCCCCCCCC..',
-  '..CCSSSSSSCC..',
-  '..CCTTTTTTCC..',
-  '..CCTTTTTTCC..',
-  '...TTTTTTTT...',
-  '..TTT....TTT..',
-  '..TTT....TTT..',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '...TTT..TTT...',
-  '....TTTTTT....',
-  '....TTTTTT....',
-  '....OOOOOO....',
-  '....OOO.OOO...',
-  '....OOO.OOO...',
-  '...OOOO.OOOO..',
-  '...OOOO.OOOO..',
-  '...OOOO.OOOO..',
-];
+  withFlip(ctx, ox, oy, 32, flip, (bx, by) => {
+    const shift = walk ? 3 : 0;
+    const coat = flash ? pal.flashCoat : pal.coat;
+    const coatD = flash ? pal.flashDark : pal.coatDark;
+    const band = flash ? '#ff6060' : pal.bandana;
+    const pant = pal.pants;
+    const boot = pal.boots;
+    const skin = '#c4a080';
+    const skinHi = '#d4b090';
+
+    roundRect(ctx, bx + 8 - shift, by + 38, 7, 18, 2, pant);
+    roundRect(ctx, bx + 17 + shift, by + 38, 7, 18, 2, '#2a1a10');
+    roundRect(ctx, bx + 7 - shift, by + 52, 9, 10, 2, boot);
+    roundRect(ctx, bx + 16 + shift, by + 52, 9, 10, 2, boot);
+
+    roundRect(ctx, bx + 6, by + 16, 20, 26, 3, coatD);
+    roundRect(ctx, bx + 7, by + 17, 18, 24, 3, coat);
+    drawRect(ctx, bx + 14, by + 20, 4, 14, pal.shirt);
+    if (pal.sash) drawRect(ctx, bx + 7, by + 32, 18, 4, flash ? '#ff8080' : pal.sash);
+    // pouch
+    roundRect(ctx, bx + 18, by + 30, 6, 6, 1, '#6a5030');
+
+    roundRect(ctx, bx + 3, by + 20, 5, 12, 2, coatD);
+    roundRect(ctx, bx + 24, by + 20, 5, 12, 2, coat);
+    ellipse(ctx, bx + 5, by + 32, 3, 3, skin);
+    ellipse(ctx, bx + 27, by + 32, 3, 3, skinHi);
+
+    // dagger
+    drawRect(ctx, bx + 26, by + 34, 3, 8, '#8a8a9a');
+    drawRect(ctx, bx + 25, by + 33, 5, 2, '#c0a060');
+
+    // head + bandana
+    ellipse(ctx, bx + 16, by + 10, 8, 7, '#1a1a1a');
+    roundRect(ctx, bx + 8, by + 8, 16, 5, 2, band);
+    ellipse(ctx, bx + 16, by + 12, 7, 7, skin);
+    ellipse(ctx, bx + 13, by + 11, 1.3, 1.5, '#8b0000');
+    ellipse(ctx, bx + 19, by + 11, 1.3, 1.5, '#8b0000');
+    drawRect(ctx, bx + 14, by + 16, 4, 1, '#8a5040');
+  });
+}
 
 export function drawBrigand(ctx, x, y, facing, frame, flash = false) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 3, oy + 30, 10, 2);
-
-  const pal = flash
-    ? { ...P_BRIGAND, C: '#a05040', D: '#802830' }
-    : P_BRIGAND;
-  const rows = frame % 2 === 0 ? BRIGAND_A : BRIGAND_B;
-  drawPixels(ctx, ox + 1, oy + 1, rows, pal, facing < 0);
-
-  // dagger hint at hip
-  const dx = facing > 0 ? ox + 13 : ox + 1;
-  drawRect(ctx, dx, oy + 22, 2, 4, '#8a8a9a');
+  drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
+    coat: '#5a3020',
+    coatDark: '#3a2010',
+    flashCoat: '#a05040',
+    flashDark: '#802830',
+    bandana: '#8b2020',
+    pants: '#3a2a1a',
+    boots: '#2a1a10',
+    shirt: '#8a7060',
+  });
 }
 
-/** Grove scout — green-brown coat, same silhouette */
 export function drawScout(ctx, x, y, facing, frame, flash = false) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 3, oy + 30, 10, 2);
-
-  const pal = flash
-    ? { ...P_BRIGAND, C: '#a07040', D: '#806028', B: '#2a5a2a', T: '#2a3a20' }
-    : { ...P_BRIGAND, C: '#3a4a28', D: '#2a3818', B: '#2a5a28', T: '#2a3a1a', S: '#6a7a58' };
-  const rows = frame % 2 === 0 ? BRIGAND_A : BRIGAND_B;
-  drawPixels(ctx, ox + 1, oy + 1, rows, pal, facing < 0);
-  const dx = facing > 0 ? ox + 13 : ox + 1;
-  drawRect(ctx, dx, oy + 22, 2, 4, '#6a8a5a');
+  drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
+    coat: '#3a4a28',
+    coatDark: '#2a3818',
+    flashCoat: '#a07040',
+    flashDark: '#806028',
+    bandana: '#2a5a28',
+    pants: '#2a3a1a',
+    boots: '#1a2010',
+    shirt: '#6a7a58',
+  });
 }
 
-/** Village thug — darker coat, red sash */
 export function drawThug(ctx, x, y, facing, frame, flash = false) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 3, oy + 30, 10, 2);
-
-  const pal = flash
-    ? { ...P_BRIGAND, C: '#a04050', D: '#802030', B: '#c04040' }
-    : { ...P_BRIGAND, C: '#2a2030', D: '#1a1020', B: '#8b2028', T: '#1a1a22', S: '#5a4858' };
-  const rows = frame % 2 === 0 ? BRIGAND_A : BRIGAND_B;
-  drawPixels(ctx, ox + 1, oy + 1, rows, pal, facing < 0);
-  const dx = facing > 0 ? ox + 13 : ox + 1;
-  drawRect(ctx, dx, oy + 22, 2, 4, '#c0a060');
-  // sash stripe
-  drawRect(ctx, ox + 4, oy + 18, 8, 2, flash ? '#ff8080' : '#a02828');
+  drawHumanoidFoe(ctx, x, y, facing, frame, flash, {
+    coat: '#2a2030',
+    coatDark: '#1a1020',
+    flashCoat: '#a04050',
+    flashDark: '#802030',
+    bandana: '#8b2028',
+    pants: '#1a1a22',
+    boots: '#100810',
+    shirt: '#5a4858',
+    sash: '#a02828',
+  });
 }
 
-// ── Wolf (20×20 drawn into 16×32 slot with y offset) ──────
-const WOLF_A = [
-  '..............',
-  '...D....D.....',
-  '..DFD..DFD....',
-  '..DLLDDLLD....',
-  '.DFFFFFFFFD...',
-  'DFFLFFFFFFFD..',
-  'DFFEFFFFFFND..',
-  'DFFFFFFFFFWWD.',
-  '.DFFFFFFFFD...',
-  '..DFFFFFFD....',
-  '..DF....FD....',
-  '..DF....FD....',
-  '..DP....PD....',
-  '..DP....PD....',
-  '..DD....DD....',
-  '..DD....DD....',
-];
-
-const WOLF_B = [
-  '..............',
-  '...D....D.....',
-  '..DFD..DFD....',
-  '..DLLDDLLD....',
-  '.DFFFFFFFFD...',
-  'DFFLFFFFFFFD..',
-  'DFFEFFFFFFND..',
-  'DFFFFFFFFFWWD.',
-  '.DFFFFFFFFD...',
-  '..DFFFFFFD....',
-  '.DF......FD...',
-  '.DF......FD...',
-  '.DP......PD...',
-  '.DP......PD...',
-  '.DD......DD...',
-  '.DD......DD...',
-];
-
+// ── Wolf (drawn in 32×48 lower slot) ──
 export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const ox = Math.floor(x);
-  const oy = Math.floor(y) + 14;
+  const oy = Math.floor(y) + 20;
   const bob = frame % 2;
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 2, oy + 16, 12, 2);
+  const flip = facing < 0;
+  ellipse(ctx, ox + 16, oy + 28 + bob, 12, 3, COLORS.shadow);
 
-  const pal = flash
-    ? { ...P_WOLF, F: '#8a6060', L: '#aa8080', D: '#5a3030' }
-    : P_WOLF;
-  const rows = bob === 0 ? WOLF_A : WOLF_B;
-  // flip so snout faces movement; maps face right
-  drawPixels(ctx, ox + 1, oy + bob, rows, pal, facing < 0);
+  withFlip(ctx, ox, oy + bob, 32, flip, (bx, by) => {
+    const fur = flash ? '#8a6060' : '#5a5a5a';
+    const furL = flash ? '#aa8080' : '#7a7a7a';
+    const furD = flash ? '#5a3030' : '#3a3a3a';
+
+    // body
+    ellipse(ctx, bx + 14, by + 14, 12, 8, furD);
+    ellipse(ctx, bx + 14, by + 13, 11, 7, fur);
+    ellipse(ctx, bx + 10, by + 11, 5, 4, furL);
+    // head / snout
+    ellipse(ctx, bx + 24, by + 12, 7, 6, fur);
+    ellipse(ctx, bx + 28, by + 13, 5, 3.5, '#e8e8e8');
+    ellipse(ctx, bx + 30, by + 13, 2, 1.5, '#2a2a2a');
+    // ear
+    ellipse(ctx, bx + 20, by + 5, 3, 4, furD);
+    ellipse(ctx, bx + 20, by + 5, 1.5, 2, '#8a6a5a');
+    ellipse(ctx, bx + 24, by + 5, 3, 4, furD);
+    // eye
+    ellipse(ctx, bx + 24, by + 11, 1.5, 1.5, '#ffcc00');
+    drawRect(ctx, bx + 24, by + 11, 1, 1, '#1a1a1a');
+    // legs
+    const spread = bob ? 4 : 2;
+    roundRect(ctx, bx + 6, by + 18, 4, 10, 1, furD);
+    roundRect(ctx, bx + 12, by + 18, 4, 10, 1, fur);
+    roundRect(ctx, bx + 18, by + 18, 4, 10 - spread / 2, 1, furD);
+    roundRect(ctx, bx + 22, by + 18, 4, 10 + spread / 2, 1, fur);
+    ellipse(ctx, bx + 8, by + 28, 3, 2, '#8a6a5a');
+    ellipse(ctx, bx + 14, by + 28, 3, 2, '#8a6a5a');
+    ellipse(ctx, bx + 20, by + 28 - spread / 2, 3, 2, '#8a6a5a');
+    ellipse(ctx, bx + 24, by + 28 + spread / 2, 3, 2, '#8a6a5a');
+    // tail
+    ellipse(ctx, bx + 2, by + 12, 5, 3, furL);
+  });
 }
 
-// ── Boss: Frontier Ringleader (32×48) ─────────────────────
-const BOSS_BODY = [
-  '........HHHHHHHH........',
-  '.......HHHHHHHHHH.......',
-  '......HHHHHHHHHHHH......',
-  '.....HH....HH....HH.....',
-  '........FFFFFFFF........',
-  '.......FFFEFFEFFF.......',
-  '.......FFFFFFFFFF.......',
-  '........FFFRRFFF........',
-  '.........FFFFFF.........',
-  '....PP..CCCCCCCC..PP....',
-  '...PPP.CCMSSSSMCC.PPP...',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..QPPP.CCCDSSDCCC.PPPQ..',
-  '..QPPP.CCCCCCCCCC.PPPQ..',
-  '...PPP.CCCCCCCCCC.PPP...',
-  '...PPP..CCCCCCCC..PPP...',
-  '....PP..CCTTTTCC..PP....',
-  '........TTTTTTTT........',
-  '........TTTTTTTT........',
-  '........TTTTTTTT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........TT....TT........',
-  '........BB....BB........',
-  '........BB....BB........',
-  '........BB....BB........',
-  '........BB....BB........',
-  '........BB....BB........',
-  '........BB....BB........',
-  '.......BBB....BBB.......',
-  '.......BBB....BBB.......',
-  '......BBBB....BBBB......',
-  '......BBBB....BBBB......',
-];
-
-const BOSS_WALK = [
-  '........HHHHHHHH........',
-  '.......HHHHHHHHHH.......',
-  '......HHHHHHHHHHHH......',
-  '.....HH....HH....HH.....',
-  '........FFFFFFFF........',
-  '.......FFFEFFEFFF.......',
-  '.......FFFFFFFFFF.......',
-  '........FFFRRFFF........',
-  '.........FFFFFF.........',
-  '....PP..CCCCCCCC..PP....',
-  '...PPP.CCMSSSSMCC.PPP...',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..PPPP.CCDSSSSDCC.PPPP..',
-  '..QPPP.CCCDSSDCCC.PPPQ..',
-  '..QPPP.CCCCCCCCCC.PPPQ..',
-  '...PPP.CCCCCCCCCC.PPP...',
-  '...PPP..CCCCCCCC..PPP...',
-  '....PP..CCTTTTCC..PP....',
-  '........TTTTTTTT........',
-  '........TTTTTTTT........',
-  '........TTTTTTTT........',
-  '.......TT......TT.......',
-  '.......TT......TT.......',
-  '......TT........TT......',
-  '......TT........TT......',
-  '......TT........TT......',
-  '......TT........TT......',
-  '.....TT..........TT.....',
-  '.....TT..........TT.....',
-  '.....TT..........TT.....',
-  '.....TT..........TT.....',
-  '.....TT..........TT.....',
-  '.....BB..........BB.....',
-  '.....BB..........BB.....',
-  '.....BB..........BB.....',
-  '.....BB..........BB.....',
-  '.....BB..........BB.....',
-  '.....BB..........BB.....',
-  '....BBB..........BBB....',
-  '....BBB..........BBB....',
-  '...BBBB..........BBBB...',
-  '...BBBB..........BBBB...',
-];
-
-const BOSS_PALETTES = {
-  ringleader: P_BOSS,
-  sentinel: {
-    ...P_BOSS,
-    H: '#0a1810',
-    C: '#1a3020',
-    D: '#0e2014',
-    M: '#2a4030',
-    P: '#1a4028',
-    Q: '#2a5838',
-    T: '#142018',
-    B: '#081208',
-    G: '#6a8b4b',
-  },
-  captain: {
-    ...P_BOSS,
-    H: '#1a1018',
-    C: '#3a2030',
-    D: '#281018',
-    M: '#4a3040',
-    P: '#5a1830',
-    Q: '#7a2840',
-    T: '#201018',
-    B: '#100808',
-    G: '#c07040',
-  },
-  warden: {
-    ...P_BOSS,
-    H: '#081018',
-    C: '#1a2840',
-    D: '#101828',
-    M: '#2a3850',
-    P: '#183048',
-    Q: '#285070',
-    T: '#101828',
-    B: '#080c14',
-    G: '#6a90b0',
-  },
-  overseer: {
-    ...P_BOSS,
-    H: '#080810',
-    C: '#201028',
-    D: '#140818',
-    M: '#302038',
-    P: '#401020',
-    Q: '#602030',
-    T: '#100818',
-    B: '#08040c',
-    G: '#d4a84b',
-    S: '#e8d0b0',
-  },
+// ── Boss (64×96) ──
+const BOSS_COLORS = {
+  ringleader: { coat: '#2a1a40', coatD: '#1a1028', cape: '#4a1020', capeL: '#6a1830', accent: '#d4a84b', hat: '#1a0a08' },
+  sentinel: { coat: '#1a3020', coatD: '#0e2014', cape: '#1a4028', capeL: '#2a5838', accent: '#6a8b4b', hat: '#0a1810' },
+  captain: { coat: '#3a2030', coatD: '#281018', cape: '#5a1830', capeL: '#7a2840', accent: '#c07040', hat: '#1a1018' },
+  warden: { coat: '#1a2840', coatD: '#101828', cape: '#183048', capeL: '#285070', accent: '#6a90b0', hat: '#081018' },
+  overseer: { coat: '#201028', coatD: '#140818', cape: '#401020', capeL: '#602030', accent: '#d4a84b', hat: '#080810' },
 };
 
 export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader') {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
-  ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(ox + 6, oy + 46, 20, 3);
+  const flip = facing < 0;
+  const walk = frame % 2 === 1;
+  const c = BOSS_COLORS[bossKind] || BOSS_COLORS.ringleader;
+  const coat = flash ? '#c04040' : c.coat;
+  const coatD = flash ? '#a02828' : c.coatD;
+  const cape = flash ? '#801020' : c.cape;
+  const capeL = flash ? '#a01830' : c.capeL;
+  const accent = flash ? '#fff0a0' : c.accent;
 
-  let pal = BOSS_PALETTES[bossKind] || P_BOSS;
-  if (flash) {
-    pal = {
-      ...pal,
-      C: '#c04040',
-      D: '#a02828',
-      M: '#e05050',
-      P: '#801020',
-      Q: '#a01830',
-    };
-  }
+  ellipse(ctx, ox + 32, oy + 94, 18, 4, COLORS.shadow);
 
-  const rows = frame % 2 === 0 ? BOSS_BODY : BOSS_WALK;
-  drawPixels(ctx, ox + 4, oy + 2, rows, pal, facing < 0);
+  withFlip(ctx, ox, oy, 64, flip, (bx, by) => {
+    const shift = walk ? 5 : 0;
+    // cape
+    ctx.fillStyle = cape;
+    ctx.beginPath();
+    ctx.moveTo(bx + 10, by + 28);
+    ctx.quadraticCurveTo(bx - 4, by + 50, bx + 8, by + 70);
+    ctx.lineTo(bx + 18, by + 40);
+    ctx.fill();
+    ctx.fillStyle = capeL;
+    ctx.beginPath();
+    ctx.moveTo(bx + 54, by + 28);
+    ctx.quadraticCurveTo(bx + 68, by + 50, bx + 56, by + 70);
+    ctx.lineTo(bx + 46, by + 40);
+    ctx.fill();
 
-  const bx = facing > 0 ? ox + 14 : ox + 15;
-  const accent = bossKind === 'warden' ? '#6a90b0' : bossKind === 'sentinel' ? '#6a8b4b' : '#d4a84b';
-  drawRect(ctx, bx, oy + 30, 4, 2, flash ? '#fff0a0' : accent);
-  drawRect(ctx, bx + 1, oy + 29, 2, 4, flash ? '#fff0a0' : '#8b6914');
+    // legs
+    roundRect(ctx, bx + 18 - shift, by + 58, 10, 28, 2, '#1a1a2a');
+    roundRect(ctx, bx + 36 + shift, by + 58, 10, 28, 2, '#12121c');
+    roundRect(ctx, bx + 16 - shift, by + 82, 14, 12, 2, '#0a0a12');
+    roundRect(ctx, bx + 34 + shift, by + 82, 14, 12, 2, '#0a0a12');
 
-  // Overseer storm spark accents
-  if (bossKind === 'overseer' && !flash) {
-    drawRect(ctx, ox + 8, oy + 12, 2, 2, '#a0c0ff');
-    drawRect(ctx, ox + 22, oy + 16, 2, 2, '#c0e0ff');
-  }
+    // torso
+    roundRect(ctx, bx + 14, by + 26, 36, 36, 4, coatD);
+    roundRect(ctx, bx + 16, by + 28, 32, 32, 4, coat);
+    drawRect(ctx, bx + 28, by + 32, 8, 20, '#e8dcc8');
+    // buckle
+    roundRect(ctx, bx + 26, by + 50, 12, 6, 1, accent);
+    drawRect(ctx, bx + 29, by + 51, 6, 4, '#8b6914');
+
+    // arms
+    roundRect(ctx, bx + 6, by + 30, 10, 22, 3, coatD);
+    roundRect(ctx, bx + 48, by + 30, 10, 22, 3, coat);
+    ellipse(ctx, bx + 10, by + 52, 5, 5, '#d4a880');
+    ellipse(ctx, bx + 54, by + 52, 5, 5, '#e8c4a0');
+
+    // head + hat
+    ellipse(ctx, bx + 32, by + 18, 12, 11, '#d4a880');
+    ellipse(ctx, bx + 30, by + 16, 5, 5, '#e8c4a0');
+    ellipse(ctx, bx + 27, by + 16, 2, 2.2, '#200808');
+    ellipse(ctx, bx + 37, by + 16, 2, 2.2, '#200808');
+    drawRect(ctx, bx + 28, by + 22, 8, 2, '#c04040');
+    // wide hat
+    ellipse(ctx, bx + 32, by + 8, 16, 5, c.hat);
+    roundRect(ctx, bx + 22, by + 2, 20, 8, 2, c.hat);
+    drawRect(ctx, bx + 24, by + 4, 16, 2, accent);
+
+    if (bossKind === 'overseer' && !flash) {
+      drawRect(ctx, bx + 18, by + 24, 3, 3, '#a0c0ff');
+      drawRect(ctx, bx + 44, by + 30, 3, 3, '#c0e0ff');
+    }
+  });
 }
 
-// ── UI hearts ─────────────────────────────────────────────
+// ── UI hearts (2× pixel maps) ──
+const P_HEART = {
+  R: '#e04040',
+  D: '#a02020',
+  L: '#f08080',
+  K: '#401010',
+  E: '#602020',
+  M: '#301818',
+};
+
 const HEART_FULL = [
   '.RR.RR.',
   'RLRLRLR',
@@ -696,32 +476,26 @@ const HEART_EMPTY = [
 ];
 
 export function drawHeart(ctx, x, y, filled) {
-  drawPixels(ctx, Math.floor(x), Math.floor(y), filled ? HEART_FULL : HEART_EMPTY, P_HEART);
+  drawPixels(ctx, Math.floor(x), Math.floor(y), filled ? HEART_FULL : HEART_EMPTY, P_HEART, false, SCALE);
 }
 
-/** Pixel-bordered text panel */
 export function drawPanel(ctx, x, y, w, h, fill = 'rgba(12,8,6,0.92)') {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   drawRect(ctx, ox, oy, w, h, fill);
-  // outer gold border
-  drawRect(ctx, ox, oy, w, 1, COLORS.uiGold);
-  drawRect(ctx, ox, oy + h - 1, w, 1, COLORS.uiGold);
-  drawRect(ctx, ox, oy, 1, h, COLORS.uiGold);
-  drawRect(ctx, ox + w - 1, oy, 1, h, COLORS.uiGold);
-  // inner highlight / shadow
-  drawRect(ctx, ox + 2, oy + 2, w - 4, 1, '#c4983a');
-  drawRect(ctx, ox + 2, oy + h - 3, w - 4, 1, '#5a4010');
-  drawRect(ctx, ox + 2, oy + 2, 1, h - 4, '#c4983a');
-  drawRect(ctx, ox + w - 3, oy + 2, 1, h - 4, '#5a4010');
+  drawRect(ctx, ox, oy, w, 2, COLORS.uiGold);
+  drawRect(ctx, ox, oy + h - 2, w, 2, COLORS.uiGold);
+  drawRect(ctx, ox, oy, 2, h, COLORS.uiGold);
+  drawRect(ctx, ox + w - 2, oy, 2, h, COLORS.uiGold);
+  drawRect(ctx, ox + 4, oy + 4, w - 8, 2, '#c4983a');
+  drawRect(ctx, ox + 4, oy + h - 6, w - 8, 2, '#5a4010');
 }
 
-// ── Crisp 5×7 bitmap font (integer pixels; stays sharp when canvas is upscaled) ──
+// ── Bitmap font (scaled) ──
 const FONT_W = 5;
 const FONT_H = 7;
 const FONT_GAP = 1;
 
-/** Packed 5-wide rows as bitmasks (MSB = leftmost). */
 const FONT = {
   " ": [0, 0, 0, 0, 0, 0, 0],
   "!": [4, 4, 4, 4, 4, 0, 4],
@@ -802,9 +576,11 @@ const FONT = {
   "—": [0, 0, 0, 31, 0, 0, 0],
 };
 
-/** Map CSS-ish size (legacy API) → integer pixel scale (1 or 2). */
 export function textScale(size = 8) {
-  return size >= 12 ? 2 : 1;
+  // At 2× canvas: size 8 → 2px glyphs, ≥12 → 3, ≥16 → 4
+  if (size >= 16) return 4;
+  if (size >= 12) return 3;
+  return SCALE; // 2
 }
 
 export function measureText(text, size = 8) {
@@ -830,26 +606,20 @@ function paintGlyph(ctx, glyph, x, y, scale, color) {
   }
 }
 
-/**
- * Pixel-perfect text. Integer positions only.
- * Optional 1-canvas-px dark outline (not scale-thick) for contrast on busy BGs.
- * size ~8 → 5×7, size ≥12 → 2× scale (10×14).
- */
 export function drawText(ctx, text, x, y, color = COLORS.uiCream, size = 8, outline = true) {
   const scale = textScale(size);
   const px = Math.floor(x);
   const py = Math.floor(y);
   const s = String(text);
   const outlineColor = '#050302';
-  // 1px outline in canvas space so 2× titles stay sharp (not a fat halo)
   const ring = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 
   if (outline) {
     for (let i = 0; i < s.length; i++) {
       const g = glyphFor(s[i]);
       const gx = px + i * (FONT_W + FONT_GAP) * scale;
-      for (const [ox, oy] of ring) {
-        paintGlyph(ctx, g, gx + ox, py + oy, scale, outlineColor);
+      for (const [dx, dy] of ring) {
+        paintGlyph(ctx, g, gx + dx, py + dy, scale, outlineColor);
       }
     }
   }
@@ -863,38 +633,34 @@ export function drawText(ctx, text, x, y, color = COLORS.uiCream, size = 8, outl
 
 export function drawCentered(ctx, text, y, color = COLORS.uiCream, size = 8, outline = true) {
   const w = measureText(text, size);
-  drawText(ctx, text, Math.floor((256 - w) / 2), y, color, size, outline);
+  drawText(ctx, text, Math.floor((W - w) / 2), y, color, size, outline);
 }
 
-/** Title flourish: center gem + mirrored vine tips */
 export function drawTitleFlourish(ctx, cx, y) {
   const gold = COLORS.uiGold;
   const dim = '#8b6914';
   cx = Math.floor(cx);
   y = Math.floor(y);
-  // diamond gem
-  drawRect(ctx, cx - 1, y, 2, 1, gold);
-  drawRect(ctx, cx - 2, y + 1, 4, 1, gold);
-  drawRect(ctx, cx - 3, y + 2, 6, 1, gold);
-  drawRect(ctx, cx - 2, y + 3, 4, 1, gold);
-  drawRect(ctx, cx - 1, y + 4, 2, 1, gold);
-  drawRect(ctx, cx - 1, y + 2, 2, 1, '#fff0c0');
+  drawRect(ctx, cx - 2, y, 4, 2, gold);
+  drawRect(ctx, cx - 4, y + 2, 8, 2, gold);
+  drawRect(ctx, cx - 6, y + 4, 12, 2, gold);
+  drawRect(ctx, cx - 4, y + 6, 8, 2, gold);
+  drawRect(ctx, cx - 2, y + 8, 4, 2, gold);
+  drawRect(ctx, cx - 2, y + 4, 4, 2, '#fff0c0');
   for (const dir of [-1, 1]) {
-    drawRect(ctx, cx + dir * 6, y + 2, 12, 1, dim);
-    drawRect(ctx, cx + dir * 18, y + 1, 2, 3, gold);
-    drawRect(ctx, cx + dir * 21, y + 2, 10, 1, dim);
-    // small leaf tip
-    drawRect(ctx, cx + dir * 31, y + 1, 3, 1, '#3d7a3a');
-    drawRect(ctx, cx + dir * 32, y + 2, 3, 1, '#4a8a40');
-    drawRect(ctx, cx + dir * 31, y + 3, 3, 1, '#3d7a3a');
+    drawRect(ctx, cx + dir * 12, y + 4, 24, 2, dim);
+    drawRect(ctx, cx + dir * 36, y + 2, 4, 6, gold);
+    drawRect(ctx, cx + dir * 42, y + 4, 20, 2, dim);
+    drawRect(ctx, cx + dir * 62, y + 2, 6, 2, '#3d7a3a');
+    drawRect(ctx, cx + dir * 64, y + 4, 6, 2, '#4a8a40');
+    drawRect(ctx, cx + dir * 62, y + 6, 6, 2, '#3d7a3a');
   }
 }
 
-/** Double-line gold underline under titles */
-export function drawTitleUnderline(ctx, cx, y, halfW = 70) {
+export function drawTitleUnderline(ctx, cx, y, halfW = 140) {
   cx = Math.floor(cx);
   y = Math.floor(y);
-  drawRect(ctx, cx - halfW, y, halfW * 2, 1, COLORS.uiGold);
-  drawRect(ctx, cx - halfW + 4, y + 2, halfW * 2 - 8, 1, '#8b6914');
-  drawRect(ctx, cx - 2, y - 1, 4, 1, '#fff0c0');
+  drawRect(ctx, cx - halfW, y, halfW * 2, 2, COLORS.uiGold);
+  drawRect(ctx, cx - halfW + 8, y + 4, halfW * 2 - 16, 2, '#8b6914');
+  drawRect(ctx, cx - 4, y - 2, 8, 2, '#fff0c0');
 }

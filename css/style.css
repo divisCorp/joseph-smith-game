@@ -36,9 +36,9 @@ html, body {
 /* Stage matches canvas size so overlays sit crisply on top */
 #stage {
   position: relative;
-  width: min(96vw, 768px);
+  width: min(96vw, 960px);
   max-height: min(85vh, 85dvh);
-  aspect-ratio: 256 / 240;
+  aspect-ratio: 512 / 480;
   border: 4px solid #3a2a18;
   box-shadow: 0 0 0 2px #8b6914, 0 8px 32px rgba(0, 0, 0, 0.6);
   background: #000;
@@ -50,8 +50,9 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  /* Crisp-but-detailed: painted sprites read better with slight smoothing */
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
   background: #000;
   touch-action: none;
   vertical-align: top;
@@ -412,7 +413,7 @@ body.touch-ui #game-wrap {
 html.touch-ui #stage,
 body.touch-ui #stage {
   /* Larger playfield; controls sit about halfway down the phone */
-  width: min(96vw, calc(58dvh * 256 / 240), 768px);
+  width: min(96vw, calc(58dvh * 512 / 480), 768px);
   max-height: 58dvh;
   margin-top: 8px;
 }
@@ -613,7 +614,7 @@ body.touch-ui {
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch-ui #stage,
   body.touch-ui #stage {
-    width: min(70vw, calc(56dvh * 256 / 240));
+    width: min(70vw, calc(56dvh * 512 / 480));
     max-height: 56dvh;
   }
 

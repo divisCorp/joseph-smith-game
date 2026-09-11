@@ -1,23 +1,24 @@
-/** NES-like fixed resolution and shared game constants */
-export const W = 256;
-export const H = 240;
-export const TILE = 16;
-export const GRAVITY = 0.35;
+/** HD illustrated side-scroller — internal 512×480 (2× NES), CSS-scaled */
+export const SCALE = 2;
+export const W = 256 * SCALE; // 512
+export const H = 240 * SCALE; // 480
+export const TILE = 16 * SCALE; // 32
+export const GRAVITY = 0.35 * SCALE;
 export const FRICTION = 0.75;
-export const MAX_FALL = 8;
+export const MAX_FALL = 8 * SCALE;
 
 export const STATES = {
   TITLE: 'title',
   PLAYING: 'playing',
   PAUSED: 'paused',
-  CLEAR: 'clear', // mid-campaign level cleared — brief advance screen
+  CLEAR: 'clear',
   WIN: 'win',
   LOSE: 'lose',
 };
 
 /** Campaign metadata (1-indexed levels) */
 export const LEVEL_META = [
-  null, // pad so index matches level number
+  null,
   {
     num: 1,
     name: 'Palmyra Woods',
