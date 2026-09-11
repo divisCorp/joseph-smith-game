@@ -1,16 +1,19 @@
 /**
  * Joseph Smith — Palmyra Quest
  * NES-like fixed 256×240 canvas, scaled via CSS.
+ * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { W, H, STATES } from './constants.js';
+import { STATES } from './constants.js';
 import { createGame, updateGame, drawGame } from './game.js';
 import { initVirtualControls, setAction } from './input.js';
+import { initOverlays, syncOverlays } from './ui.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 initVirtualControls();
+initOverlays();
 
 const game = createGame();
 
@@ -57,6 +60,7 @@ function frame(now) {
     steps++;
   }
   drawGame(ctx, game);
+  syncOverlays(game);
   requestAnimationFrame(frame);
 }
 

@@ -11,7 +11,7 @@ import {
 } from './player.js';
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel1, drawLevelBackground, drawLevelTiles } from './level.js';
-import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawTitleFlourish, drawTitleUnderline, drawJoseph } from './sprites.js';
+import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph } from './sprites.js';
 
 export function createGame() {
   return {
@@ -139,7 +139,7 @@ export function drawGame(ctx, game) {
   ctx.clearRect(0, 0, W, H);
 
   if (game.state === STATES.TITLE) {
-    drawTitle(ctx, game);
+    drawTitleScene(ctx, game);
     return;
   }
 
@@ -166,15 +166,11 @@ export function drawGame(ctx, game) {
     drawCentered(ctx, game.message, 97, COLORS.uiGold, 10);
   }
 
+  // Pause / win / lose text lives in HTML overlays (sharp on phones).
+  // Canvas only dims slightly under those overlays when needed.
   if (game.state === STATES.PAUSED) {
-    drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.5)');
-    drawPanel(ctx, 40, 88, W - 80, 48);
-    drawCentered(ctx, 'PAUSED', 98, COLORS.uiCream, 14, false);
-    drawCentered(ctx, 'P / Enter / START to resume', 120, '#f0e6d0', 8, false);
+    drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.25)');
   }
-
-  if (game.state === STATES.WIN) drawWin(ctx, game);
-  if (game.state === STATES.LOSE) drawLose(ctx, game);
 }
 
 function drawHUD(ctx, game) {
@@ -189,7 +185,8 @@ function drawHUD(ctx, game) {
   drawText(ctx, 'L1', 230, 6, COLORS.uiGreen, 8);
 }
 
-function drawTitle(ctx, game) {
+/** Title background only — menus are HTML overlays for retina-sharp text. */
+function drawTitleScene(ctx, game) {
   // night-to-dawn title sky
   for (let i = 0; i < 15; i++) {
     const t = i / 15;
@@ -213,54 +210,6 @@ function drawTitle(ctx, game) {
   drawRect(ctx, 0, 190, W, 1, '#1a2818');
   drawRect(ctx, 80, 200, 96, 3, '#1e2c14');
 
-  // hero preview (left), above footer bar
+  // hero preview
   drawJoseph(ctx, 18, 152, 1, Math.floor(game.titleBlink / 16) % 2, false, false);
-
-  // title block — strong hierarchy, crisp pixel type
-  drawTitleFlourish(ctx, 128, 18);
-  drawCentered(ctx, 'JOSEPH SMITH', 28, COLORS.uiGold, 14);
-  drawCentered(ctx, 'PALMYRA QUEST', 46, COLORS.uiCream, 14);
-  drawTitleUnderline(ctx, 128, 64, 78);
-  drawCentered(ctx, 'Level 1: Woods Path', 70, '#f0e6d0', 8);
-
-  // instruction panel — high-contrast cream on near-black
-  drawPanel(ctx, 36, 86, 184, 50);
-  drawCentered(ctx, 'Defend the frontier path.', 94, COLORS.uiCream, 8, false);
-  drawCentered(ctx, 'Reach the Ringleader.', 106, COLORS.uiCream, 8, false);
-  drawCentered(ctx, 'Family-friendly arcade.', 118, '#f0e6d0', 8, false);
-
-  // start prompt on dark strip
-  drawRect(ctx, 44, 142, 168, 18, '#0a0806');
-  drawRect(ctx, 44, 142, 168, 1, COLORS.uiGold);
-  drawRect(ctx, 44, 159, 168, 1, COLORS.uiGold);
-  const blink = Math.floor(game.titleBlink / 30) % 2 === 0;
-  if (blink) {
-    drawCentered(ctx, 'TAP START · ENTER / Z', 147, COLORS.uiGold, 8, false);
-  }
-
-  // footer bar — near-black plate so help lines stay high-contrast
-  drawRect(ctx, 0, 198, W, 42, '#060504');
-  drawRect(ctx, 0, 198, W, 1, '#8b6914');
-  drawCentered(ctx, 'Arrows/WASD · Space/Z · touch', 206, '#fff8e8', 8, false);
-  drawCentered(ctx, 'Inspired by classic NES action', 220, '#ffd878', 8, false);
-}
-
-function drawWin(ctx, game) {
-  drawRect(ctx, 0, 0, W, H, 'rgba(10,30,20,0.8)');
-  drawPanel(ctx, 28, 56, W - 56, 110);
-  drawTitleFlourish(ctx, 128, 64);
-  drawCentered(ctx, 'PATH CLEARED!', 76, COLORS.uiGold, 14, false);
-  drawCentered(ctx, 'Joseph stood firm.', 100, COLORS.uiCream, 8, false);
-  drawCentered(ctx, `Score: ${game.score}`, 118, COLORS.uiCream, 8, false);
-  drawCentered(ctx, 'Level 2 coming someday...', 138, '#c8e8c8', 8, false);
-  drawCentered(ctx, 'TAP START · ENTER / Z — Title', 175, COLORS.uiGold, 8, false);
-}
-
-function drawLose(ctx, game) {
-  drawRect(ctx, 0, 0, W, H, 'rgba(40,10,10,0.8)');
-  drawPanel(ctx, 28, 64, W - 56, 96);
-  drawCentered(ctx, 'DEFEATED', 80, COLORS.uiRed, 14, false);
-  drawCentered(ctx, 'Rise again, Joseph.', 108, COLORS.uiCream, 8, false);
-  drawCentered(ctx, `Score: ${game.score}`, 126, COLORS.uiCream, 8, false);
-  drawCentered(ctx, 'TAP START · ENTER / Z — Title', 170, COLORS.uiGold, 8, false);
 }
