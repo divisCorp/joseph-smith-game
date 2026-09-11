@@ -1,6 +1,7 @@
 /**
  * Level data — Level 1: Palmyra Woods Path
  * Clean structure for a future Level 2 (export more level factories).
+ * Richer hand-drawn-style tiles, trees, cabin, fence, parallax.
  */
 import { TILE, W, H, COLORS } from './constants.js';
 import { createEnemy } from './enemy.js';
@@ -71,10 +72,16 @@ export function createLevel1() {
   const decor = [];
   for (let c = 4; c < 100; c += 7) {
     if (tiles[groundR][c] === 1) {
-      decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE });
+      decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: (c / 7) % 3 });
     }
   }
   for (let c = 12; c < 20; c++) {
+    if (tiles[groundR][c] === 1) {
+      decor.push({ type: 'fence', x: c * TILE, y: (groundR - 1) * TILE });
+    }
+  }
+  // extra mid-path fence accents
+  for (let c of [44, 45, 46, 84, 85]) {
     if (tiles[groundR][c] === 1) {
       decor.push({ type: 'fence', x: c * TILE, y: (groundR - 1) * TILE });
     }
@@ -128,39 +135,64 @@ function tilesToSolids(tiles) {
 }
 
 export function drawLevelBackground(ctx, camX, level) {
-  // sky gradient bands
-  for (let i = 0; i < 10; i++) {
-    const t = i / 10;
-    const r = Math.floor(91 + t * 77);
-    const g = Math.floor(163 + t * 49);
-    const b = Math.floor(217 + t * 23);
-    drawRect(ctx, 0, i * 16, W, 16, `rgb(${r},${g},${b})`);
+  // sky gradient bands (dawn over Palmyra)
+  for (let i = 0; i < 12; i++) {
+    const t = i / 12;
+    const r = Math.floor(88 + t * 90);
+    const g = Math.floor(150 + t * 60);
+    const b = Math.floor(210 + t * 30);
+    drawRect(ctx, 0, i * 14, W, 14, `rgb(${r},${g},${b})`);
   }
-  // meadow fill under sky (avoid black gap above ground)
-  drawRect(ctx, 0, 140, W, 80, '#4a7a48');
-  // distant hills
+
+  // far cloud wisps (parallax slow)
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  for (let i = 0; i < 5; i++) {
+    const cx = ((i * 70 - camX * 0.08) % (W + 60)) - 30;
+    drawRect(ctx, cx, 28 + (i % 3) * 10, 28, 4, 'rgba(255,255,255,0.28)');
+    drawRect(ctx, cx + 8, 24 + (i % 3) * 10, 16, 4, 'rgba(255,255,255,0.22)');
+  }
+
+  // distant forest silhouette band
+  drawRect(ctx, 0, 118, W, 42, '#3a6038');
+  for (let i = 0; i < 12; i++) {
+    const hx = ((i * 36 - camX * 0.15) % (W + 40)) - 20;
+    const hh = 18 + (i % 4) * 6;
+    drawRect(ctx, hx + 6, 118 - hh + 18, 6, hh, '#2d4a2a');
+    drawRect(ctx, hx, 118 - hh + 10, 18, 14, '#355832');
+  }
+
+  // mid hills (parallax)
   ctx.fillStyle = '#3d6a40';
   for (let i = 0; i < 8; i++) {
-    const hx = ((i * 80 - camX * 0.2) % (W + 80)) - 40;
+    const hx = ((i * 80 - camX * 0.28) % (W + 80)) - 40;
     ctx.beginPath();
-    ctx.moveTo(hx, 160);
-    ctx.lineTo(hx + 50, 110);
-    ctx.lineTo(hx + 100, 160);
+    ctx.moveTo(hx, 168);
+    ctx.lineTo(hx + 50, 118);
+    ctx.lineTo(hx + 100, 168);
     ctx.fill();
   }
-  drawRect(ctx, 0, 160, W, 60, '#5a8a50');
+
+  // near meadow floor wash
+  drawRect(ctx, 0, 150, W, 70, '#4a7a48');
+  // grass tuft strip
+  for (let i = 0; i < 20; i++) {
+    const gx = ((i * 16 - camX * 0.55) % (W + 16));
+    drawRect(ctx, gx, 168, 2, 4, '#3d6a35');
+    drawRect(ctx, gx + 4, 170, 2, 3, '#2d5a28');
+  }
+  drawRect(ctx, 0, 172, W, 48, '#5a8a50');
 
   // decor
   for (const d of level.decor) {
     const dx = d.x - camX;
-    if (dx < -40 || dx > W + 40) continue;
-    if (d.type === 'tree') drawTree(ctx, dx, d.y);
+    if (dx < -48 || dx > W + 48) continue;
+    if (d.type === 'tree') drawTree(ctx, dx, d.y, d.variant || 0);
     if (d.type === 'fence') drawFence(ctx, dx, d.y);
   }
 
   // cabin near start
   const cabinX = 8 * TILE - camX;
-  if (cabinX > -60 && cabinX < W) {
+  if (cabinX > -70 && cabinX < W) {
     drawCabin(ctx, cabinX, 9 * TILE);
   }
 }
@@ -175,39 +207,120 @@ export function drawLevelTiles(ctx, camX, level) {
       const x = c * TILE - camX;
       const y = r * TILE;
       if (t === 1) {
-        drawRect(ctx, x, y, TILE, 4, COLORS.grass);
-        drawRect(ctx, x, y + 4, TILE, TILE - 4, COLORS.dirt);
-        // dirt texture
-        drawRect(ctx, x + 3, y + 8, 2, 2, '#6b4420');
-        drawRect(ctx, x + 10, y + 11, 2, 2, '#6b4420');
+        drawGroundTile(ctx, x, y, c, r, level);
       } else if (t === 2) {
-        drawRect(ctx, x, y, TILE, 5, COLORS.wood);
-        drawRect(ctx, x, y + 5, TILE, 3, '#3a2818');
+        drawPlatformTile(ctx, x, y);
       } else if (t === 3) {
-        drawRect(ctx, x, y, TILE, TILE, '#5a4030');
-        drawRect(ctx, x + 2, y + 2, 4, 4, '#3a2818');
+        drawWallTile(ctx, x, y, r);
       }
     }
   }
 }
 
-function drawTree(ctx, x, y) {
-  drawRect(ctx, x + 10, y + 20, 8, 28, COLORS.treeTrunk);
-  drawRect(ctx, x + 2, y + 4, 24, 18, COLORS.treeLeaf);
-  drawRect(ctx, x + 6, y - 4, 16, 14, '#3d6a35');
+function drawGroundTile(ctx, x, y, c, r, level) {
+  const above = r > 0 ? level.tiles[r - 1][c] : 1;
+  const isTop = !above;
+  if (isTop) {
+    // grass cap with tufts
+    drawRect(ctx, x, y, TILE, 5, '#3d8a3a');
+    drawRect(ctx, x, y + 1, TILE, 3, COLORS.grass);
+    drawRect(ctx, x + 2, y, 2, 2, '#5aaa48');
+    drawRect(ctx, x + 8, y - 1, 2, 2, '#4a9a40');
+    drawRect(ctx, x + 12, y, 2, 2, '#5aaa48');
+    drawRect(ctx, x, y + 5, TILE, TILE - 5, COLORS.dirt);
+  } else {
+    drawRect(ctx, x, y, TILE, TILE, '#7a4a28');
+  }
+  // dirt pebbles / cracks
+  const seed = (c * 7 + r * 13) & 7;
+  drawRect(ctx, x + 2 + (seed % 4), y + 8, 2, 2, '#6b4420');
+  drawRect(ctx, x + 9, y + 11 + (seed % 2), 2, 1, '#5a3818');
+  if (seed > 4) drawRect(ctx, x + 5, y + 13, 3, 1, '#9a6a3a');
+}
+
+function drawPlatformTile(ctx, x, y) {
+  drawRect(ctx, x, y, TILE, 4, '#7a5530');
+  drawRect(ctx, x, y + 1, TILE, 3, COLORS.wood);
+  drawRect(ctx, x + 1, y, 2, 1, '#a08050');
+  drawRect(ctx, x + 8, y, 2, 1, '#a08050');
+  drawRect(ctx, x, y + 4, TILE, 4, '#3a2818');
+  drawRect(ctx, x + 3, y + 5, 2, 2, '#2a1810');
+  drawRect(ctx, x + 10, y + 5, 2, 2, '#2a1810');
+  // underside shadow
+  drawRect(ctx, x, y + 8, TILE, 1, 'rgba(0,0,0,0.25)');
+}
+
+function drawWallTile(ctx, x, y, r) {
+  drawRect(ctx, x, y, TILE, TILE, '#5a4030');
+  drawRect(ctx, x + 1, y + 1, TILE - 2, TILE - 2, '#6a4a35');
+  // timber lines
+  drawRect(ctx, x, y + 7, TILE, 1, '#3a2818');
+  drawRect(ctx, x + 4, y + 2, 2, 4, '#3a2818');
+  drawRect(ctx, x + 10, y + 9, 2, 4, '#3a2818');
+  if (r % 2 === 0) drawRect(ctx, x + 2, y + 3, 3, 2, '#8a6a48');
+}
+
+function drawTree(ctx, x, y, variant = 0) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  // trunk with bark notches
+  drawRect(ctx, ox + 10, oy + 22, 8, 30, COLORS.treeTrunk);
+  drawRect(ctx, ox + 11, oy + 24, 2, 4, '#3a2418');
+  drawRect(ctx, ox + 14, oy + 32, 2, 3, '#3a2418');
+  drawRect(ctx, ox + 12, oy + 40, 3, 2, '#5a4030');
+
+  // layered canopy (variant shifts shape)
+  const shift = variant === 1 ? -2 : variant === 2 ? 2 : 0;
+  drawRect(ctx, ox + 2 + shift, oy + 8, 24, 16, COLORS.treeLeaf);
+  drawRect(ctx, ox + 6 + shift, oy - 2, 16, 14, '#3d6a35');
+  drawRect(ctx, ox + 10 + shift, oy - 8, 10, 10, '#4a7a40');
+  // leaf highlights / shadows
+  drawRect(ctx, ox + 8 + shift, oy + 2, 4, 3, '#5a9a48');
+  drawRect(ctx, ox + 16 + shift, oy + 10, 5, 3, '#244a22');
+  drawRect(ctx, ox + 4 + shift, oy + 14, 6, 3, '#244a22');
 }
 
 function drawFence(ctx, x, y) {
-  drawRect(ctx, x + 2, y, 3, 14, COLORS.fence);
-  drawRect(ctx, x + 11, y, 3, 14, COLORS.fence);
-  drawRect(ctx, x, y + 3, 16, 2, COLORS.fence);
-  drawRect(ctx, x, y + 9, 16, 2, COLORS.fence);
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  // posts
+  drawRect(ctx, ox + 2, oy, 3, 15, COLORS.fence);
+  drawRect(ctx, ox + 11, oy, 3, 15, COLORS.fence);
+  drawRect(ctx, ox + 2, oy, 3, 2, '#a09070');
+  drawRect(ctx, ox + 11, oy, 3, 2, '#a09070');
+  // rails
+  drawRect(ctx, ox, oy + 3, 16, 2, COLORS.fence);
+  drawRect(ctx, ox, oy + 9, 16, 2, COLORS.fence);
+  drawRect(ctx, ox, oy + 3, 16, 1, '#a09070');
 }
 
 function drawCabin(ctx, x, y) {
-  drawRect(ctx, x, y + 8, 48, 40, COLORS.cabin);
-  drawRect(ctx, x - 4, y, 56, 12, COLORS.cabinRoof);
-  drawRect(ctx, x + 18, y + 24, 12, 24, '#3a2818'); // door
-  drawRect(ctx, x + 6, y + 16, 8, 8, '#a8c8e0'); // window
-  drawRect(ctx, x + 34, y + 16, 8, 8, '#a8c8e0');
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  // body
+  drawRect(ctx, ox, oy + 8, 48, 40, COLORS.cabin);
+  // log lines
+  for (let i = 0; i < 5; i++) {
+    drawRect(ctx, ox, oy + 12 + i * 7, 48, 1, '#5a3818');
+  }
+  // roof
+  drawRect(ctx, ox - 4, oy + 2, 56, 10, COLORS.cabinRoof);
+  drawRect(ctx, ox - 2, oy, 52, 6, '#2a1a10');
+  drawRect(ctx, ox + 8, oy - 4, 32, 6, '#4a3020');
+  // chimney
+  drawRect(ctx, ox + 36, oy - 10, 8, 12, '#5a4030');
+  drawRect(ctx, ox + 35, oy - 12, 10, 3, '#3a2818');
+  // door
+  drawRect(ctx, ox + 18, oy + 24, 12, 24, '#3a2818');
+  drawRect(ctx, ox + 20, oy + 26, 8, 20, '#4a3020');
+  drawRect(ctx, ox + 27, oy + 34, 2, 2, '#d4a84b'); // knob
+  // windows
+  drawRect(ctx, ox + 6, oy + 16, 8, 8, '#1a3040');
+  drawRect(ctx, ox + 7, oy + 17, 6, 6, '#a8c8e0');
+  drawRect(ctx, ox + 9, oy + 16, 1, 8, '#3a2818');
+  drawRect(ctx, ox + 6, oy + 19, 8, 1, '#3a2818');
+  drawRect(ctx, ox + 34, oy + 16, 8, 8, '#1a3040');
+  drawRect(ctx, ox + 35, oy + 17, 6, 6, '#a8c8e0');
+  drawRect(ctx, ox + 37, oy + 16, 1, 8, '#3a2818');
+  drawRect(ctx, ox + 34, oy + 19, 8, 1, '#3a2818');
 }

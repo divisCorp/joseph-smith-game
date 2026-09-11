@@ -11,7 +11,7 @@ import {
 } from './player.js';
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel1, drawLevelBackground, drawLevelTiles } from './level.js';
-import { drawHeart, drawText, drawCentered, drawRect } from './sprites.js';
+import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawTitleFlourish, drawJoseph } from './sprites.js';
 
 export function createGame() {
   return {
@@ -162,13 +162,14 @@ export function drawGame(ctx, game) {
   drawHUD(ctx, game);
 
   if (game.messageT > 0) {
-    drawRect(ctx, 20, 90, W - 40, 24, 'rgba(20,12,8,0.85)');
+    drawPanel(ctx, 20, 88, W - 40, 28);
     drawCentered(ctx, game.message, 97, COLORS.uiGold, 10);
   }
 
   if (game.state === STATES.PAUSED) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.5)');
-    drawCentered(ctx, 'PAUSED', 100, COLORS.uiCream, 14);
+    drawPanel(ctx, 40, 88, W - 80, 48);
+    drawCentered(ctx, 'PAUSED', 98, COLORS.uiCream, 14);
     drawCentered(ctx, 'P / Enter / START to resume', 120, COLORS.uiGold, 8);
   }
 
@@ -177,61 +178,79 @@ export function drawGame(ctx, game) {
 }
 
 function drawHUD(ctx, game) {
-  drawRect(ctx, 0, 0, W, 22, '#1a1410');
-  drawRect(ctx, 0, 22, W, 2, COLORS.uiGold);
+  drawRect(ctx, 0, 0, W, 22, '#14100c');
+  drawRect(ctx, 0, 20, W, 1, '#8b6914');
+  drawRect(ctx, 0, 21, W, 2, COLORS.uiGold);
   drawText(ctx, 'JOSEPH', 4, 4, COLORS.uiGold, 8);
   for (let i = 0; i < game.player.maxHp; i++) {
-    drawHeart(ctx, 52 + i * 12, 5, i < game.player.hp);
+    drawHeart(ctx, 52 + i * 13, 4, i < game.player.hp);
   }
-  drawText(ctx, `SC ${String(game.score).padStart(5, '0')}`, 150, 6, COLORS.uiCream, 8);
-  drawText(ctx, 'L1', 232, 6, COLORS.uiGreen, 8);
+  drawText(ctx, `SC ${String(game.score).padStart(5, '0')}`, 148, 6, COLORS.uiCream, 8);
+  drawText(ctx, 'L1', 230, 6, COLORS.uiGreen, 8);
 }
 
 function drawTitle(ctx, game) {
   // night-to-dawn title bg
   for (let i = 0; i < 15; i++) {
     const t = i / 15;
-    drawRect(ctx, 0, i * 16, W, 16, `rgb(${20 + t * 40},${16 + t * 50},${40 + t * 80})`);
+    drawRect(ctx, 0, i * 16, W, 16, `rgb(${18 + t * 50},${14 + t * 55},${36 + t * 90})`);
   }
-  // silhouette trees
-  ctx.fillStyle = '#0a180a';
-  for (let i = 0; i < 6; i++) {
-    const tx = 10 + i * 45;
-    drawRect(ctx, tx + 8, 160, 8, 50, '#0a180a');
-    drawRect(ctx, tx, 140, 24, 28, '#0a180a');
+  // soft stars
+  ctx.fillStyle = 'rgba(240,230,200,0.55)';
+  const stars = [[20, 20], [60, 12], [110, 28], [160, 16], [200, 24], [240, 10], [40, 40], [180, 36]];
+  for (const [sx, sy] of stars) {
+    const twinkle = ((Math.floor(game.titleBlink / 20) + sx) % 3) !== 0;
+    if (twinkle) drawRect(ctx, sx, sy, 2, 2, 'rgba(240,230,200,0.7)');
   }
-  drawRect(ctx, 0, 200, W, 40, '#1a2810');
+  // layered silhouette trees
+  for (let i = 0; i < 7; i++) {
+    const tx = 4 + i * 38;
+    drawRect(ctx, tx + 10, 155, 7, 55, '#081408');
+    drawRect(ctx, tx + 2, 132, 22, 26, '#0a180a');
+    drawRect(ctx, tx + 6, 120, 14, 16, '#0c1c0c');
+  }
+  drawRect(ctx, 0, 198, W, 42, '#142210');
+  // path highlight
+  drawRect(ctx, 80, 210, 96, 4, '#2a3a18');
 
-  drawCentered(ctx, 'JOSEPH SMITH', 48, COLORS.uiGold, 14);
-  drawCentered(ctx, 'PALMYRA QUEST', 66, COLORS.uiCream, 12);
-  drawCentered(ctx, '— Level 1: Woods Path —', 86, '#a09070', 8);
+  // hero preview (left) — keeps prompts readable
+  drawJoseph(ctx, 18, 158, 1, Math.floor(game.titleBlink / 16) % 2, false, false);
 
-  drawRect(ctx, 48, 110, 160, 50, 'rgba(20,12,8,0.7)');
-  drawCentered(ctx, 'Defend the frontier path.', 118, COLORS.uiCream, 8);
-  drawCentered(ctx, 'Reach the Ringleader.', 130, COLORS.uiCream, 8);
-  drawCentered(ctx, 'Family-friendly arcade.', 142, '#908070', 8);
+  drawTitleFlourish(ctx, 128, 36);
+  drawCentered(ctx, 'JOSEPH SMITH', 46, COLORS.uiGold, 14);
+  drawCentered(ctx, 'PALMYRA QUEST', 64, COLORS.uiCream, 12);
+  drawTitleFlourish(ctx, 128, 80);
+  drawCentered(ctx, '— Level 1: Woods Path —', 90, '#a09070', 8);
+
+  drawPanel(ctx, 40, 104, 176, 48);
+  drawCentered(ctx, 'Defend the frontier path.', 112, COLORS.uiCream, 8);
+  drawCentered(ctx, 'Reach the Ringleader.', 124, COLORS.uiCream, 8);
+  drawCentered(ctx, 'Family-friendly arcade.', 136, '#908070', 8);
 
   const blink = Math.floor(game.titleBlink / 30) % 2 === 0;
   if (blink) {
-    drawCentered(ctx, 'TAP START · ENTER / Z', 175, COLORS.uiGold, 10);
+    drawCentered(ctx, 'TAP START · ENTER / Z', 165, COLORS.uiGold, 10);
   }
   drawCentered(ctx, 'Arrows/WASD · Space/Z · or touch buttons', 200, '#706050', 7);
-  drawCentered(ctx, 'Inspired by classic NES action', 220, '#504030', 7);
+  drawCentered(ctx, 'Inspired by classic NES action', 218, '#504030', 7);
 }
 
 function drawWin(ctx, game) {
   drawRect(ctx, 0, 0, W, H, 'rgba(10,30,20,0.8)');
-  drawCentered(ctx, 'PATH CLEARED!', 70, COLORS.uiGold, 14);
-  drawCentered(ctx, 'Joseph stood firm.', 95, COLORS.uiCream, 10);
-  drawCentered(ctx, `Score: ${game.score}`, 115, COLORS.uiCream, 10);
-  drawCentered(ctx, 'Level 2 coming someday...', 140, '#80a080', 8);
+  drawPanel(ctx, 28, 56, W - 56, 110);
+  drawTitleFlourish(ctx, 128, 64);
+  drawCentered(ctx, 'PATH CLEARED!', 76, COLORS.uiGold, 14);
+  drawCentered(ctx, 'Joseph stood firm.', 100, COLORS.uiCream, 10);
+  drawCentered(ctx, `Score: ${game.score}`, 118, COLORS.uiCream, 10);
+  drawCentered(ctx, 'Level 2 coming someday...', 138, '#80a080', 8);
   drawCentered(ctx, 'TAP START · ENTER / Z — Title', 175, COLORS.uiGold, 9);
 }
 
 function drawLose(ctx, game) {
   drawRect(ctx, 0, 0, W, H, 'rgba(40,10,10,0.8)');
+  drawPanel(ctx, 28, 64, W - 56, 96);
   drawCentered(ctx, 'DEFEATED', 80, COLORS.uiRed, 14);
-  drawCentered(ctx, 'Rise again, Joseph.', 110, COLORS.uiCream, 10);
-  drawCentered(ctx, `Score: ${game.score}`, 130, COLORS.uiCream, 9);
+  drawCentered(ctx, 'Rise again, Joseph.', 108, COLORS.uiCream, 10);
+  drawCentered(ctx, `Score: ${game.score}`, 126, COLORS.uiCream, 9);
   drawCentered(ctx, 'TAP START · ENTER / Z — Title', 170, COLORS.uiGold, 9);
 }

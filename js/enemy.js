@@ -177,7 +177,7 @@ export function drawEnemy(ctx, e, camX) {
   if (!e.alive) return;
   const flash = e.hurtFlash > 0;
   const dx = e.x - camX;
-  if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim);
-  else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim);
+  if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
+  else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'boss') drawBoss(ctx, dx, e.y, e.facing, e.anim, flash);
 }

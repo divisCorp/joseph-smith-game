@@ -58,9 +58,9 @@ js/
   enemy.js          Brigands, wolves, boss AI
   level.js          Level 1 map + createLevel2() stub
   input.js          Keyboard + virtual touch mapping
-  sprites.js        Pixel-rect sprite drawing
+  sprites.js        Hand-drawn-style pixel sprites (maps + poses)
   constants.js      Resolution & shared constants
-assets/             Reserved for future art
+assets/             Optional sprite sheets (game uses canvas pixel art)
 ```
 
 Level 2 can plug in via `createLevel2()` in `js/level.js` and a level select / progression hook in `game.js`.
@@ -68,6 +68,10 @@ Level 2 can plug in via `createLevel2()` in `js/level.js` and a level select / p
 ## Tech
 
 Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal resolution **256×240** (NES-like), scaled up with `image-rendering: pixelated`.
+
+## Art
+
+Visuals upgraded from flat colored rectangles to richer hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/attack poses, distinct brigand/wolf/boss silhouettes, grass/dirt tiles, layered Palmyra woods background, cabin/fence accents, and clearer HUD hearts / title flourishes. Assets stay compact for phones.
 
 ## License / credit
 

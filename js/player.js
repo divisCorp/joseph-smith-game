@@ -135,7 +135,7 @@ export function hurtPlayer(p, dmg = 1) {
 export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
-  drawJoseph(ctx, p.x - camX, p.y, p.facing, p.anim, p.attackTimer > 0);
+  drawJoseph(ctx, p.x - camX, p.y, p.facing, p.anim, p.attackTimer > 0, !p.onGround);
 }
 
 function aabb(a, b) {
