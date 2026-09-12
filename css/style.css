@@ -462,8 +462,8 @@ body.touch-ui #game-wrap {
 html.touch-ui #stage,
 body.touch-ui #stage {
   /* Larger playfield; controls sit about halfway down the phone */
-  width: min(96vw, calc(58dvh * 512 / 480), 768px);
-  max-height: 58dvh;
+  width: min(98vw, calc(66dvh * 512 / 480), 860px);
+  max-height: 66dvh;
   margin-top: 8px;
 }
 
@@ -663,8 +663,8 @@ body.touch-ui {
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch-ui #stage,
   body.touch-ui #stage {
-    width: min(70vw, calc(56dvh * 512 / 480));
-    max-height: 56dvh;
+    width: min(74vw, calc(64dvh * 512 / 480));
+    max-height: 64dvh;
   }
 
   html.touch-ui #touch-controls,

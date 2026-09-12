@@ -22,6 +22,7 @@ import {
   drawPortrait,
   drawMoroni,
   drawPlateChest,
+  measureText,
 } from './sprites.js';
 import { sfx, syncAudio, tickMusic } from './audio.js';
 
@@ -367,6 +368,12 @@ export function drawGame(ctx, game) {
     const mag = Math.min(6, game.shake * 0.55);
     ctx.translate((Math.random() - 0.5) * mag * 2, (Math.random() - 0.5) * mag * 2);
   }
+  const zoom = 1.22;
+  const ax = W * 0.36;
+  const ay = H * 0.72;
+  ctx.translate(ax, ay);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-ax, -ay);
 
   drawLevelBackground(ctx, game.camX, game.level);
   drawLevelTiles(ctx, game.camX, game.level);
@@ -391,19 +398,29 @@ export function drawGame(ctx, game) {
   }
 
   drawVignette(ctx);
+  ctx.restore();
+
   drawHUD(ctx, game);
 
-  // Cloud faith meter
+  // Faith meter only when the cloud is in play
   const cloud = game.level.enemies.find((e) => e.type === 'cloud' && e.alive);
-  if (cloud) {
-    const bx = 56 * SCALE;
+  const nearCloud =
+    cloud &&
+    game.player &&
+    (game.player.x >= game.level.bossZoneX - 8 * SCALE ||
+      Math.abs(cloud.x - game.camX - W * 0.5) < W);
+  if (nearCloud) {
+    const label = 'PRAY';
+    const lx = 8 * SCALE;
     const by = 28 * SCALE;
-    const bw = W - 112 * SCALE;
+    const lw = measureText(label, 8);
+    drawText(ctx, label, lx, by + 1 * SCALE, COLORS.uiGold, 8);
+    const bx = lx + lw + 8;
+    const bw = W - bx - 10 * SCALE;
     drawRect(ctx, bx - 2, by - 2, bw + 4, 12 * SCALE, '#2a1a08');
     drawRect(ctx, bx, by, bw, 8 * SCALE, '#140810');
     const ratio = Math.max(0, 1 - cloud.hp / cloud.maxHp);
     drawRect(ctx, bx + 2, by + 2, Math.max(0, (bw - 4) * ratio), 8 * SCALE - 4, '#d4a84b');
-    drawText(ctx, 'PRAY', bx + 4, by + 1 * SCALE, COLORS.uiGold, 8);
   }
 
   if (game.messageT > 0) {
@@ -415,7 +432,6 @@ export function drawGame(ctx, game) {
   if (game.introFade > 0) {
     drawRect(ctx, 0, 0, W, H, `rgba(6,4,2,${Math.min(0.85, game.introFade / 36)})`);
   }
-  ctx.restore();
 
   if (game.visionT > 0) {
     drawVisionOverlay(ctx, game);
@@ -490,18 +506,16 @@ function drawVignette(ctx) {
 }
 
 function drawHUD(ctx, game) {
-  drawRect(ctx, 0, 0, W, 24 * SCALE, '#100c08');
-  drawRect(ctx, 0, 22 * SCALE, W, 2, '#6a4a18');
-  drawRect(ctx, 0, 23 * SCALE, W, 3, COLORS.uiGold);
+  drawRect(ctx, 0, 0, W, 22 * SCALE, '#100c08');
+  drawRect(ctx, 0, 20 * SCALE, W, 2, '#6a4a18');
+  drawRect(ctx, 0, 21 * SCALE, W, 3, COLORS.uiGold);
   for (let i = 0; i < game.player.maxHp; i++) {
-    drawHeart(ctx, (6 + i * 13) * SCALE, 6 * SCALE, i < game.player.hp);
+    drawHeart(ctx, (6 + i * 13) * SCALE, 5 * SCALE, i < game.player.hp);
   }
-  const meta = LEVEL_META[game.levelNum];
-  const chapter = meta ? `${game.levelNum}/${MAX_LEVEL}  ${meta.short.toUpperCase()}` : `L${game.levelNum}`;
-  drawCentered(ctx, chapter, 7 * SCALE, COLORS.uiGold, 8);
-  const weapon = game.hasPlates ? 'PLATES' : 'FORK';
-  drawText(ctx, weapon, W - 86 * SCALE, 8 * SCALE, COLORS.uiGold, 8);
-  drawText(ctx, String(game.score).padStart(6, '0'), W - 48 * SCALE, 8 * SCALE, COLORS.uiCream, 8);
+  const chap = `${game.levelNum}/${MAX_LEVEL}`;
+  drawText(ctx, chap, 76 * SCALE, 7 * SCALE, COLORS.uiGold, 8);
+  const score = String(game.score).padStart(6, '0');
+  drawText(ctx, score, W - measureText(score, 8) - 8 * SCALE, 7 * SCALE, COLORS.uiCream, 8);
 }
 
 function drawTitleScene(ctx, game) {
