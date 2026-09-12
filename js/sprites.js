@@ -239,7 +239,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
       dy = oy - 5;
     } else if (pose === 'throw') {
-      fi = JOSEPH_THROW[((frame % JOSEPH_THROW.length) + JOSEPH_THROW.length) % JOSEPH_THROW.length];
+      fi = JOSEPH_WALK[0];
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
     } else if (pose === 'lookup') {
