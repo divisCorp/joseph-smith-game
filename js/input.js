@@ -12,8 +12,11 @@ const map = {
   KeyS: 'down',
   Space: 'attack',
   KeyZ: 'attack',
+  KeyX: 'jump',
+  KeyK: 'jump',
   Enter: 'start',
   KeyP: 'pause',
+  KeyM: 'mute',
 };
 
 window.addEventListener('keydown', (e) => {
@@ -106,7 +109,7 @@ function bindVirtualButton(el) {
  * Circular virtual stick (left thumb zone).
  * Continuous pointer drag maps to left/right/up/down via axis thresholds
  * (8-way capable: diagonals hold two actions). Release clears all directions.
- * Stick UP = jump, Stick DOWN = crouch. A remains a secondary jump button.
+ * Stick UP = look up, Stick DOWN = crouch. A = jump.
  */
 function bindVirtualStick(root) {
   const stick = root.querySelector('#touch-stick');

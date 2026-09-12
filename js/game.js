@@ -12,6 +12,7 @@ import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
 import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js';
 import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph, drawPortrait } from './sprites.js';
+import { sfx, syncAudio, tickMusic } from './audio.js';
 
 export function createGame() {
   return {
@@ -53,6 +54,8 @@ export function startLevel(game, num, resetScore = false) {
 export function updateGame(game, dt) {
   game.tick += dt;
   game.titleBlink += dt;
+  syncAudio(game);
+  tickMusic(dt);
 
   if (game.state === STATES.TITLE) {
     if (justPressed('start') || justPressed('attack')) {
@@ -147,6 +150,7 @@ function tickPlay(game, dt) {
       if (aabb(ph, enemyHitbox(e))) {
         plate.alive = false;
         const killed = hurtEnemy(e, plate.damage);
+        sfx('hit');
         if (killed) game.score += e.score;
         e.vx = plate.facing * 2.2 * SCALE;
         e.vy = -2 * SCALE;

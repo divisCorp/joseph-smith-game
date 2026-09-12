@@ -8,6 +8,8 @@ import { createGame, updateGame, drawGame } from './game.js';
 import { initVirtualControls, setAction } from './input.js';
 import { initOverlays, syncOverlays } from './ui.js';
 import { preloadSprites } from './sprites.js';
+import { unlockAudio, toggleMute } from './audio.js';
+import { justPressed } from './input.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -15,6 +17,12 @@ ctx.imageSmoothingEnabled = true;
 
 initVirtualControls();
 initOverlays();
+
+function armAudio() {
+  unlockAudio();
+}
+window.addEventListener('pointerdown', armAudio, { once: false });
+window.addEventListener('keydown', armAudio, { once: false });
 
 const game = createGame();
 
@@ -52,6 +60,7 @@ const STEP = 1000 / 60; // fixed-ish timestep ms
 let acc = 0;
 
 function frame(now) {
+  if (justPressed('mute')) toggleMute();
   acc += now - last;
   last = now;
   // catch-up capped

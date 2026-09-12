@@ -1,6 +1,7 @@
 import { GRAVITY, FRICTION, MAX_FALL, SCALE, H } from './constants.js';
 import { drawJoseph } from './sprites.js';
 import { isDown, justPressed } from './input.js';
+import { sfx } from './audio.js';
 import {
   createPlate,
   PLATE_COOLDOWN,
@@ -35,7 +36,9 @@ export function createPlayer(spawnX, spawnY) {
     anim: 0,
     animT: 0,
     walking: false,
+    lookingUp: false,
     prayT: 0,
+    wasOnGround: true,
     plates: [],
   };
 }
@@ -101,10 +104,12 @@ export function updatePlayer(p, solids, dt) {
     if (Math.abs(p.vx) < 0.05 * SCALE) p.vx = 0;
   }
 
-  if (isDown('up') && p.onGround && !p.crouching) {
+  if (justPressed('jump') && p.onGround && !p.crouching) {
     p.vy = JUMP_V;
     p.onGround = false;
+    sfx('jump');
   }
+  p.lookingUp = isDown('up') && p.onGround && !p.crouching && !isDown('left') && !isDown('right');
 
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
   if (p.attackTimer > 0) p.attackTimer -= dt;
@@ -112,6 +117,7 @@ export function updatePlayer(p, solids, dt) {
   if (justPressed('attack') && p.attackCooldown <= 0) {
     p.attackTimer = THROW_POSE;
     p.attackCooldown = PLATE_COOLDOWN;
+    sfx('throw');
     const px = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - PLATE_W;
     const chest = (p.crouching ? 10 : 18) * SCALE;
     const py = p.y + chest - Math.floor(PLATE_H / 2);
@@ -131,6 +137,8 @@ export function updatePlayer(p, solids, dt) {
   p.y += p.vy;
   p.onGround = false;
   resolve(p, solids, false);
+  if (p.onGround && !p.wasOnGround) sfx('land');
+  p.wasOnGround = p.onGround;
 
 
   // Kneel / pray in place to regenerate hearts
@@ -139,6 +147,7 @@ export function updatePlayer(p, solids, dt) {
     if (p.prayT > 90) {
       p.prayT = 0;
       p.hp = Math.min(p.maxHp, p.hp + 1);
+      sfx('heal');
     }
   } else {
     p.prayT = 0;
@@ -204,6 +213,7 @@ export function hurtPlayer(p, dmg = 1) {
   if (p.invuln > 0 || !p.alive) return false;
   p.hp -= dmg;
   p.invuln = 60;
+  sfx('hurt');
   p.vy = -3 * SCALE;
   if (p.hp <= 0) {
     p.hp = 0;
@@ -227,7 +237,8 @@ export function drawPlayer(ctx, p, camX) {
     p.attackTimer > 0,
     !p.onGround && p.vy < -1.2 * SCALE,
     p.crouching,
-    moving
+    moving,
+    !!p.lookingUp
   );
 }
 

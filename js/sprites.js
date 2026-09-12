@@ -217,7 +217,7 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
 const JOSEPH_DW = 36;
 const JOSEPH_DH = 72;
 
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false) {
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
@@ -225,6 +225,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   if (attacking) pose = 'throw';
   else if (crouching) pose = 'crouch';
   else if (moving) pose = 'walk';
+  else if (lookingUp) pose = 'lookup';
   else if (jumping) pose = 'jump';
 
   const img = SHEETS.joseph;
@@ -245,7 +246,13 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       return;
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
-      dy = oy - (frame % 2 === 1 ? 3 : 0);
+    } else if (pose === 'lookup') {
+      fi = JOSEPH_IDLE[0];
+      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, oy, JOSEPH_DW, JOSEPH_DH, flip, false);
+      const srcH = Math.floor(JOSEPH_FH * 0.36);
+      const dstH = Math.floor(JOSEPH_DH * 0.36);
+      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, srcH, ox, oy - 6, JOSEPH_DW, dstH, flip, false);
+      return;
     }
     // Feet at bottom of scaled cell → ground at oy + JOSEPH_DH (matches STAND_H). Art width matches hitbox.
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, JOSEPH_DW, JOSEPH_DH, flip, false);
