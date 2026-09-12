@@ -30,8 +30,8 @@ export function createEnemy(type, x, y, opts = {}) {
     speed: 0.55 * SCALE,
     damage: 1,
     score: 100,
-    w: 24 * SCALE,
-    h: 48 * SCALE,
+    w: 28 * SCALE,
+    h: 56 * SCALE,
     onGround: false,
     attackCd: 0,
     aiPhase: 0,
@@ -46,8 +46,8 @@ export function createEnemy(type, x, y, opts = {}) {
   if (type === 'wolf') {
     base.hp = base.maxHp = 1;
     base.speed = 0.9 * SCALE;
-    base.w = 36 * SCALE;
-    base.h = 26 * SCALE;
+    base.w = 42 * SCALE;
+    base.h = 28 * SCALE;
     base.score = 150;
   }
   if (type === 'scout') {
@@ -84,8 +84,8 @@ export function createEnemy(type, x, y, opts = {}) {
   }
   if (type === 'boss') {
     const kind = base.bossKind;
-    base.w = 24 * SCALE; // draw 48×96 — larger than Joseph, same aspect
-    base.h = 48 * SCALE;
+    base.w = 28 * SCALE;
+    base.h = 56 * SCALE;
     base.patrolMin = opts.patrolMin ?? x - 80 * SCALE;
     base.patrolMax = opts.patrolMax ?? x + 80 * SCALE;
     if (kind === 'ringleader') {
@@ -204,9 +204,9 @@ export function updateEnemy(e, solids, player, dt) {
   }
 
   e.animT += dt;
-  if (e.animT > 10) {
+  if (e.animT > 7) {
     e.animT = 0;
-    e.anim = (e.anim + 1) % 2;
+    e.anim = (e.anim + 1) % 4;
   }
 
   if (e.y > H + 80 * SCALE && !e.noGravity) {

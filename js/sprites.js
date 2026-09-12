@@ -214,13 +214,13 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   return true;
 }
 
-// ── Joseph Smith (48×96 draw; sheet cells 64×128) ──
-const JOSEPH_DW = 48;
-const JOSEPH_DH = 96;
+// Shared humanoid draw size — Joseph, foes, bosses
+const JOSEPH_DW = 56;
+const JOSEPH_DH = 112;
 
 /** Farm pitchfork — held at the side, swung forward. */
 export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false, crouching = false) {
-  const sc = young ? 0.8 : 1;
+  const sc = 1;
   const dw = Math.round(JOSEPH_DW * sc);
   const dh = Math.round(JOSEPH_DH * sc);
   const ox = Math.floor(x);
@@ -290,7 +290,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
-  const sc = young ? 0.8 : 1;
+  const sc = 1;
   const dw = Math.round(JOSEPH_DW * sc);
   const dh = Math.round(JOSEPH_DH * sc);
   let pose = 'idle';
@@ -314,6 +314,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       fi = JOSEPH_WALK[0];
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
+      dy = oy - (frame % 2 === 1 ? 2 : 0);
     } else if (pose === 'lookup') {
       fi = JOSEPH_IDLE[0];
     }
@@ -498,7 +499,8 @@ function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
     // Same family as Joseph: sheet cells 64×128, draw 36×72 (no squash/stretch)
     const dw = JOSEPH_DW;
     const dh = JOSEPH_DH;
-    return blitSimple(ctx, img, col * 64, row * 128, 64, 128, ox, oy, dw, dh, facing < 0, flash);
+    const bob = (frame % 2) ? -3 : 0;
+    return blitSimple(ctx, img, col * 64, row * 128, 64, 128, ox, oy + bob, dw, dh, facing < 0, flash);
   }
   return false;
 }
@@ -599,9 +601,9 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const img = SHEETS.wolf;
   if (img) {
     const col = frame % 2;
-    const dw = 72;
-    const dh = 52;
-    blitSimple(ctx, img, col * 96, 0, 96, 64, ox - 4, oy + 4, dw, dh, facing < 0, flash);
+    const dw = 84;
+    const dh = 56;
+    blitSimple(ctx, img, col * 96, 0, 96, 64, ox, oy, dw, dh, facing < 0, flash);
     return;
   }
   const bob = frame % 2;
@@ -644,9 +646,9 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   if (img) {
     const row = BOSS_ROWS[bossKind] ?? 0;
     const col = frame % 2;
-    const dw = 60;
-    const dh = 120;
-    blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox - 4, oy, dw, dh, facing < 0, flash);
+    const dw = JOSEPH_DW;
+    const dh = JOSEPH_DH;
+    blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox, oy, dw, dh, facing < 0, flash);
     return;
   }
   const flip = facing < 0;

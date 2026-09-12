@@ -10,9 +10,9 @@ import {
   PLATE_W,
 } from './projectiles.js';
 
-export const STAND_H = 48 * SCALE; // 96px — nearer the 64×128 sheet
-export const CROUCH_H = 16 * SCALE;
-const YOUNG_SCALE = 0.8;
+export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
+export const CROUCH_H = 18 * SCALE;
+const YOUNG_SCALE = 1;
 const STAND_SPEED = 1.55 * SCALE;
 const CROUCH_SPEED = 0.55 * SCALE;
 const JUMP_V = -6.2 * SCALE;
@@ -27,7 +27,7 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     y: spawnY,
     vx: 0,
     vy: 0,
-    w: Math.round(24 * SCALE * bodyScale),
+    w: Math.round(28 * SCALE * bodyScale),
     h: standH,
     standH,
     crouchH,
@@ -263,7 +263,7 @@ export function drawPlayer(ctx, p, camX) {
   const crouchH = p.crouchH || CROUCH_H;
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
   const moving = Math.abs(p.vx) > 0.12 * SCALE || !!p.walking;
-  const walkFrame = Math.floor(Math.abs(p.x) / (6 * SCALE)) % 4;
+  const walkFrame = Math.floor(Math.abs(p.x) / (4 * SCALE)) % 4;
   drawJoseph(
     ctx,
     p.x - camX,
