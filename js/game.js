@@ -10,7 +10,7 @@ import {
 } from './player.js';
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
-import { updatePlates, drawPlates, plateHitbox } from './projectiles.js';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js';
 import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph, drawPortrait } from './sprites.js';
 
 export function createGame() {
@@ -125,6 +125,20 @@ function tickPlay(game, dt) {
   }
 
   updatePlates(player.plates, dt, game.camX, level.widthPx);
+  for (const e of level.enemies) {
+    if (!e.knives) continue;
+    updateKnives(e.knives, dt, game.camX, level.widthPx);
+    if (!player.alive) continue;
+    for (const k of e.knives) {
+      if (!k.alive) continue;
+      if (aabb(playerHitbox(player), knifeHitbox(k))) {
+        k.alive = false;
+        if (hurtPlayer(player, k.damage)) {
+          player.vx = (k.facing) * 2.2 * SCALE;
+        }
+      }
+    }
+  }
   for (const plate of player.plates) {
     if (!plate.alive) continue;
     const ph = plateHitbox(plate);
@@ -180,6 +194,9 @@ export function drawGame(ctx, game) {
   }
   drawPlayer(ctx, game.player, game.camX);
   drawPlates(ctx, game.player.plates, game.camX);
+  for (const e of game.level.enemies) {
+    if (e.knives) drawKnives(ctx, e.knives, game.camX);
+  }
 
   drawHUD(ctx, game);
 

@@ -1,6 +1,7 @@
 import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js';
 import { drawBrigand, drawWolf, drawBoss, drawScout, drawThug } from './sprites.js';
 import { aabb } from './player.js';
+import { createKnife, KNIFE_W } from './projectiles.js';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -29,6 +30,7 @@ export function createEnemy(type, x, y, opts = {}) {
     aiTimer: 0,
     bossKind: opts.bossKind || 'ringleader',
     title: opts.title || '',
+    knives: [],
   };
 
   if (type === 'wolf') {
@@ -125,6 +127,22 @@ export function updateEnemy(e, solids, player, dt) {
   e.y += e.vy;
   e.onGround = false;
   resolveEnemy(e, solids, false);
+
+
+  // Humanoids / bosses throw knives when Joseph is in sight
+  if (e.type !== 'wolf' && player.alive && e.attackCd <= 0) {
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const range = e.type === 'boss' ? 170 * SCALE : 130 * SCALE;
+    if (Math.abs(dx) < range && Math.abs(dy) < 50 * SCALE) {
+      e.facing = dx > 0 ? 1 : -1;
+      const kx = e.facing > 0 ? e.x + e.w - 2 : e.x - KNIFE_W;
+      const ky = e.y + e.h * 0.35;
+      const dmg = e.type === 'boss' ? 2 : 1;
+      e.knives.push(createKnife(kx, ky, e.facing, dmg));
+      e.attackCd = e.type === 'boss' ? 70 : e.type === 'scout' ? 75 : 100;
+    }
+  }
 
   e.animT += dt;
   if (e.animT > 10) {

@@ -2,7 +2,7 @@
  * Gold-plate projectiles — engraved metallic sheets.
  */
 import { W, SCALE } from './constants.js';
-import { drawGoldPlate } from './sprites.js';
+import { drawGoldPlate, drawKnife } from './sprites.js';
 
 export const PLATE_SPEED = 3.8 * SCALE;
 export const PLATE_MAX_TRAVEL = 130 * SCALE;
@@ -58,5 +58,38 @@ export function drawPlates(ctx, plates, camX) {
   for (const p of plates) {
     if (!p.alive) continue;
     drawGoldPlate(ctx, p.x - camX, p.y, p.facing);
+  }
+}
+
+export const KNIFE_SPEED = 2.6 * SCALE;
+export const KNIFE_MAX_TRAVEL = 150 * SCALE;
+export const KNIFE_W = 8 * SCALE;
+export const KNIFE_H = 4 * SCALE;
+
+export function createKnife(x, y, facing, damage = 1) {
+  return {
+    x, y,
+    vx: facing * KNIFE_SPEED,
+    facing,
+    w: KNIFE_W,
+    h: KNIFE_H,
+    alive: true,
+    traveled: 0,
+    damage,
+  };
+}
+
+export function knifeHitbox(k) {
+  return { x: k.x, y: k.y, w: k.w, h: k.h };
+}
+
+export function updateKnives(knives, dt, camX, levelWidthPx) {
+  updatePlates(knives, dt, camX, levelWidthPx);
+}
+
+export function drawKnives(ctx, knives, camX) {
+  for (const k of knives) {
+    if (!k.alive) continue;
+    drawKnife(ctx, k.x - camX, k.y, k.facing);
   }
 }

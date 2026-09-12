@@ -377,6 +377,32 @@ export function drawGoldPlate(ctx, x, y, facing = 1) {
   ctx.restore();
 }
 
+export function drawKnife(ctx, x, y, facing = 1) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  ctx.save();
+  if (facing < 0) {
+    ctx.translate(ox + 14, oy + 4);
+    ctx.scale(-1, 1);
+    ctx.translate(-ox, -oy);
+  }
+  ctx.fillStyle = '#8a9098';
+  ctx.beginPath();
+  ctx.moveTo(ox, oy + 3);
+  ctx.lineTo(ox + 12, oy + 1);
+  ctx.lineTo(ox + 14, oy + 3);
+  ctx.lineTo(ox + 12, oy + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#d8dee6';
+  ctx.fillRect(ox + 2, oy + 2, 9, 2);
+  ctx.fillStyle = '#5a3a20';
+  ctx.fillRect(ox - 3, oy + 2, 4, 3);
+  ctx.fillStyle = '#c4a060';
+  ctx.fillRect(ox, oy + 1, 2, 5);
+  ctx.restore();
+}
+
 function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
