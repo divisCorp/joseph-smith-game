@@ -519,11 +519,11 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
 }
 
 const BOSS_COLORS = {
-  ringleader: { coat: '#2a1a40', coatD: '#1a1028', cape: '#4a1020', capeL: '#6a1830', accent: '#d4a84b', hat: '#1a0a08' },
-  sentinel: { coat: '#1a3020', coatD: '#0e2014', cape: '#1a4028', capeL: '#2a5838', accent: '#6a8b4b', hat: '#0a1810' },
-  captain: { coat: '#3a2030', coatD: '#281018', cape: '#5a1830', capeL: '#7a2840', accent: '#c07040', hat: '#1a1018' },
-  warden: { coat: '#1a2840', coatD: '#101828', cape: '#183048', capeL: '#285070', accent: '#6a90b0', hat: '#081018' },
-  overseer: { coat: '#201028', coatD: '#140818', cape: '#401020', capeL: '#602030', accent: '#d4a84b', hat: '#080810' },
+  ringleader: { coat: '#2a1a40', coatD: '#1a1028', cape: '#482037', capeL: '#69304e', accent: '#d4a84b', hat: '#1a0a08' },
+  sentinel: { coat: '#1a3020', coatD: '#0e2014', cape: '#143e28', capeL: '#285f3e', accent: '#6a8b4b', hat: '#0a1810' },
+  captain: { coat: '#3a2030', coatD: '#281018', cape: '#5a2034', capeL: '#82374e', accent: '#c07040', hat: '#1a1018' },
+  warden: { coat: '#1a2840', coatD: '#101828', cape: '#183452', capeL: '#305a80', accent: '#6a90b0', hat: '#081018' },
+  overseer: { coat: '#2e1a5a', coatD: '#1a0e30', cape: '#241244', capeL: '#3c2469', accent: '#d4a84b', hat: '#0a0810' },
 };
 
 export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader') {
@@ -551,17 +551,22 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   ellipse(ctx, ox + 32, oy + 94, 18, 4, COLORS.shadow);
   withFlip(ctx, ox, oy, 64, flip, (bx, by) => {
     const shift = walk ? 5 : 0;
+    // Connected flowing cape (single shape behind body, attached at shoulders)
     ctx.fillStyle = cape;
     ctx.beginPath();
-    ctx.moveTo(bx + 10, by + 28);
-    ctx.quadraticCurveTo(bx - 4, by + 50, bx + 8, by + 70);
-    ctx.lineTo(bx + 18, by + 40);
+    ctx.moveTo(bx + 18, by + 26);
+    ctx.quadraticCurveTo(bx + 2, by + 48, bx + 10, by + 78);
+    ctx.quadraticCurveTo(bx + 32, by + 70, bx + 54, by + 78);
+    ctx.quadraticCurveTo(bx + 62, by + 48, bx + 46, by + 26);
+    ctx.lineTo(bx + 32, by + 24);
+    ctx.closePath();
     ctx.fill();
     ctx.fillStyle = capeL;
     ctx.beginPath();
-    ctx.moveTo(bx + 54, by + 28);
-    ctx.quadraticCurveTo(bx + 68, by + 50, bx + 56, by + 70);
-    ctx.lineTo(bx + 46, by + 40);
+    ctx.moveTo(bx + 34, by + 26);
+    ctx.quadraticCurveTo(bx + 56, by + 42, bx + 52, by + 68);
+    ctx.quadraticCurveTo(bx + 40, by + 58, bx + 36, by + 40);
+    ctx.closePath();
     ctx.fill();
     roundRect(ctx, bx + 18 - shift, by + 58, 10, 28, 2, '#1a1a2a');
     roundRect(ctx, bx + 36 + shift, by + 58, 10, 28, 2, '#12121c');
