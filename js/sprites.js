@@ -200,6 +200,7 @@ function blitSheet(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
 function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   if (!img) return false;
   ctx.save();
+  ctx.imageSmoothingEnabled = false;
   if (flash) ctx.filter = 'brightness(1.4) sepia(0.5) hue-rotate(-25deg) saturate(2.2)';
   if (flip) {
     ctx.translate(Math.floor(dx + dw), Math.floor(dy));
