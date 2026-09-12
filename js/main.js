@@ -19,21 +19,41 @@ initVirtualControls();
 initOverlays();
 bindMuteButton();
 
+function isStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    !!window.navigator.standalone
+  );
+}
+
+function isIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 async function enterArcade() {
-  const root = document.getElementById('game-wrap') || document.documentElement;
+  if (isStandalone()) return;
+  const root = document.documentElement;
   try {
-    if (!document.fullscreenElement) {
-      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      await root.requestFullscreen({ navigationUI: 'hide' });
+    } else if (!document.fullscreenElement) {
+      const req = root.webkitRequestFullscreen;
       if (req) await req.call(root);
     }
   } catch (_) {
-    /* iOS Safari often refuses; CSS landscape still fills the screen */
+    /* iOS Safari blocks this; Home Screen is the no-toolbar path */
   }
   try {
     if (screen.orientation?.lock) await screen.orientation.lock('landscape');
   } catch (_) {
     /* lock only works after fullscreen on some browsers */
   }
+}
+
+if (isIos() && !isStandalone()) {
+  document.documentElement.classList.add('needs-install');
 }
 
 function armAudio() {
