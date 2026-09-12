@@ -19,8 +19,26 @@ initVirtualControls();
 initOverlays();
 bindMuteButton();
 
+async function enterArcade() {
+  const root = document.getElementById('game-wrap') || document.documentElement;
+  try {
+    if (!document.fullscreenElement) {
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if (req) await req.call(root);
+    }
+  } catch (_) {
+    /* iOS Safari often refuses; CSS landscape still fills the screen */
+  }
+  try {
+    if (screen.orientation?.lock) await screen.orientation.lock('landscape');
+  } catch (_) {
+    /* lock only works after fullscreen on some browsers */
+  }
+}
+
 function armAudio() {
   unlockAudio();
+  enterArcade();
 }
 window.addEventListener('pointerdown', armAudio, { once: false });
 window.addEventListener('keydown', armAudio, { once: false });

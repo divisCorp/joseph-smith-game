@@ -3,7 +3,8 @@
   "short_name": "Palmyra Quest",
   "description": "A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage.",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
+  "orientation": "landscape",
   "background_color": "#0a0c12",
   "theme_color": "#1a1208",
   "icons": [
