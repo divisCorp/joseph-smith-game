@@ -63,7 +63,7 @@ export function startLevel(game, num, resetScore = false) {
   game.level = level;
   game.levelNum = num;
   game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
-  game.camX = 0;
+  game.camX = Math.max(0, game.player.x + game.player.w / 2 - W * 0.5);
   if (resetScore) game.score = 0;
   game.state = STATES.PLAYING;
   game.bossIntro = false;
@@ -172,7 +172,7 @@ function tickPlay(game, dt) {
 
   updatePlayer(player, level.solids, dt);
 
-  const target = player.x - W * 0.35;
+  const target = player.x + player.w / 2 - W * 0.5;
   game.camX += (target - game.camX) * 0.15;
   if (game.camX < 0) game.camX = 0;
   const maxCam = level.widthPx - W;
@@ -369,7 +369,7 @@ export function drawGame(ctx, game) {
     ctx.translate((Math.random() - 0.5) * mag * 2, (Math.random() - 0.5) * mag * 2);
   }
   const zoom = 1.22;
-  const ax = W * 0.36;
+  const ax = W * 0.5;
   const ay = H * 0.72;
   ctx.translate(ax, ay);
   ctx.scale(zoom, zoom);
@@ -532,7 +532,7 @@ function drawTitleScene(ctx, game) {
     drawLevelTiles(ctx, cam, game.titleLevel);
     const walk = Math.floor(game.titleBlink / 10) % 4;
     const bob = Math.sin(game.titleBlink * 0.08) * 1.5;
-    drawJoseph(ctx, 78, game.titleLevel.spawn.y + bob, 1, walk, false, false, false, true, false);
+    drawJoseph(ctx, W / 2 - 18, game.titleLevel.spawn.y + bob, 1, walk, false, false, false, true, false);
   } else {
     for (let i = 0; i < 20; i++) {
       const t = i / 20;
