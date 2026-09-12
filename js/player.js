@@ -217,7 +217,7 @@ export function drawPlayer(ctx, p, camX) {
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
   const drawY = p.crouching ? p.y - (STAND_H - CROUCH_H) : p.y;
   const moving = Math.abs(p.vx) > 0.12 * SCALE || !!p.walking;
-  const walkFrame = Math.floor(Math.abs(p.x) / (10 * SCALE)) % 4;
+  const walkFrame = Math.floor(Math.abs(p.x) / (6 * SCALE)) % 4;
   drawJoseph(
     ctx,
     p.x - camX,
