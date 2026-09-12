@@ -222,9 +222,9 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   const flip = facing < 0;
   let pose = 'idle';
   if (attacking) pose = 'throw';
-  else if (crouching && !jumping) pose = 'crouch';
-  else if (jumping) pose = 'jump';
+  else if (crouching) pose = 'crouch';
   else if (moving) pose = 'walk';
+  else if (jumping) pose = 'jump';
 
   const img = SHEETS.joseph;
   if (img) {

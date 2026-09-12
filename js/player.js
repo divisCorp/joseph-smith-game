@@ -147,7 +147,7 @@ export function updatePlayer(p, solids, dt) {
   if (p.invuln > 0) p.invuln -= dt;
 
   const holdingDir = (isDown('left') || isDown('right')) && !p.crouching;
-  p.walking = holdingDir && p.onGround;
+  p.walking = holdingDir;
   if (p.walking) {
     p.animT += dt;
     if (p.animT > 6) {
@@ -224,7 +224,7 @@ export function drawPlayer(ctx, p, camX) {
     p.facing,
     p.anim,
     p.attackTimer > 0,
-    !p.onGround,
+    !p.onGround && p.vy < -1.2 * SCALE,
     p.crouching,
     moving
   );
