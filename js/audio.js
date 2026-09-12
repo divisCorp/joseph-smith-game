@@ -211,6 +211,10 @@ export function sfx(name) {
       tone(520, 0.08, 'square', 0.22, d, 180);
       noise(0.05, 0.14, d, 2000);
       break;
+    case 'swing':
+      noise(0.07, 0.22, d, 700);
+      tone(160, 0.08, 'square', 0.2, d, 90);
+      break;
     case 'hit':
       noise(0.09, 0.34, d, 900);
       tone(180, 0.07, 'square', 0.18, d, 80);

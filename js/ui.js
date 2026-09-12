@@ -165,7 +165,7 @@ export function syncOverlays(game) {
     if (card) {
       card.innerHTML = `
         <p>From a boy in the grove to Carthage.</p>
-        <p>Pray in the grove. Find the plates later.</p>
+        <p>Pitchfork first. Plates at Cumorah.</p>
         <p class="ui-muted">Family-friendly arcade campaign.</p>
       `;
     }

@@ -217,6 +217,74 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
 const JOSEPH_DW = 36;
 const JOSEPH_DH = 72;
 
+/** Farm pitchfork — held at the side, swung forward. */
+export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false, crouching = false) {
+  const sc = young ? 0.72 : 1;
+  const dw = Math.round(JOSEPH_DW * sc);
+  const dh = Math.round(JOSEPH_DH * sc);
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const flip = facing < 0;
+  const hx = ox + dw * (flip ? 0.28 : 0.72);
+  const hy = oy + dh * (crouching ? 0.62 : swinging ? 0.40 : 0.50);
+  const angle = swinging
+    ? (flip ? Math.PI + 0.08 : -0.08)
+    : (flip ? Math.PI - 0.85 : 0.85);
+  const len = (swinging ? 30 : 26) * sc;
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(angle);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // shaft
+  ctx.strokeStyle = '#3a2410';
+  ctx.lineWidth = 4.2 * sc;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(len, 0);
+  ctx.stroke();
+  ctx.strokeStyle = '#8a5a28';
+  ctx.lineWidth = 2.4 * sc;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(len - 1, 0);
+  ctx.stroke();
+  ctx.strokeStyle = '#c48a48';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(1, -0.8 * sc);
+  ctx.lineTo(len * 0.7, -0.8 * sc);
+  ctx.stroke();
+  // collar
+  ctx.fillStyle = '#6a4a20';
+  ctx.fillRect(len - 5 * sc, -2.4 * sc, 4 * sc, 4.8 * sc);
+  // three tines
+  const tine = 9 * sc;
+  for (const oyT of [-4.2 * sc, 0, 4.2 * sc]) {
+    ctx.strokeStyle = '#8a9098';
+    ctx.lineWidth = 1.8 * sc;
+    ctx.beginPath();
+    ctx.moveTo(len - 2 * sc, oyT);
+    ctx.lineTo(len + tine, oyT);
+    ctx.stroke();
+    ctx.strokeStyle = '#e8eef4';
+    ctx.lineWidth = 0.9 * sc;
+    ctx.beginPath();
+    ctx.moveTo(len - 1 * sc, oyT - 0.4 * sc);
+    ctx.lineTo(len + tine - 0.5 * sc, oyT - 0.4 * sc);
+    ctx.stroke();
+    ctx.fillStyle = '#d0d6de';
+    ctx.beginPath();
+    ctx.moveTo(len + tine - 1, oyT - 1.2 * sc);
+    ctx.lineTo(len + tine + 2.2 * sc, oyT);
+    ctx.lineTo(len + tine - 1, oyT + 1.2 * sc);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);

@@ -1,5 +1,5 @@
 import { GRAVITY, FRICTION, MAX_FALL, SCALE, H } from './constants.js';
-import { drawJoseph } from './sprites.js';
+import { drawJoseph, drawPitchfork } from './sprites.js';
 import { isDown, justPressed } from './input.js';
 import { sfx } from './audio.js';
 import {
@@ -50,6 +50,7 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     wasOnGround: true,
     plates: [],
     canThrow: !!opts.canThrow,
+    forkHits: new Set(),
   };
 }
 
@@ -60,8 +61,17 @@ export function playerHitbox(p) {
   return { x: p.x + 2 * SCALE, y: p.y + 2 * SCALE, w: p.w - 4 * SCALE, h: p.h - 2 * SCALE };
 }
 
-export function playerAttackBox(_p) {
-  return null;
+const FORK_POSE = 14;
+const FORK_COOLDOWN = 22;
+
+export function playerAttackBox(p) {
+  if (!p || p.canThrow || p.attackTimer <= 0) return null;
+  const reach = 22 * SCALE;
+  const boxW = 20 * SCALE;
+  const boxH = 16 * SCALE;
+  const x = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - boxW + 2 * SCALE;
+  const y = p.y + (p.crouching ? 1 : 8) * SCALE * (p.bodyScale || 1);
+  return { x, y, w: boxW, h: boxH, reach };
 }
 
 function tryStand(p, solids) {
@@ -128,14 +138,21 @@ export function updatePlayer(p, solids, dt) {
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
   if (p.attackTimer > 0) p.attackTimer -= dt;
 
-  if (p.canThrow && justPressed('attack') && p.attackCooldown <= 0) {
-    p.attackTimer = THROW_POSE;
-    p.attackCooldown = PLATE_COOLDOWN;
-    sfx('throw');
-    const px = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - PLATE_W;
-    const chest = (p.crouching ? 10 : 18) * SCALE * (p.bodyScale || 1);
-    const py = p.y + chest - Math.floor(PLATE_H / 2);
-    p.plates.push(createPlate(px, py, p.facing));
+  if (justPressed('attack') && p.attackCooldown <= 0) {
+    if (p.canThrow) {
+      p.attackTimer = THROW_POSE;
+      p.attackCooldown = PLATE_COOLDOWN;
+      sfx('throw');
+      const px = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - PLATE_W;
+      const chest = (p.crouching ? 10 : 18) * SCALE * (p.bodyScale || 1);
+      const py = p.y + chest - Math.floor(PLATE_H / 2);
+      p.plates.push(createPlate(px, py, p.facing));
+    } else {
+      p.attackTimer = FORK_POSE;
+      p.attackCooldown = FORK_COOLDOWN;
+      p.forkHits = new Set();
+      sfx('swing');
+    }
   }
 
   p.vy += GRAVITY;
@@ -260,6 +277,9 @@ export function drawPlayer(ctx, p, camX) {
     !!p.lookingUp,
     !!p.young
   );
+  if (!p.canThrow) {
+    drawPitchfork(ctx, p.x - camX, drawY, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching);
+  }
 }
 
 function aabb(a, b) {

@@ -5,6 +5,7 @@ import {
   updatePlayer,
   drawPlayer,
   playerHitbox,
+  playerAttackBox,
   hurtPlayer,
   aabb,
 } from './player.js';
@@ -194,6 +195,23 @@ function tickPlay(game, dt) {
     } else if (inGrove || nearX) {
       game.message = 'Kneel (↓) and pray';
       game.messageT = 20;
+    }
+  }
+
+  const fork = playerAttackBox(player);
+  if (fork && player.alive) {
+    if (!player.forkHits) player.forkHits = new Set();
+    for (const e of level.enemies) {
+      if (!e.alive || e.immuneToPlates) continue;
+      if (player.forkHits.has(e)) continue;
+      if (aabb(fork, enemyHitbox(e))) {
+        player.forkHits.add(e);
+        const killed = hurtEnemy(e, 1);
+        sfx('hit');
+        e.vx = player.facing * 2.6 * SCALE;
+        e.vy = -2.2 * SCALE;
+        if (killed) game.score += e.score;
+      }
     }
   }
 

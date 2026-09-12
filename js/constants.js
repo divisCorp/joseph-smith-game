@@ -23,7 +23,7 @@ export const LEVEL_META = [
     num: 1,
     name: 'Sacred Grove',
     short: 'First Vision',
-    blurb: 'Young Joseph. No plates yet — kneel and pray to pierce the darkness.',
+    blurb: 'Young Joseph. Pitchfork the wolves. Kneel and pray to pierce the darkness.',
     clearNext: 'A heavenly messenger awaits…',
     bossTitle: 'DARK CLOUD!',
     clearTitle: 'First Vision',
