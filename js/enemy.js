@@ -71,7 +71,7 @@ export function createEnemy(type, x, y, opts = {}) {
     base.noGravity = true;
   }
   if (type === 'cloud') {
-    base.hp = base.maxHp = 180; // faith meter (drained by praying nearby)
+    base.hp = base.maxHp = 100; // faith meter (drained by praying nearby)
     base.speed = 0.28 * SCALE;
     base.w = 64 * SCALE;
     base.h = 40 * SCALE;
@@ -246,7 +246,7 @@ function updateCloudAI(e, player, dt) {
     e.vx = 0;
   }
   // Hover / drift vertically a bit
-  const hoverY = 6 * TILE_SAFE();
+  const hoverY = 9 * TILE_SAFE();
   e.vy = (hoverY - e.y) * 0.02 + Math.sin(e.aiTimer * 0.05) * 0.2 * SCALE;
   if (e.x < e.patrolMin) { e.x = e.patrolMin; e.vx = Math.abs(e.vx); }
   if (e.x > e.patrolMax) { e.x = e.patrolMax; e.vx = -Math.abs(e.vx); }

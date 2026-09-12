@@ -117,14 +117,10 @@ export function createLevel1() {
 
   const enemies = [
     createEnemy('wolf', 22 * TILE, 11 * TILE, { patrolMin: 20 * TILE, patrolMax: 28 * TILE }),
-    createEnemy('wisp', 30 * TILE, 8 * TILE, { patrolMin: 26 * TILE, patrolMax: 36 * TILE }),
     createEnemy('wolf', 38 * TILE, 7 * TILE, { patrolMin: 35 * TILE, patrolMax: 42 * TILE }),
-    createEnemy('wisp', 48 * TILE, 9 * TILE, { patrolMin: 44 * TILE, patrolMax: 54 * TILE }),
     createEnemy('wolf', 65 * TILE, 8 * TILE, { patrolMin: 60 * TILE, patrolMax: 70 * TILE }),
-    createEnemy('wisp', 74 * TILE, 7 * TILE, { patrolMin: 70 * TILE, patrolMax: 82 * TILE }),
     createEnemy('wolf', 92 * TILE, 11 * TILE, { patrolMin: 88 * TILE, patrolMax: 96 * TILE }),
-    createEnemy('wisp', 98 * TILE, 8 * TILE, { patrolMin: 94 * TILE, patrolMax: 104 * TILE }),
-    createEnemy('cloud', 108 * TILE, 5 * TILE, {
+    createEnemy('cloud', 108 * TILE, 8 * TILE, {
       patrolMin: 102 * TILE,
       patrolMax: 116 * TILE,
     }),
@@ -184,7 +180,6 @@ export function createLevel2() {
     createEnemy('wolf', 34 * TILE, 8 * TILE, { patrolMin: 32 * TILE, patrolMax: 38 * TILE }),
     createEnemy('scout', 44 * TILE, 11 * TILE, { patrolMin: 42 * TILE, patrolMax: 48 * TILE }),
     createEnemy('wolf', 55 * TILE, 8 * TILE, { patrolMin: 52 * TILE, patrolMax: 62 * TILE }),
-    createEnemy('wisp', 68 * TILE, 7 * TILE, { patrolMin: 64 * TILE, patrolMax: 74 * TILE }),
     createEnemy('scout', 80 * TILE, 7 * TILE, { patrolMin: 76 * TILE, patrolMax: 88 * TILE }),
     createEnemy('wolf', 98 * TILE, 8 * TILE, { patrolMin: 96 * TILE, patrolMax: 102 * TILE }),
   ];

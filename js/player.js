@@ -49,6 +49,7 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     prayT: 0,
     wasOnGround: true,
     plates: [],
+    canThrow: !!opts.canThrow,
   };
 }
 
@@ -127,7 +128,7 @@ export function updatePlayer(p, solids, dt) {
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
   if (p.attackTimer > 0) p.attackTimer -= dt;
 
-  if (justPressed('attack') && p.attackCooldown <= 0) {
+  if (p.canThrow && justPressed('attack') && p.attackCooldown <= 0) {
     p.attackTimer = THROW_POSE;
     p.attackCooldown = PLATE_COOLDOWN;
     sfx('throw');

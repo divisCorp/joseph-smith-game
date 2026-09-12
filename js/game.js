@@ -1,5 +1,5 @@
 import { W, H, STATES, COLORS, MAX_LEVEL, SCALE } from './constants.js';
-import { justPressed, clearAll } from './input.js';
+import { justPressed, clearAll, isDown as isDownHold } from './input.js';
 import {
   createPlayer,
   updatePlayer,
@@ -43,11 +43,13 @@ export function createGame() {
     martyrEnding: false,
     martyrFade: 0,
     cloudDefeated: false,
+    hasPlates: false,
   };
 }
 
 export function startCampaign(game) {
   game.score = 0;
+  game.hasPlates = false;
   startLevel(game, 1, true);
 }
 
@@ -55,7 +57,7 @@ export function startLevel(game, num, resetScore = false) {
   const level = createLevel(num);
   game.level = level;
   game.levelNum = num;
-  game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1 });
+  game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
   game.camX = 0;
   if (resetScore) game.score = 0;
   game.state = STATES.PLAYING;
@@ -168,18 +170,20 @@ function tickPlay(game, dt) {
     game.messageT = 90;
   }
 
-  // Faith pray vs cloud
+  // Faith pray vs cloud — kneel anywhere under/near the grove cloud
   const cloud = level.enemies.find((e) => e.type === 'cloud' && e.alive);
   if (cloud && player.alive) {
-    const near =
-      Math.abs(player.x + player.w / 2 - (cloud.x + cloud.w / 2)) < 70 * SCALE &&
-      Math.abs(player.y - cloud.y) < 90 * SCALE;
+    const px = player.x + player.w / 2;
+    const cx = cloud.x + cloud.w / 2;
+    const inGrove = player.x >= level.bossZoneX - 4 * SCALE;
+    const nearX = Math.abs(px - cx) < 110 * SCALE;
     const praying =
-      player.crouching && player.onGround && Math.abs(player.vx) < 0.12 * SCALE;
-    if (near && praying) {
-      const killed = hurtEnemy(cloud, 1.1 * dt, { faith: true });
-      game.message = 'Pray.';
-      game.messageT = 20;
+      (player.crouching || isDownHold('down')) && Math.abs(player.vx) < 0.2 * SCALE;
+    if ((inGrove || nearX) && praying) {
+      const killed = hurtEnemy(cloud, 2.4 * dt, { faith: true });
+      const pct = Math.max(0, Math.min(100, Math.round((1 - cloud.hp / cloud.maxHp) * 100)));
+      game.message = `Praying… ${pct}%`;
+      game.messageT = 30;
       if (killed) {
         game.score += cloud.score;
         game.cloudDefeated = true;
@@ -187,6 +191,9 @@ function tickPlay(game, dt) {
         sfx('heal');
         return;
       }
+    } else if (inGrove || nearX) {
+      game.message = 'Kneel (↓) and pray';
+      game.messageT = 20;
     }
   }
 
@@ -243,6 +250,8 @@ function tickPlay(game, dt) {
     const pk = level.pickup;
     if (aabb(playerHitbox(player), { x: pk.x, y: pk.y, w: pk.w || 40, h: pk.h || 28 })) {
       pk.taken = true;
+      game.hasPlates = true;
+      if (player) player.canThrow = true;
       game.score += 500;
       sfx('heal');
       goClear(game);
