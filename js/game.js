@@ -368,7 +368,7 @@ export function drawGame(ctx, game) {
     const mag = Math.min(6, game.shake * 0.55);
     ctx.translate((Math.random() - 0.5) * mag * 2, (Math.random() - 0.5) * mag * 2);
   }
-  const zoom = 1.22;
+  const zoom = 1.08;
   const ax = W * 0.5;
   const ay = H * 0.72;
   ctx.translate(ax, ay);

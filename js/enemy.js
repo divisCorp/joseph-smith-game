@@ -30,8 +30,8 @@ export function createEnemy(type, x, y, opts = {}) {
     speed: 0.55 * SCALE,
     damage: 1,
     score: 100,
-    w: 18 * SCALE, // same as Joseph (draw 36×72)
-    h: 36 * SCALE,
+    w: 24 * SCALE,
+    h: 48 * SCALE,
     onGround: false,
     attackCd: 0,
     aiPhase: 0,
@@ -46,8 +46,8 @@ export function createEnemy(type, x, y, opts = {}) {
   if (type === 'wolf') {
     base.hp = base.maxHp = 1;
     base.speed = 0.9 * SCALE;
-    base.w = 28 * SCALE;
-    base.h = 22 * SCALE; // draw ~56×40
+    base.w = 36 * SCALE;
+    base.h = 26 * SCALE;
     base.score = 150;
   }
   if (type === 'scout') {

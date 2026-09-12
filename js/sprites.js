@@ -200,7 +200,8 @@ function blitSheet(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
 function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   if (!img) return false;
   ctx.save();
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   if (flash) ctx.filter = 'brightness(1.4) sepia(0.5) hue-rotate(-25deg) saturate(2.2)';
   if (flip) {
     ctx.translate(Math.floor(dx + dw), Math.floor(dy));
@@ -213,13 +214,13 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   return true;
 }
 
-// ── Joseph Smith (36×72 draw/hitbox; sheet cells 64×128 — never blit speak/preach busts for jump/throw) ──
-const JOSEPH_DW = 36;
-const JOSEPH_DH = 72;
+// ── Joseph Smith (48×96 draw; sheet cells 64×128) ──
+const JOSEPH_DW = 48;
+const JOSEPH_DH = 96;
 
 /** Farm pitchfork — held at the side, swung forward. */
 export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false, crouching = false) {
-  const sc = young ? 0.72 : 1;
+  const sc = young ? 0.8 : 1;
   const dw = Math.round(JOSEPH_DW * sc);
   const dh = Math.round(JOSEPH_DH * sc);
   const ox = Math.floor(x);
@@ -230,7 +231,7 @@ export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false
   const angle = swinging
     ? (flip ? Math.PI + 0.08 : -0.08)
     : (flip ? Math.PI - 0.85 : 0.85);
-  const len = (swinging ? 30 : 26) * sc;
+  const len = (swinging ? 40 : 34) * sc;
   ctx.save();
   ctx.translate(hx, hy);
   ctx.rotate(angle);
@@ -289,7 +290,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
-  const sc = young ? 0.72 : 1;
+  const sc = young ? 0.8 : 1;
   const dw = Math.round(JOSEPH_DW * sc);
   const dh = Math.round(JOSEPH_DH * sc);
   let pose = 'idle';
@@ -316,7 +317,12 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     } else if (pose === 'lookup') {
       fi = JOSEPH_IDLE[0];
     }
-    // Feet at bottom of scaled cell → ground at oy + dh (matches STAND_H). Art width matches hitbox.
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(ox + dw / 2, oy + dh - 3, dw * 0.28, 4 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, dw, dh, flip, false);
     return;
   }
@@ -593,9 +599,8 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const img = SHEETS.wolf;
   if (img) {
     const col = frame % 2;
-    // Painted wolf sheet 96×64 cells; draw ~56×40 so it sits next to Joseph (36×72)
-    const dw = 56;
-    const dh = 40;
+    const dw = 72;
+    const dh = 52;
     blitSimple(ctx, img, col * 96, 0, 96, 64, ox - 4, oy + 4, dw, dh, facing < 0, flash);
     return;
   }
@@ -639,10 +644,9 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   if (img) {
     const row = BOSS_ROWS[bossKind] ?? 0;
     const col = frame % 2;
-    // Same 1:2 aspect as Joseph (64×128 → 36×72); bosses larger at 48×96 from 80×160 cells
-    const dw = 48;
-    const dh = 96;
-    blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox - 6, oy, dw, dh, facing < 0, flash);
+    const dw = 60;
+    const dh = 120;
+    blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox - 4, oy, dw, dh, facing < 0, flash);
     return;
   }
   const flip = facing < 0;

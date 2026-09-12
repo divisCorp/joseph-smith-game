@@ -10,9 +10,9 @@ import {
   PLATE_W,
 } from './projectiles.js';
 
-export const STAND_H = 36 * SCALE; // 72px — mid-size (~half of prior 64×128 draw)
-export const CROUCH_H = 14 * SCALE; // low enough to slip under a 1-tile platform gap
-const YOUNG_SCALE = 0.72;
+export const STAND_H = 48 * SCALE; // 96px — nearer the 64×128 sheet
+export const CROUCH_H = 16 * SCALE;
+const YOUNG_SCALE = 0.8;
 const STAND_SPEED = 1.55 * SCALE;
 const CROUCH_SPEED = 0.55 * SCALE;
 const JUMP_V = -6.2 * SCALE;
@@ -27,7 +27,7 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     y: spawnY,
     vx: 0,
     vy: 0,
-    w: Math.round(18 * SCALE * bodyScale),
+    w: Math.round(24 * SCALE * bodyScale),
     h: standH,
     standH,
     crouchH,
