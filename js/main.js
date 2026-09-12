@@ -1,6 +1,6 @@
 /**
  * Joseph Smith — Palmyra Quest
- * HD illustrated 512×480 canvas, scaled via CSS.
+ * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
 import { STATES } from './constants.js';

@@ -1,6 +1,6 @@
-/** HD illustrated side-scroller — internal 512×480 (2× NES), CSS-scaled */
+/** HD illustrated side-scroller — internal 1080×480 landscape, CSS-scaled */
 export const SCALE = 2;
-export const W = 256 * SCALE; // 512
+export const W = 540 * SCALE; // 1080
 export const H = 240 * SCALE; // 480
 export const TILE = 16 * SCALE; // 32
 export const GRAVITY = 0.35 * SCALE;
