@@ -3,11 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1208" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Palmyra Quest" />
+  <meta name="description" content="Joseph Smith — Palmyra Quest. A family-friendly 7-chapter arcade campaign from the Sacred Grove to Carthage." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Joseph Smith — Palmyra Quest" />
+  <meta property="og:description" content="A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage." />
+  <meta property="og:url" content="https://palmyra-quest.netlify.app/" />
+  <meta property="og:image" content="https://palmyra-quest.netlify.app/assets/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Joseph Smith — Palmyra Quest" />
+  <meta name="twitter:description" content="A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage." />
+  <meta name="twitter:image" content="https://palmyra-quest.netlify.app/assets/og.png" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=45" />
+  <link rel="stylesheet" href="css/style.css?v=46" />
   <script>
     (function () {
       var touch =
@@ -33,42 +50,39 @@
       <canvas id="game" width="512" height="480" aria-label="Joseph Smith Palmyra Quest"></canvas>
       <button type="button" id="mute-btn" class="mute-btn" data-ui-mute aria-label="Mute sound" aria-pressed="false">♪</button>
 
-      <!-- Crisp HTML overlays (sharp on retina phones). Canvas draws HD illustrated sprites. -->
       <div id="ui-overlays" aria-live="polite">
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=45" alt="" width="72" height="72" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=46" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
-            <p class="ui-level">7 Levels · The Prophet's Path</p>
+            <p class="ui-level">The Prophet's Path</p>
             <div class="ui-card">
               <p>From a boy in the grove to Carthage.</p>
-              <p>Seven levels on the Prophet's path.</p>
-              <p class="ui-muted">Family-friendly arcade campaign.</p>
+              <p>Seven chapters. One testimony.</p>
+              <p class="ui-muted">A family-friendly arcade campaign.</p>
             </div>
-            <button type="button" class="ui-start-btn" data-ui-start aria-label="Start game">Start</button>
-            <p class="ui-prompt" data-ui-blink>Tap Start · Enter / Z</p>
-            <p class="ui-footer">Arrows / WASD · ↑ look · X / A jump · ↓ kneel/pray · B / Z pitchfork · plates after Cumorah</p>
+            <button type="button" class="ui-start-btn" data-ui-start aria-label="Start game">Begin</button>
+            <p class="ui-prompt" data-ui-blink>Press Start</p>
           </div>
         </div>
 
         <div id="ui-pause" class="ui-screen ui-screen--dim" hidden>
           <div class="ui-panel">
             <h2 class="ui-heading">Paused</h2>
-            <p class="ui-body">P / Enter / START to resume</p>
+            <p class="ui-body">Take a breath. The path waits.</p>
           </div>
         </div>
 
         <div id="ui-clear" class="ui-screen ui-screen--dim" hidden>
           <div class="ui-panel ui-panel--wide">
             <p class="ui-flourish">◆</p>
-            <h2 class="ui-heading ui-heading--gold" data-ui-clear-title>Path Cleared!</h2>
+            <h2 class="ui-heading ui-heading--gold" data-ui-clear-title>Path Cleared</h2>
             <p class="ui-body" data-ui-clear-next>Onward…</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
             <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Continue to next level">Continue</button>
-            <p class="ui-prompt" data-ui-blink>Tap · Enter / Z — Next</p>
           </div>
         </div>
 
@@ -80,23 +94,21 @@
             <p class="ui-score" data-ui-score>Score: 0</p>
             <p class="ui-muted">Carthage, 1844.</p>
             <div class="ui-actions">
-              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Continue</button>
-              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Title</button>
+              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share</a>
             </div>
-            <p class="ui-prompt" data-ui-blink>START · Enter / Z — Title</p>
           </div>
         </div>
 
         <div id="ui-lose" class="ui-screen ui-screen--dim" hidden>
           <div class="ui-panel ui-panel--wide">
-            <h2 class="ui-heading ui-heading--danger">Defeated</h2>
+            <h2 class="ui-heading ui-heading--danger">Fallen</h2>
             <p class="ui-body">Rise again, Joseph.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
             <div class="ui-actions">
               <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Try Again</button>
-              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share</a>
             </div>
-            <p class="ui-prompt" data-ui-blink>START · Enter / Z — Title</p>
           </div>
         </div>
       </div>
@@ -116,14 +128,14 @@
           <div class="touch-stick-knob" id="touch-stick-knob" aria-hidden="true"></div>
         </div>
         <div class="touch-cluster touch-actions" aria-label="Actions">
-          <button type="button" class="touch-btn touch-jump" data-action="jump" aria-label="Jump">A</button>
-          <button type="button" class="touch-btn touch-attack" data-action="attack" aria-label="Attack">B</button>
+          <button type="button" class="touch-btn touch-jump" data-action="jump" aria-label="Jump"><span>A</span><small>Jump</small></button>
+          <button type="button" class="touch-btn touch-attack" data-action="attack" aria-label="Attack"><span>B</span><small>Attack</small></button>
         </div>
       </div>
     </div>
 
-    <p id="hint">Arrows / WASD move · ↑ look · X or A jump · ↓ kneel/pray · Space / Z / B pitchfork (plates after Cumorah) · M mute</p>
+    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Mute M</p>
   </div>
-  <script type="module" src="js/main.js?v=45"></script>
+  <script type="module" src="js/main.js?v=46"></script>
 </body>
 </html>

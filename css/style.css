@@ -7,9 +7,10 @@
 html, body {
   height: 100%;
   height: 100dvh;
-  background: #0a0a12;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 18%, #243044 0%, #121820 42%, #08090d 100%);
   color: #e8e0c8;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,8 +40,14 @@ html, body {
   width: min(96vw, 960px);
   max-height: min(85vh, 85dvh);
   aspect-ratio: 512 / 480;
-  border: 4px solid #3a2a18;
-  box-shadow: 0 0 0 2px #8b6914, 0 8px 32px rgba(0, 0, 0, 0.6);
+  border: 3px solid #c4a050;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 2px #3a2810,
+    0 0 0 7px #120c08,
+    0 0 0 8px #8b6914,
+    0 18px 48px rgba(0, 0, 0, 0.62),
+    0 0 70px rgba(212, 168, 75, 0.08);
   background: #000;
   overflow: hidden;
   flex-shrink: 0;
@@ -60,10 +67,12 @@ html, body {
 
 #hint {
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.78;
   text-align: center;
-  letter-spacing: 0.5px;
-  padding: 0 12px;
+  letter-spacing: 0.04em;
+  padding: 6px 16px;
+  max-width: 42rem;
+  color: #d8cbb0;
 }
 
 /* —— HTML menu overlays (retina-sharp) —— */
@@ -229,16 +238,14 @@ html, body {
   z-index: 5;
 }
 
-#ui-title .ui-flourish,
-#ui-title .ui-prompt,
 #ui-title .ui-footer {
   display: none;
 }
 
 #ui-title .ui-portrait {
-  width: 48px;
-  height: 48px;
-  margin: 0.15em 0;
+  width: 72px;
+  height: 72px;
+  margin: 0.2em 0 0.15em;
 }
 
 #ui-title .ui-card {
@@ -247,11 +254,13 @@ html, body {
 }
 
 #ui-title .ui-title-name {
-  font-size: clamp(18px, 6vw, 32px);
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+  font-size: clamp(22px, 6.4vw, 36px);
 }
 
 #ui-title .ui-title-sub {
-  font-size: clamp(13px, 4.2vw, 22px);
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+  font-size: clamp(14px, 4.4vw, 24px);
 }
 
 .ui-start-btn:active,
@@ -781,4 +790,78 @@ body.touch-ui {
 }
 .mute-btn:active {
   transform: translateY(1px);
+}
+
+
+/* —— Release polish —— */
+.ui-title-name,
+.ui-title-sub,
+.ui-heading {
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+}
+
+.ui-title-inner {
+  background: linear-gradient(
+    180deg,
+    rgba(8, 6, 4, 0.62) 0%,
+    rgba(8, 6, 4, 0.18) 40%,
+    rgba(8, 6, 4, 0.12) 68%,
+    rgba(8, 6, 4, 0.7) 100%
+  );
+}
+
+.ui-portrait {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 3px solid #d4a84b;
+  box-shadow:
+    0 0 0 2px #3a2810,
+    0 0 18px rgba(212, 168, 75, 0.4);
+  image-rendering: auto;
+}
+
+.ui-panel {
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(232, 196, 110, 0.65);
+  box-shadow:
+    0 10px 36px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 240, 200, 0.08);
+}
+
+.ui-start-btn {
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+}
+
+.mute-btn {
+  border-radius: 999px;
+  min-width: 40px;
+  height: 36px;
+  letter-spacing: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.touch-btn {
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+}
+
+.touch-btn span {
+  font-size: 1.05em;
+}
+
+.touch-btn small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.touch-jump,
+.touch-attack {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }

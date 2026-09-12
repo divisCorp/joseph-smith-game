@@ -1,4 +1,4 @@
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE } from './constants.js';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, LEVEL_META } from './constants.js';
 import { justPressed, clearAll, isDown as isDownHold } from './input.js';
 import {
   createPlayer,
@@ -45,6 +45,9 @@ export function createGame() {
     martyrFade: 0,
     cloudDefeated: false,
     hasPlates: false,
+    shake: 0,
+    introFade: 0,
+    titleLevel: null,
   };
 }
 
@@ -71,6 +74,13 @@ export function startLevel(game, num, resetScore = false) {
   game.martyrEnding = false;
   game.martyrFade = 0;
   game.cloudDefeated = false;
+  game.shake = 0;
+  game.introFade = 36;
+  const meta = LEVEL_META[num];
+  if (meta?.name) {
+    game.message = meta.name.toUpperCase();
+    game.messageT = 80;
+  }
   clearAll();
 }
 
@@ -137,6 +147,8 @@ function goWin(game) {
 function tickPlay(game, dt) {
   const { player, level } = game;
   if (game.messageT > 0) game.messageT -= dt;
+  if (game.shake > 0) game.shake -= dt;
+  if (game.introFade > 0) game.introFade -= dt;
 
   // First Vision overlay — pause normal play
   if (game.visionT > 0) {
@@ -222,6 +234,7 @@ function tickPlay(game, dt) {
     if (player.alive && aabb(playerHitbox(player), enemyHitbox(e))) {
       if (hurtPlayer(player, e.damage)) {
         player.vx = (player.x < e.x ? -1 : 1) * 2.5 * SCALE;
+        game.shake = 10;
       }
     }
   }
@@ -237,6 +250,7 @@ function tickPlay(game, dt) {
         k.alive = false;
         if (hurtPlayer(player, k.damage)) {
           player.vx = k.facing * 2.2 * SCALE;
+          game.shake = 10;
         }
       }
     }
@@ -348,6 +362,12 @@ export function drawGame(ctx, game) {
 
   if (!game.level || !game.player) return;
 
+  ctx.save();
+  if (game.shake > 0) {
+    const mag = Math.min(6, game.shake * 0.55);
+    ctx.translate((Math.random() - 0.5) * mag * 2, (Math.random() - 0.5) * mag * 2);
+  }
+
   drawLevelBackground(ctx, game.camX, game.level);
   drawLevelTiles(ctx, game.camX, game.level);
 
@@ -370,24 +390,32 @@ export function drawGame(ctx, game) {
     if (e.knives) drawKnives(ctx, e.knives, game.camX);
   }
 
+  drawVignette(ctx);
   drawHUD(ctx, game);
 
   // Cloud faith meter
   const cloud = game.level.enemies.find((e) => e.type === 'cloud' && e.alive);
   if (cloud) {
-    const bx = 80 * SCALE;
-    const by = 26 * SCALE;
-    const bw = W - 160 * SCALE;
-    drawRect(ctx, bx, by, bw, 8 * SCALE, '#1a0a20');
-    const ratio = Math.max(0, cloud.hp / cloud.maxHp);
-    drawRect(ctx, bx + 2, by + 2, (bw - 4) * (1 - ratio), 8 * SCALE - 4, '#d4a84b');
-    drawText(ctx, 'FAITH', bx - 36 * SCALE, by + 1 * SCALE, COLORS.uiGold, 8);
+    const bx = 56 * SCALE;
+    const by = 28 * SCALE;
+    const bw = W - 112 * SCALE;
+    drawRect(ctx, bx - 2, by - 2, bw + 4, 12 * SCALE, '#2a1a08');
+    drawRect(ctx, bx, by, bw, 8 * SCALE, '#140810');
+    const ratio = Math.max(0, 1 - cloud.hp / cloud.maxHp);
+    drawRect(ctx, bx + 2, by + 2, Math.max(0, (bw - 4) * ratio), 8 * SCALE - 4, '#d4a84b');
+    drawText(ctx, 'PRAY', bx + 4, by + 1 * SCALE, COLORS.uiGold, 8);
   }
 
   if (game.messageT > 0) {
-    drawPanel(ctx, 40 * SCALE, 88 * SCALE, W - 80 * SCALE, 28 * SCALE);
-    drawCentered(ctx, game.message, 97 * SCALE, COLORS.uiGold, 12);
+    const mw = W - 56 * SCALE;
+    drawPanel(ctx, 28 * SCALE, 86 * SCALE, mw, 32 * SCALE);
+    drawCentered(ctx, game.message, 96 * SCALE, COLORS.uiGold, 12);
   }
+
+  if (game.introFade > 0) {
+    drawRect(ctx, 0, 0, W, H, `rgba(6,4,2,${Math.min(0.85, game.introFade / 36)})`);
+  }
+  ctx.restore();
 
   if (game.visionT > 0) {
     drawVisionOverlay(ctx, game);
@@ -452,66 +480,52 @@ function drawMartyrFade(ctx, game) {
   }
 }
 
+function drawVignette(ctx) {
+  const g = ctx.createRadialGradient(W / 2, H * 0.55, H * 0.2, W / 2, H * 0.5, H * 0.78);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.72, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(4,2,0,0.45)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
 function drawHUD(ctx, game) {
-  drawRect(ctx, 0, 0, W, 22 * SCALE, '#14100c');
-  drawRect(ctx, 0, 20 * SCALE, W, 2, '#8b6914');
-  drawRect(ctx, 0, 21 * SCALE, W, 3, COLORS.uiGold);
-  drawText(ctx, 'JOSEPH', 4 * SCALE, 6 * SCALE, COLORS.uiGold, 8);
+  drawRect(ctx, 0, 0, W, 24 * SCALE, '#100c08');
+  drawRect(ctx, 0, 22 * SCALE, W, 2, '#6a4a18');
+  drawRect(ctx, 0, 23 * SCALE, W, 3, COLORS.uiGold);
   for (let i = 0; i < game.player.maxHp; i++) {
-    drawHeart(ctx, (52 + i * 13) * SCALE, 5 * SCALE, i < game.player.hp);
+    drawHeart(ctx, (6 + i * 13) * SCALE, 6 * SCALE, i < game.player.hp);
   }
-  drawText(ctx, `SC ${String(game.score).padStart(5, '0')}`, 148 * SCALE, 8 * SCALE, COLORS.uiCream, 8);
-  drawText(ctx, `L${game.levelNum}`, 230 * SCALE, 8 * SCALE, COLORS.uiGreen, 8);
+  const meta = LEVEL_META[game.levelNum];
+  const chapter = meta ? `${game.levelNum}/${MAX_LEVEL}  ${meta.short.toUpperCase()}` : `L${game.levelNum}`;
+  drawCentered(ctx, chapter, 7 * SCALE, COLORS.uiGold, 8);
+  const weapon = game.hasPlates ? 'PLATES' : 'FORK';
+  drawText(ctx, weapon, W - 86 * SCALE, 8 * SCALE, COLORS.uiGold, 8);
+  drawText(ctx, String(game.score).padStart(6, '0'), W - 48 * SCALE, 8 * SCALE, COLORS.uiCream, 8);
 }
 
 function drawTitleScene(ctx, game) {
-  for (let i = 0; i < 20; i++) {
-    const t = i / 20;
-    drawRect(ctx, 0, i * 24, W, 24, `rgb(${16 + t * 42},${12 + t * 48},${32 + t * 88})`);
-  }
-  const stars = [
-    [40, 40], [120, 24], [220, 56], [320, 32], [400, 48], [480, 20],
-    [80, 80], [360, 72], [180, 16], [440, 80], [60, 120], [280, 100],
-  ];
-  for (const [sx, sy] of stars) {
-    const twinkle = ((Math.floor(game.titleBlink / 20) + sx) % 3) !== 0;
-    if (twinkle) {
-      drawRect(ctx, sx, sy, 3, 3, 'rgba(255,245,210,0.9)');
-      drawRect(ctx, sx + 1, sy - 1, 1, 5, 'rgba(255,245,210,0.35)');
+  if (!game.titleLevel) {
+    try {
+      game.titleLevel = createLevel(1);
+    } catch (_) {
+      game.titleLevel = null;
     }
   }
-  drawRect(ctx, 0, 250, W, 140, '#0a140c');
-  for (let i = 0; i < 14; i++) {
-    const tx = -10 + i * 42;
-    const sc = 0.85 + (i % 3) * 0.08;
-    ctx.fillStyle = i % 2 ? '#0c1a10' : '#102014';
-    ctx.beginPath();
-    ctx.moveTo(tx + 24, 250 - 40 * sc);
-    ctx.lineTo(tx + 24 + 30 * sc, 250 + 8 * sc);
-    ctx.lineTo(tx + 24 - 30 * sc, 250 + 8 * sc);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(tx + 24, 230 - 36 * sc);
-    ctx.lineTo(tx + 24 + 22 * sc, 250 - 8 * sc);
-    ctx.lineTo(tx + 24 - 22 * sc, 250 - 8 * sc);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(tx + 24, 210 - 28 * sc);
-    ctx.lineTo(tx + 24 + 14 * sc, 236 - 8 * sc);
-    ctx.lineTo(tx + 24 - 14 * sc, 236 - 8 * sc);
-    ctx.closePath();
-    ctx.fill();
-    drawRect(ctx, tx + 21, 250, 7, 40, '#081008');
+  if (game.titleLevel) {
+    const cam = 36 + (Math.sin(game.titleBlink * 0.01) * 0.5 + 0.5) * 64;
+    drawLevelBackground(ctx, cam, game.titleLevel);
+    drawLevelTiles(ctx, cam, game.titleLevel);
+    const walk = Math.floor(game.titleBlink / 10) % 4;
+    const bob = Math.sin(game.titleBlink * 0.08) * 1.5;
+    drawJoseph(ctx, 78, game.titleLevel.spawn.y + bob, 1, walk, false, false, false, true, false);
+  } else {
+    for (let i = 0; i < 20; i++) {
+      const t = i / 20;
+      drawRect(ctx, 0, i * 24, W, 24, `rgb(${16 + t * 42},${12 + t * 48},${32 + t * 88})`);
+    }
   }
-  drawRect(ctx, 0, 380, W, 100, '#081008');
-  drawRect(ctx, 0, 380, W, 2, '#1a2818');
-  drawRect(ctx, 160, 400, 192, 4, '#1e2c14');
-  for (let i = 0; i < 24; i++) {
-    drawRect(ctx, 12 + i * 22, 372, 2, 8, '#143018');
-    drawRect(ctx, 15 + i * 22, 374, 2, 6, '#1e4020');
-  }
-  drawPortrait(ctx, 36, 248, Math.floor(game.titleBlink / 40) % 4, 40);
-  drawJoseph(ctx, 36, 304, 1, Math.floor(game.titleBlink / 20) % 3, false, false, false, false);
+  drawVignette(ctx);
+  drawRect(ctx, 0, 0, W, 56, 'rgba(6,4,2,0.35)');
+  drawRect(ctx, 0, H - 90, W, 90, 'rgba(6,4,2,0.45)');
 }

@@ -1,0 +1,13 @@
+{
+  "name": "Joseph Smith — Palmyra Quest",
+  "short_name": "Palmyra Quest",
+  "description": "A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c12",
+  "theme_color": "#1a1208",
+  "icons": [
+    { "src": "assets/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -159,14 +159,14 @@ export function syncOverlays(game) {
     const title = document.getElementById('ui-title');
     const levelLine = title?.querySelector('.ui-level');
     if (levelLine) {
-      levelLine.textContent = `7 Levels · The Prophet's Path`;
+      levelLine.textContent = `The Prophet's Path`;
     }
     const card = title?.querySelector('.ui-card');
     if (card) {
       card.innerHTML = `
         <p>From a boy in the grove to Carthage.</p>
-        <p>Pitchfork first. Plates at Cumorah.</p>
-        <p class="ui-muted">Family-friendly arcade campaign.</p>
+        <p>Seven chapters. One testimony.</p>
+        <p class="ui-muted">A family-friendly arcade campaign.</p>
       `;
     }
   }
