@@ -130,7 +130,7 @@ export function updatePlayer(p, solids, dt) {
 
   if (Math.abs(p.vx) > 0.2 * SCALE && p.onGround) {
     p.animT += dt;
-    if (p.animT > 8) {
+    if (p.animT > 5) {
       p.animT = 0;
       p.anim = (p.anim + 1) % 4;
     }
