@@ -165,31 +165,32 @@ export function updatePlayer(p, solids, dt) {
 function resolve(p, solids, horizontal) {
   const box = playerHitbox(p);
   for (const s of solids) {
-    if (!aabb(box, s)) continue;
     if (s.kind === 'plat') {
       if (horizontal) {
-        // Duck (or already fully under) to slip beneath ledges
         const head = p.y + 2 * SCALE;
         if (p.crouching || head >= s.y + s.h - 1) continue;
-      } else {
-        // One-way: only land when falling onto the top
-        if (p.vy <= 0) continue;
-        const prevFeet = p.y + p.h - p.vy;
-        if (prevFeet > s.y + 6) continue;
+      } else if (p.vy < 0) {
+        continue;
       }
     }
     if (horizontal) {
+      // Floor underfoot is not a wall
+      if (Math.abs(p.y + p.h - s.y) <= 4) continue;
+      if (!aabb(box, s)) continue;
       if (p.vx > 0) p.x = s.x - (p.w - 2 * SCALE);
       else if (p.vx < 0) p.x = s.x + s.w - 2 * SCALE;
       p.vx = 0;
       box.x = p.x + 2 * SCALE;
     } else {
+      const overlapX = box.x < s.x + s.w && box.x + box.w > s.x;
+      if (!overlapX) continue;
       const feet = p.y + p.h;
-      if (p.vy >= 0 && feet >= s.y && p.y < s.y + 4) {
+      const slop = Math.max(8, p.vy + 2);
+      if (p.vy >= 0 && feet >= s.y && feet <= s.y + slop && p.y < s.y) {
         p.y = s.y - p.h;
         p.vy = 0;
         p.onGround = true;
-      } else if (p.vy < 0) {
+      } else if (p.vy < 0 && s.kind !== 'plat' && aabb(box, s)) {
         p.y = s.y + s.h - 2 * SCALE;
         p.vy = 0;
       }
@@ -230,7 +231,7 @@ export function drawPlayer(ctx, p, camX) {
 }
 
 function aabb(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h >= b.y;
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
 export { aabb };
