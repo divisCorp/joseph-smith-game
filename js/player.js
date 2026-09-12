@@ -34,6 +34,7 @@ export function createPlayer(spawnX, spawnY) {
     alive: true,
     anim: 0,
     animT: 0,
+    prayT: 0,
     plates: [],
   };
 }
@@ -120,11 +121,27 @@ export function updatePlayer(p, solids, dt) {
   if (p.vy > MAX_FALL) p.vy = MAX_FALL;
 
   p.x += p.vx;
+  if (p.x < 8) {
+    p.x = 8;
+    if (p.vx < 0) p.vx = 0;
+  }
   resolve(p, solids, true);
 
   p.y += p.vy;
   p.onGround = false;
   resolve(p, solids, false);
+
+
+  // Kneel / pray in place to regenerate hearts
+  if (p.crouching && p.onGround && Math.abs(p.vx) < 0.12 * SCALE && p.hp < p.maxHp) {
+    p.prayT += dt;
+    if (p.prayT > 90) {
+      p.prayT = 0;
+      p.hp = Math.min(p.maxHp, p.hp + 1);
+    }
+  } else {
+    p.prayT = 0;
+  }
 
   if (p.invuln > 0) p.invuln -= dt;
 

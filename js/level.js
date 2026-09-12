@@ -77,7 +77,9 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
     cols,
     rows,
     tiles,
-    solids: tilesToSolids(tiles),
+    solids: tilesToSolids(tiles).concat([
+      { x: -TILE, y: 0, w: TILE, h: rows * TILE, kind: 'wall' },
+    ]),
     enemies,
     decor,
     spawn,
