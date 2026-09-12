@@ -90,6 +90,14 @@ export function updateKnives(knives, dt, camX, levelWidthPx) {
 export function drawKnives(ctx, knives, camX) {
   for (const k of knives) {
     if (!k.alive) continue;
-    drawKnife(ctx, k.x - camX, k.y, k.facing);
+    if (k.dark) {
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.filter = 'hue-rotate(240deg) saturate(1.6) brightness(0.7)';
+      drawKnife(ctx, k.x - camX, k.y, k.facing);
+      ctx.restore();
+    } else {
+      drawKnife(ctx, k.x - camX, k.y, k.facing);
+    }
   }
 }

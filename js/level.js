@@ -1,5 +1,5 @@
 /**
- * Level data — Palmyra Quest campaign (Levels 1–5)
+ * Level data — The Prophet's Path campaign (Levels 1–7)
  * Tile codes: 0 empty, 1 solid ground, 2 platform, 3 wall, 4 water (visual/hazard gap).
  */
 import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js';
@@ -91,7 +91,7 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
   };
 }
 
-// ── Level 1: Palmyra Woods ────────────────────────────────
+// ── Level 1: Sacred Grove (boy / First Vision) ────────────
 export function createLevel1() {
   const cols = 120;
   const rows = 15;
@@ -116,14 +116,15 @@ export function createLevel1() {
   farWall(tiles, cols, groundR);
 
   const enemies = [
-    createEnemy('brigand', 22 * TILE, 11 * TILE, { patrolMin: 20 * TILE, patrolMax: 26 * TILE }),
+    createEnemy('wolf', 22 * TILE, 11 * TILE, { patrolMin: 20 * TILE, patrolMax: 28 * TILE }),
+    createEnemy('wisp', 30 * TILE, 8 * TILE, { patrolMin: 26 * TILE, patrolMax: 36 * TILE }),
     createEnemy('wolf', 38 * TILE, 7 * TILE, { patrolMin: 35 * TILE, patrolMax: 42 * TILE }),
-    createEnemy('brigand', 48 * TILE, 11 * TILE, { patrolMin: 45 * TILE, patrolMax: 51 * TILE }),
+    createEnemy('wisp', 48 * TILE, 9 * TILE, { patrolMin: 44 * TILE, patrolMax: 54 * TILE }),
     createEnemy('wolf', 65 * TILE, 8 * TILE, { patrolMin: 60 * TILE, patrolMax: 70 * TILE }),
-    createEnemy('brigand', 74 * TILE, 11 * TILE, { patrolMin: 72 * TILE, patrolMax: 77 * TILE }),
-    createEnemy('brigand', 92 * TILE, 11 * TILE, { patrolMin: 88 * TILE, patrolMax: 96 * TILE }),
-    createEnemy('boss', 110 * TILE, 10 * TILE, {
-      bossKind: 'ringleader',
+    createEnemy('wisp', 74 * TILE, 7 * TILE, { patrolMin: 70 * TILE, patrolMax: 82 * TILE }),
+    createEnemy('wolf', 92 * TILE, 11 * TILE, { patrolMin: 88 * TILE, patrolMax: 96 * TILE }),
+    createEnemy('wisp', 98 * TILE, 8 * TILE, { patrolMin: 94 * TILE, patrolMax: 104 * TILE }),
+    createEnemy('cloud', 108 * TILE, 5 * TILE, {
       patrolMin: 102 * TILE,
       patrolMax: 116 * TILE,
     }),
@@ -145,10 +146,12 @@ export function createLevel1() {
   decor.push({ type: 'gate', x: 101 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'cabin', x: 8 * TILE, y: 9 * TILE });
 
-  return wrapLevel(1, 'woods', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 100 * TILE);
+  return wrapLevel(1, 'woods', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 100 * TILE, {
+    goal: 'boss',
+  });
 }
 
-// ── Level 2: Sacred Grove (night, denser) ─────────────────
+// ── Level 2: A Messenger (meet Moroni) ────────────────────
 export function createLevel2() {
   const cols = 128;
   const rows = 15;
@@ -160,7 +163,6 @@ export function createLevel2() {
     [72, 73],
     [90, 92],
   ]);
-  // denser vertical platforms — hill climb feel
   placePlatform(tiles, 14, 11, 3);
   placePlatform(tiles, 20, 9, 3);
   placePlatform(tiles, 32, 10, 4);
@@ -182,14 +184,9 @@ export function createLevel2() {
     createEnemy('wolf', 34 * TILE, 8 * TILE, { patrolMin: 32 * TILE, patrolMax: 38 * TILE }),
     createEnemy('scout', 44 * TILE, 11 * TILE, { patrolMin: 42 * TILE, patrolMax: 48 * TILE }),
     createEnemy('wolf', 55 * TILE, 8 * TILE, { patrolMin: 52 * TILE, patrolMax: 62 * TILE }),
-    createEnemy('scout', 68 * TILE, 9 * TILE, { patrolMin: 66 * TILE, patrolMax: 72 * TILE }),
-    createEnemy('wolf', 80 * TILE, 7 * TILE, { patrolMin: 76 * TILE, patrolMax: 88 * TILE }),
-    createEnemy('scout', 98 * TILE, 8 * TILE, { patrolMin: 96 * TILE, patrolMax: 102 * TILE }),
-    createEnemy('boss', 116 * TILE, 10 * TILE, {
-      bossKind: 'sentinel',
-      patrolMin: 110 * TILE,
-      patrolMax: 124 * TILE,
-    }),
+    createEnemy('wisp', 68 * TILE, 7 * TILE, { patrolMin: 64 * TILE, patrolMax: 74 * TILE }),
+    createEnemy('scout', 80 * TILE, 7 * TILE, { patrolMin: 76 * TILE, patrolMax: 88 * TILE }),
+    createEnemy('wolf', 98 * TILE, 8 * TILE, { patrolMin: 96 * TILE, patrolMax: 102 * TILE }),
   ];
 
   const decor = [];
@@ -198,18 +195,84 @@ export function createLevel2() {
       decor.push({ type: 'tree', x: c * TILE - 8, y: (groundR - 5) * TILE, variant: c % 3, tall: true });
     }
   }
-  // soft glow markers (grove stones)
   for (const c of [16, 36, 60, 82, 100]) {
     decor.push({ type: 'stone', x: c * TILE, y: (groundR - 1) * TILE });
   }
   decor.push({ type: 'gate', x: 108 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'gate', x: 109 * TILE, y: (groundR - 5) * TILE });
 
-  return wrapLevel(2, 'grove', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 108 * TILE);
+  const goalX = 112 * TILE;
+  return wrapLevel(2, 'grove', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 108 * TILE, {
+    goal: 'reach',
+    goalX,
+    moroni: { x: goalX, y: (groundR - 3) * TILE },
+  });
 }
 
-// ── Level 3: Palmyra Streets ──────────────────────────────
+// ── Level 3: Hill Cumorah (find the plates) ───────────────
 export function createLevel3() {
+  // Reuse storm/hill geometry (former Temple Hill)
+  const cols = 140;
+  const rows = 15;
+  const tiles = emptyTiles(cols, rows);
+  const groundR = 13;
+  fillGround(tiles, groundR, cols, [
+    [24, 25],
+    [44, 46],
+    [68, 69],
+    [88, 90],
+  ]);
+  placePlatform(tiles, 10, 11, 3);
+  placePlatform(tiles, 16, 9, 3);
+  placePlatform(tiles, 28, 10, 4);
+  placePlatform(tiles, 36, 8, 3);
+  placePlatform(tiles, 48, 9, 4);
+  placePlatform(tiles, 56, 7, 3);
+  placePlatform(tiles, 62, 10, 3);
+  placePlatform(tiles, 72, 8, 4);
+  placePlatform(tiles, 80, 6, 3);
+  placePlatform(tiles, 92, 9, 4);
+  placePlatform(tiles, 100, 7, 3);
+  placePlatform(tiles, 108, 10, 4);
+  for (let c = 120; c < cols; c++) {
+    tiles[groundR][c] = 1;
+    tiles[groundR + 1][c] = 1;
+  }
+  placePlatform(tiles, 124, 11, 8);
+  farWall(tiles, cols, groundR);
+
+  const enemies = [
+    createEnemy('scout', 14 * TILE, 7 * TILE, { patrolMin: 10 * TILE, patrolMax: 20 * TILE }),
+    createEnemy('wolf', 30 * TILE, 8 * TILE, { patrolMin: 28 * TILE, patrolMax: 36 * TILE }),
+    createEnemy('wisp', 48 * TILE, 6 * TILE, { patrolMin: 44 * TILE, patrolMax: 56 * TILE }),
+    createEnemy('scout', 64 * TILE, 8 * TILE, { patrolMin: 62 * TILE, patrolMax: 68 * TILE }),
+    createEnemy('wolf', 76 * TILE, 6 * TILE, { patrolMin: 72 * TILE, patrolMax: 84 * TILE }),
+    createEnemy('wisp', 100 * TILE, 5 * TILE, { patrolMin: 96 * TILE, patrolMax: 108 * TILE }),
+  ];
+
+  const decor = [];
+  for (let c = 4; c < 120; c += 9) {
+    if (tiles[groundR][c] === 1) {
+      decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: c % 3 });
+    }
+  }
+  for (const c of [20, 50, 78, 110]) {
+    decor.push({ type: 'pillar', x: c * TILE, y: (groundR - 4) * TILE });
+  }
+  decor.push({ type: 'gate', x: 120 * TILE, y: (groundR - 5) * TILE });
+  decor.push({ type: 'gate', x: 121 * TILE, y: (groundR - 5) * TILE });
+  decor.push({ type: 'shrine', x: 130 * TILE, y: (groundR - 6) * TILE });
+
+  const pickup = { x: 130 * TILE + 20, y: (groundR - 2) * TILE - 8, w: 40, h: 28, taken: false };
+  return wrapLevel(3, 'storm', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 120 * TILE, {
+    goal: 'pickup',
+    pickup,
+  });
+}
+
+// ── Level 4: Missouri Night (mobs + captain) ──────────────
+export function createLevel4() {
+  // Reuse village layout
   const cols = 130;
   const rows = 15;
   const tiles = emptyTiles(cols, rows);
@@ -218,12 +281,11 @@ export function createLevel3() {
     [36, 37],
     [62, 63],
   ]);
-  // rooftop / balcony platforms
-  placePlatform(tiles, 10, 10, 5); // low roof
+  placePlatform(tiles, 10, 10, 5);
   placePlatform(tiles, 18, 8, 4);
   placePlatform(tiles, 28, 9, 3);
   placePlatform(tiles, 40, 10, 5);
-  placePlatform(tiles, 48, 7, 4); // high roof
+  placePlatform(tiles, 48, 7, 4);
   placePlatform(tiles, 56, 9, 3);
   placePlatform(tiles, 68, 10, 4);
   placePlatform(tiles, 76, 8, 5);
@@ -247,13 +309,13 @@ export function createLevel3() {
     createEnemy('thug', 104 * TILE, 11 * TILE, { patrolMin: 102 * TILE, patrolMax: 108 * TILE }),
     createEnemy('boss', 120 * TILE, 10 * TILE, {
       bossKind: 'captain',
+      title: 'MOB CAPTAIN',
       patrolMin: 114 * TILE,
       patrolMax: 126 * TILE,
     }),
   ];
 
   const decor = [];
-  // street buildings (visual)
   const buildings = [
     [6, 3], [22, 2], [44, 3], [64, 2], [84, 3], [100, 2],
   ];
@@ -266,16 +328,18 @@ export function createLevel3() {
   decor.push({ type: 'gate', x: 112 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'gate', x: 113 * TILE, y: (groundR - 5) * TILE });
 
-  return wrapLevel(3, 'village', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 112 * TILE);
+  return wrapLevel(4, 'village', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 112 * TILE, {
+    goal: 'boss',
+  });
 }
 
-// ── Level 4: River Crossing ───────────────────────────────
-export function createLevel4() {
+// ── Level 5: Far West Road (warden boss) ──────────────────
+export function createLevel5() {
+  // Reuse river layout
   const cols = 136;
   const rows = 15;
   const tiles = emptyTiles(cols, rows);
   const groundR = 13;
-  // Large water gaps — must use bridges/platforms
   fillGround(tiles, groundR, cols, [
     [20, 27],
     [40, 49],
@@ -288,7 +352,6 @@ export function createLevel4() {
     [66, 75],
     [92, 101],
   ]);
-  // bridge platforms across water
   placePlatform(tiles, 21, 11, 3);
   placePlatform(tiles, 25, 10, 3);
   placePlatform(tiles, 41, 11, 4);
@@ -297,7 +360,6 @@ export function createLevel4() {
   placePlatform(tiles, 71, 10, 4);
   placePlatform(tiles, 93, 11, 4);
   placePlatform(tiles, 98, 9, 3);
-  // mid land platforms
   placePlatform(tiles, 12, 10, 3);
   placePlatform(tiles, 32, 9, 3);
   placePlatform(tiles, 56, 10, 4);
@@ -319,6 +381,7 @@ export function createLevel4() {
     createEnemy('brigand', 108 * TILE, 8 * TILE, { patrolMin: 106 * TILE, patrolMax: 112 * TILE }),
     createEnemy('boss', 124 * TILE, 10 * TILE, {
       bossKind: 'warden',
+      title: 'JAILER WARDEN',
       patrolMin: 118 * TILE,
       patrolMax: 132 * TILE,
     }),
@@ -331,81 +394,130 @@ export function createLevel4() {
   for (let c = 108; c < 116; c += 4) {
     decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: 1 });
   }
-  // reeds along water edges
   for (const c of [19, 28, 39, 50, 65, 76, 91, 102]) {
     decor.push({ type: 'reed', x: c * TILE, y: (groundR - 1) * TILE });
   }
   decor.push({ type: 'gate', x: 116 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'gate', x: 117 * TILE, y: (groundR - 5) * TILE });
 
-  return wrapLevel(4, 'river', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 116 * TILE);
+  return wrapLevel(5, 'river', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 116 * TILE, {
+    goal: 'boss',
+  });
 }
 
-// ── Level 5: Temple Hill / Final Trial ────────────────────
-export function createLevel5() {
-  const cols = 140;
+// ── Level 6: Nauvoo (ringleader / overseer) ───────────────
+export function createLevel6() {
+  // Village-like, shifted enemy/boss positions
+  const cols = 132;
   const rows = 15;
   const tiles = emptyTiles(cols, rows);
   const groundR = 13;
   fillGround(tiles, groundR, cols, [
-    [24, 25],
-    [44, 46],
-    [68, 69],
-    [88, 90],
+    [30, 31],
+    [58, 60],
+    [84, 85],
   ]);
-  // ascending hill platforms
-  placePlatform(tiles, 10, 11, 3);
-  placePlatform(tiles, 16, 9, 3);
-  placePlatform(tiles, 28, 10, 4);
-  placePlatform(tiles, 36, 8, 3);
-  placePlatform(tiles, 48, 9, 4);
-  placePlatform(tiles, 56, 7, 3);
-  placePlatform(tiles, 62, 10, 3);
-  placePlatform(tiles, 72, 8, 4);
-  placePlatform(tiles, 80, 6, 3); // high
-  placePlatform(tiles, 92, 9, 4);
-  placePlatform(tiles, 100, 7, 3);
-  placePlatform(tiles, 108, 10, 4);
-  for (let c = 120; c < cols; c++) {
+  placePlatform(tiles, 8, 10, 4);
+  placePlatform(tiles, 16, 8, 4);
+  placePlatform(tiles, 26, 9, 3);
+  placePlatform(tiles, 38, 10, 5);
+  placePlatform(tiles, 46, 7, 4);
+  placePlatform(tiles, 54, 9, 3);
+  placePlatform(tiles, 66, 10, 4);
+  placePlatform(tiles, 74, 8, 5);
+  placePlatform(tiles, 90, 10, 3);
+  placePlatform(tiles, 96, 7, 4);
+  placePlatform(tiles, 106, 9, 4);
+  for (let c = 116; c < cols; c++) {
     tiles[groundR][c] = 1;
     tiles[groundR + 1][c] = 1;
   }
-  // raised boss dais
-  placePlatform(tiles, 124, 11, 8);
   farWall(tiles, cols, groundR);
 
   const enemies = [
-    createEnemy('scout', 14 * TILE, 7 * TILE, { patrolMin: 10 * TILE, patrolMax: 20 * TILE }),
-    createEnemy('wolf', 30 * TILE, 8 * TILE, { patrolMin: 28 * TILE, patrolMax: 36 * TILE }),
-    createEnemy('thug', 40 * TILE, 6 * TILE, { patrolMin: 36 * TILE, patrolMax: 44 * TILE }),
-    createEnemy('brigand', 52 * TILE, 7 * TILE, { patrolMin: 48 * TILE, patrolMax: 58 * TILE }),
-    createEnemy('scout', 64 * TILE, 8 * TILE, { patrolMin: 62 * TILE, patrolMax: 68 * TILE }),
-    createEnemy('wolf', 76 * TILE, 6 * TILE, { patrolMin: 72 * TILE, patrolMax: 84 * TILE }),
-    createEnemy('thug', 94 * TILE, 7 * TILE, { patrolMin: 92 * TILE, patrolMax: 100 * TILE }),
-    createEnemy('scout', 104 * TILE, 5 * TILE, { patrolMin: 100 * TILE, patrolMax: 110 * TILE }),
-    createEnemy('brigand', 112 * TILE, 8 * TILE, { patrolMin: 108 * TILE, patrolMax: 116 * TILE }),
-    createEnemy('boss', 128 * TILE, 7 * TILE, {
+    createEnemy('thug', 12 * TILE, 8 * TILE, { patrolMin: 8 * TILE, patrolMax: 18 * TILE }),
+    createEnemy('brigand', 28 * TILE, 11 * TILE, { patrolMin: 24 * TILE, patrolMax: 34 * TILE }),
+    createEnemy('scout', 40 * TILE, 8 * TILE, { patrolMin: 38 * TILE, patrolMax: 46 * TILE }),
+    createEnemy('thug', 52 * TILE, 5 * TILE, { patrolMin: 46 * TILE, patrolMax: 56 * TILE }),
+    createEnemy('brigand', 70 * TILE, 8 * TILE, { patrolMin: 66 * TILE, patrolMax: 76 * TILE }),
+    createEnemy('thug', 78 * TILE, 6 * TILE, { patrolMin: 74 * TILE, patrolMax: 86 * TILE }),
+    createEnemy('scout', 98 * TILE, 5 * TILE, { patrolMin: 96 * TILE, patrolMax: 104 * TILE }),
+    createEnemy('thug', 108 * TILE, 11 * TILE, { patrolMin: 106 * TILE, patrolMax: 114 * TILE }),
+    createEnemy('boss', 122 * TILE, 10 * TILE, {
       bossKind: 'overseer',
-      patrolMin: 122 * TILE,
-      patrolMax: 136 * TILE,
+      title: 'CONSPIRACY RINGLEADER',
+      patrolMin: 116 * TILE,
+      patrolMax: 128 * TILE,
     }),
   ];
 
   const decor = [];
-  for (let c = 4; c < 120; c += 9) {
-    if (tiles[groundR][c] === 1) {
-      decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: c % 3 });
-    }
+  const buildings = [
+    [4, 2], [20, 3], [42, 2], [62, 3], [88, 2], [104, 3],
+  ];
+  for (const [c, variant] of buildings) {
+    decor.push({ type: 'building', x: c * TILE, y: (groundR - 6) * TILE, variant });
   }
-  // hill pillars / markers
-  for (const c of [20, 50, 78, 110]) {
-    decor.push({ type: 'pillar', x: c * TILE, y: (groundR - 4) * TILE });
+  for (let c = 2; c < 116; c += 7) {
+    if (tiles[groundR][c] === 1) decor.push({ type: 'lamp', x: c * TILE, y: (groundR - 3) * TILE });
   }
-  decor.push({ type: 'gate', x: 120 * TILE, y: (groundR - 5) * TILE });
-  decor.push({ type: 'gate', x: 121 * TILE, y: (groundR - 5) * TILE });
-  decor.push({ type: 'shrine', x: 130 * TILE, y: (groundR - 6) * TILE });
+  decor.push({ type: 'gate', x: 116 * TILE, y: (groundR - 5) * TILE });
+  decor.push({ type: 'gate', x: 117 * TILE, y: (groundR - 5) * TILE });
 
-  return wrapLevel(5, 'storm', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 120 * TILE);
+  return wrapLevel(6, 'village', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 116 * TILE, {
+    goal: 'boss',
+  });
+}
+
+// ── Level 7: Carthage Jail (martyr ending) ────────────────
+export function createLevel7() {
+  const cols = 70;
+  const rows = 15;
+  const tiles = emptyTiles(cols, rows);
+  const groundR = 13;
+  fillGround(tiles, groundR, cols, []);
+  // Cell platforms / stairs feel
+  placePlatform(tiles, 6, 11, 4);
+  placePlatform(tiles, 12, 9, 3);
+  placePlatform(tiles, 18, 11, 4);
+  placePlatform(tiles, 26, 10, 3);
+  placePlatform(tiles, 32, 8, 4);
+  placePlatform(tiles, 40, 10, 3);
+  placePlatform(tiles, 46, 9, 4);
+  placePlatform(tiles, 54, 11, 3);
+  // Stone wall segments (indoor cells)
+  for (let r = 8; r < groundR; r++) {
+    tiles[r][0] = 3;
+    tiles[r][cols - 1] = 3;
+  }
+  for (let c = 2; c < 8; c++) tiles[8][c] = 3;
+  for (let c = 22; c < 28; c++) tiles[8][c] = 3;
+  for (let c = 42; c < 48; c++) tiles[8][c] = 3;
+  farWall(tiles, cols, groundR);
+
+  const enemies = [
+    createEnemy('thug', 10 * TILE, 11 * TILE, { patrolMin: 8 * TILE, patrolMax: 16 * TILE }),
+    createEnemy('brigand', 20 * TILE, 11 * TILE, { patrolMin: 18 * TILE, patrolMax: 26 * TILE }),
+    createEnemy('thug', 34 * TILE, 6 * TILE, { patrolMin: 32 * TILE, patrolMax: 40 * TILE }),
+    createEnemy('brigand', 48 * TILE, 11 * TILE, { patrolMin: 46 * TILE, patrolMax: 54 * TILE }),
+    createEnemy('thug', 56 * TILE, 11 * TILE, { patrolMin: 54 * TILE, patrolMax: 62 * TILE }),
+  ];
+
+  const decor = [];
+  for (const c of [4, 14, 24, 36, 50]) {
+    decor.push({ type: 'lamp', x: c * TILE, y: (groundR - 3) * TILE });
+  }
+  decor.push({ type: 'pillar', x: 8 * TILE, y: (groundR - 4) * TILE });
+  decor.push({ type: 'pillar', x: 28 * TILE, y: (groundR - 4) * TILE });
+  decor.push({ type: 'pillar', x: 50 * TILE, y: (groundR - 4) * TILE });
+  // Window marker near far end
+  decor.push({ type: 'shrine', x: 58 * TILE, y: (groundR - 5) * TILE });
+
+  const goalX = 58 * TILE;
+  return wrapLevel(7, 'jail', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 50 * TILE, {
+    goal: 'martyr',
+    goalX,
+  });
 }
 
 export function createLevel(num) {
@@ -415,6 +527,8 @@ export function createLevel(num) {
     case 3: return createLevel3();
     case 4: return createLevel4();
     case 5: return createLevel5();
+    case 6: return createLevel6();
+    case 7: return createLevel7();
     default: return createLevel1();
   }
 }
@@ -426,6 +540,7 @@ export function drawLevelBackground(ctx, camX, level) {
   else if (theme === 'village') drawBgVillage(ctx, camX);
   else if (theme === 'river') drawBgRiver(ctx, camX);
   else if (theme === 'storm') drawBgStorm(ctx, camX, level);
+  else if (theme === 'jail') drawBgJail(ctx, camX);
   else drawBgWoods(ctx, camX);
 
   for (const d of level.decor) {
@@ -537,6 +652,39 @@ function drawHillBand(ctx, camX, speed, yBase, amp, color, steps, span) {
   ctx.lineTo(last[0] + 40, H);
   ctx.closePath();
   ctx.fill();
+}
+
+
+function drawBgJail(ctx, camX) {
+  skyGradient(ctx, [
+    [0, '#0a0a0e'],
+    [0.4, '#14141a'],
+    [0.7, '#1a1814'],
+    [1, '#221c14'],
+  ]);
+  // Dark stone wall band
+  ctx.fillStyle = '#1a1816';
+  ctx.fillRect(0, 200, W, H - 200);
+  for (let i = 0; i < 12; i++) {
+    const bx = wrapX(i * 56 - camX * 0.15, W + 80);
+    drawRect(ctx, bx, 220, 48, 100, i % 2 ? '#24201c' : '#2a2620');
+    drawRect(ctx, bx + 4, 228, 16, 20, '#0e0c0a');
+    drawRect(ctx, bx + 28, 260, 14, 18, '#0e0c0a');
+  }
+  // Floor stone
+  const mg = ctx.createLinearGradient(0, 320, 0, H);
+  mg.addColorStop(0, '#2a241c');
+  mg.addColorStop(1, '#1a1610');
+  ctx.fillStyle = mg;
+  ctx.fillRect(0, 320, W, H - 320);
+  // Dim torch glows
+  for (let i = 0; i < 5; i++) {
+    const tx = wrapX(i * 110 - camX * 0.4 + 40, W + 40);
+    ctx.fillStyle = 'rgba(200,120,40,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(tx, 280, 40, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawBgWoods(ctx, camX) {

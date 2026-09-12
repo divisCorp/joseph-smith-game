@@ -217,10 +217,13 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
 const JOSEPH_DW = 36;
 const JOSEPH_DH = 72;
 
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false) {
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
+  const sc = young ? 0.72 : 1;
+  const dw = Math.round(JOSEPH_DW * sc);
+  const dh = Math.round(JOSEPH_DH * sc);
   let pose = 'idle';
   if (attacking) pose = 'throw';
   else if (crouching) pose = 'crouch';
@@ -237,7 +240,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     } else if (pose === 'jump') {
       // Jump sheet cell is a speak/preach bust (no legs). Use walk-cycle full body + slight lift.
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
-      dy = oy - 5;
+      dy = oy - Math.round(5 * sc);
     } else if (pose === 'throw') {
       fi = JOSEPH_WALK[0];
     } else if (pose === 'walk') {
@@ -245,8 +248,16 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     } else if (pose === 'lookup') {
       fi = JOSEPH_IDLE[0];
     }
-    // Feet at bottom of scaled cell → ground at oy + JOSEPH_DH (matches STAND_H). Art width matches hitbox.
-    blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, JOSEPH_DW, JOSEPH_DH, flip, false);
+    // Feet at bottom of scaled cell → ground at oy + dh (matches STAND_H). Art width matches hitbox.
+    blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, dw, dh, flip, false);
+    return;
+  }
+  if (young) {
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(sc, sc);
+    drawJosephProcedural(ctx, 0, 0, flip, pose);
+    ctx.restore();
     return;
   }
   drawJosephProcedural(ctx, ox, oy, flip, pose);
@@ -646,6 +657,108 @@ const HEART_EMPTY = [
   '..MEM..',
   '...M...',
 ];
+
+
+/** Small floating dark wisp orb */
+export function drawWisp(ctx, x, y, frame = 0, flash = false) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const pulse = 1 + Math.sin(frame * 2) * 0.08;
+  const r = 10 * pulse;
+  ctx.save();
+  ctx.globalAlpha = flash ? 0.9 : 0.85;
+  ellipse(ctx, ox + 14, oy + 14, r + 6, r + 6, 'rgba(40,0,60,0.35)');
+  ellipse(ctx, ox + 14, oy + 14, r + 2, r + 2, '#1a0828');
+  ellipse(ctx, ox + 14, oy + 14, r * 0.75, r * 0.75, '#2a1040');
+  ellipse(ctx, ox + 12, oy + 11, r * 0.35, r * 0.3, flash ? '#c080ff' : '#6a30a0');
+  if (frame % 2 === 0) {
+    ellipse(ctx, ox + 18, oy + 8, 3, 2, 'rgba(120,60,180,0.5)');
+  }
+  ctx.restore();
+}
+
+/** Large hovering dark cloud boss — layered ovals, purple/black, lightning flicker */
+export function drawCloudBoss(ctx, x, y, frame = 0, flash = false, hpRatio = 1) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const flicker = frame % 5 === 0;
+  ctx.save();
+  // Outer gloom
+  ellipse(ctx, ox + 64, oy + 36, 70, 36, 'rgba(10,0,20,0.45)');
+  ellipse(ctx, ox + 64, oy + 40, 62, 30, '#0a0610');
+  ellipse(ctx, ox + 40, oy + 38, 36, 22, '#140820');
+  ellipse(ctx, ox + 90, oy + 36, 40, 24, '#1a0a28');
+  ellipse(ctx, ox + 64, oy + 28, 48, 22, '#221030');
+  ellipse(ctx, ox + 52, oy + 24, 28, 16, '#2a1840');
+  ellipse(ctx, ox + 78, oy + 26, 30, 14, '#301848');
+  // Purple veins
+  ellipse(ctx, ox + 60, oy + 42, 20, 8, 'rgba(80,20,120,0.55)');
+  if (flicker || flash) {
+    ctx.strokeStyle = flash ? '#e8c0ff' : '#a060e0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ox + 50, oy + 48);
+    ctx.lineTo(ox + 58, oy + 62);
+    ctx.lineTo(ox + 54, oy + 68);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox + 78, oy + 46);
+    ctx.lineTo(ox + 72, oy + 60);
+    ctx.lineTo(ox + 80, oy + 70);
+    ctx.stroke();
+  }
+  // Faith remaining glow (weakens as hp drops)
+  const a = 0.15 + hpRatio * 0.25;
+  ellipse(ctx, ox + 64, oy + 20, 18, 8, `rgba(80,40,120,${a})`);
+  ctx.restore();
+}
+
+/** Gold-white robed messenger silhouette with gentle glow — no detailed face */
+export function drawMoroni(ctx, x, y, t = 0) {
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  const pulse = 0.45 + Math.sin(t * 0.06) * 0.12;
+  ctx.save();
+  // Glow halo
+  ellipse(ctx, ox + 20, oy + 36, 36, 48, `rgba(255,230,160,${pulse * 0.35})`);
+  ellipse(ctx, ox + 20, oy + 36, 24, 36, `rgba(255,240,200,${pulse * 0.25})`);
+  // Robe silhouette
+  roundRect(ctx, ox + 8, oy + 28, 24, 52, 8, '#f5ecd0');
+  roundRect(ctx, ox + 10, oy + 30, 20, 48, 6, '#fff8e0');
+  // Soft sash
+  roundRect(ctx, ox + 10, oy + 48, 20, 4, 1, '#d4a84b');
+  // Head oval — blank, luminous
+  ellipse(ctx, ox + 20, oy + 20, 10, 12, '#fffaf0');
+  ellipse(ctx, ox + 20, oy + 18, 7, 8, '#ffe8b0');
+  // Raised arm suggestion (messenger)
+  roundRect(ctx, ox + 28, oy + 34, 14, 5, 2, '#f0e6d0');
+  // Soft feet glow
+  ellipse(ctx, ox + 20, oy + 82, 14, 4, 'rgba(255,220,140,0.4)');
+  ctx.restore();
+}
+
+/** Gold plates chest pickup */
+export function drawPlateChest(ctx, x, y, taken = false) {
+  if (taken) return;
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  ctx.save();
+  // Soft gold glow
+  ellipse(ctx, ox + 22, oy + 18, 28, 18, 'rgba(212,168,75,0.3)');
+  // Chest body
+  roundRect(ctx, ox + 4, oy + 12, 36, 22, 3, '#6a4a20');
+  roundRect(ctx, ox + 6, oy + 14, 32, 18, 2, '#8a6a30');
+  // Lid
+  roundRect(ctx, ox + 2, oy + 4, 40, 12, 3, '#a07828');
+  roundRect(ctx, ox + 4, oy + 6, 36, 8, 2, '#d4a84b');
+  // Gold plates peeking
+  drawRect(ctx, ox + 10, oy + 8, 24, 3, '#f0d070');
+  drawRect(ctx, ox + 12, oy + 10, 20, 2, '#e8c050');
+  // Latch
+  roundRect(ctx, ox + 18, oy + 14, 8, 8, 1, '#c4983a');
+  drawRect(ctx, ox + 20, oy + 16, 4, 4, '#fff0a0');
+  ctx.restore();
+}
 
 export function drawHeart(ctx, x, y, filled) {
   drawPixels(ctx, Math.floor(x), Math.floor(y), filled ? HEART_FULL : HEART_EMPTY, P_HEART, false, SCALE);

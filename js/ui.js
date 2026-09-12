@@ -159,13 +159,13 @@ export function syncOverlays(game) {
     const title = document.getElementById('ui-title');
     const levelLine = title?.querySelector('.ui-level');
     if (levelLine) {
-      levelLine.textContent = `5 Levels · Palmyra Quest`;
+      levelLine.textContent = `7 Levels · The Prophet's Path`;
     }
     const card = title?.querySelector('.ui-card');
     if (card) {
       card.innerHTML = `
-        <p>A frontier adventure near Palmyra.</p>
-        <p>Clear each path. Face every trial.</p>
+        <p>From a boy in the grove to Carthage.</p>
+        <p>Seven levels on the Prophet's path.</p>
         <p class="ui-muted">Family-friendly arcade campaign.</p>
       `;
     }
@@ -177,7 +177,11 @@ export function syncOverlays(game) {
     const meta = LEVEL_META[game.levelNum];
     const next = LEVEL_META[game.levelNum + 1];
     root?.querySelectorAll('[data-ui-clear-title]').forEach((n) => {
-      n.textContent = meta ? `${meta.name} Cleared!` : 'Path Cleared!';
+      n.textContent = meta?.clearTitle
+        ? `${meta.clearTitle}!`
+        : meta
+          ? `${meta.name} Cleared!`
+          : 'Path Cleared!';
     });
     root?.querySelectorAll('[data-ui-clear-next]').forEach((n) => {
       n.textContent = meta?.clearNext || (next ? `Next: ${next.name}` : '');
@@ -196,6 +200,14 @@ export function syncOverlays(game) {
     root?.querySelectorAll('[data-ui-share]').forEach((n) => {
       n.setAttribute('href', intent);
     });
+    if (state === STATES.WIN) {
+      const heading = root?.querySelector('.ui-heading');
+      if (heading) heading.textContent = 'He sealed his testimony.';
+      const bodies = root?.querySelectorAll('.ui-body');
+      if (bodies?.[0]) bodies[0].textContent = 'Joseph stood firm through every trial.';
+      const muted = root?.querySelector('.ui-muted');
+      if (muted) muted.textContent = 'Carthage, 1844.';
+    }
   }
 
   const blink = Math.floor(game.titleBlink / 30) % 2 === 0;

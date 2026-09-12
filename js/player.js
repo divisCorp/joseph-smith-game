@@ -12,18 +12,27 @@ import {
 
 export const STAND_H = 36 * SCALE; // 72px — mid-size (~half of prior 64×128 draw)
 export const CROUCH_H = 14 * SCALE; // low enough to slip under a 1-tile platform gap
+const YOUNG_SCALE = 0.72;
 const STAND_SPEED = 1.55 * SCALE;
 const CROUCH_SPEED = 0.55 * SCALE;
 const JUMP_V = -6.2 * SCALE;
 
-export function createPlayer(spawnX, spawnY) {
+export function createPlayer(spawnX, spawnY, opts = {}) {
+  const young = !!opts.young;
+  const bodyScale = young ? YOUNG_SCALE : 1;
+  const standH = Math.round(STAND_H * bodyScale);
+  const crouchH = Math.round(CROUCH_H * bodyScale);
   return {
     x: spawnX,
     y: spawnY,
     vx: 0,
     vy: 0,
-    w: 18 * SCALE,
-    h: STAND_H,
+    w: Math.round(18 * SCALE * bodyScale),
+    h: standH,
+    standH,
+    crouchH,
+    bodyScale,
+    young,
     facing: 1,
     onGround: false,
     crouching: false,
@@ -56,38 +65,42 @@ export function playerAttackBox(_p) {
 
 function tryStand(p, solids) {
   if (!p.crouching) return;
-  const rise = STAND_H - CROUCH_H;
+  const standH = p.standH || STAND_H;
+  const crouchH = p.crouchH || CROUCH_H;
+  const rise = standH - crouchH;
   const probe = {
     x: p.x + 2 * SCALE,
     y: p.y - rise + 2 * SCALE,
     w: p.w - 4 * SCALE,
-    h: STAND_H - 2 * SCALE,
+    h: standH - 2 * SCALE,
   };
   for (const s of solids) {
     if (aabb(probe, s)) return;
   }
   p.y -= rise;
-  p.h = STAND_H;
+  p.h = standH;
   p.crouching = false;
 }
 
 export function updatePlayer(p, solids, dt) {
   if (!p.alive) return;
 
+  const standH = p.standH || STAND_H;
+  const crouchH = p.crouchH || CROUCH_H;
   const wantCrouch = isDown('down') && p.onGround;
 
   if (wantCrouch && !p.crouching) {
-    const drop = STAND_H - CROUCH_H;
+    const drop = standH - crouchH;
     p.y += drop;
-    p.h = CROUCH_H;
+    p.h = crouchH;
     p.crouching = true;
   } else if (!wantCrouch && p.crouching) {
     tryStand(p, solids);
   }
 
   if (!p.onGround && p.crouching) {
-    p.y -= STAND_H - CROUCH_H;
-    p.h = STAND_H;
+    p.y -= standH - crouchH;
+    p.h = standH;
     p.crouching = false;
   }
 
@@ -119,7 +132,7 @@ export function updatePlayer(p, solids, dt) {
     p.attackCooldown = PLATE_COOLDOWN;
     sfx('throw');
     const px = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - PLATE_W;
-    const chest = (p.crouching ? 10 : 18) * SCALE;
+    const chest = (p.crouching ? 10 : 18) * SCALE * (p.bodyScale || 1);
     const py = p.y + chest - Math.floor(PLATE_H / 2);
     p.plates.push(createPlate(px, py, p.facing));
   }
@@ -149,8 +162,11 @@ export function updatePlayer(p, solids, dt) {
       p.hp = Math.min(p.maxHp, p.hp + 1);
       sfx('heal');
     }
-  } else {
+  } else if (!(p.crouching && p.onGround && Math.abs(p.vx) < 0.12 * SCALE)) {
     p.prayT = 0;
+  } else {
+    // Praying at full HP — still accumulate prayT for faith meter / cloud
+    p.prayT += dt;
   }
 
   if (p.invuln > 0) p.invuln -= dt;
@@ -225,7 +241,9 @@ export function hurtPlayer(p, dmg = 1) {
 export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
-  const drawY = p.crouching ? p.y - (STAND_H - CROUCH_H) : p.y;
+  const standH = p.standH || STAND_H;
+  const crouchH = p.crouchH || CROUCH_H;
+  const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
   const moving = Math.abs(p.vx) > 0.12 * SCALE || !!p.walking;
   const walkFrame = Math.floor(Math.abs(p.x) / (6 * SCALE)) % 4;
   drawJoseph(
@@ -238,7 +256,8 @@ export function drawPlayer(ctx, p, camX) {
     !p.onGround && p.vy < -1.2 * SCALE,
     p.crouching,
     moving,
-    !!p.lookingUp
+    !!p.lookingUp,
+    !!p.young
   );
 }
 

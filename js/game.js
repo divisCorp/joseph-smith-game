@@ -11,7 +11,17 @@ import {
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
 import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js';
-import { drawHeart, drawText, drawCentered, drawRect, drawPanel, drawJoseph, drawPortrait } from './sprites.js';
+import {
+  drawHeart,
+  drawText,
+  drawCentered,
+  drawRect,
+  drawPanel,
+  drawJoseph,
+  drawPortrait,
+  drawMoroni,
+  drawPlateChest,
+} from './sprites.js';
 import { sfx, syncAudio, tickMusic } from './audio.js';
 
 export function createGame() {
@@ -28,6 +38,11 @@ export function createGame() {
     titleBlink: 0,
     tick: 0,
     clearTimer: 0,
+    visionT: 0,
+    martyrTimer: 0,
+    martyrEnding: false,
+    martyrFade: 0,
+    cloudDefeated: false,
   };
 }
 
@@ -40,7 +55,7 @@ export function startLevel(game, num, resetScore = false) {
   const level = createLevel(num);
   game.level = level;
   game.levelNum = num;
-  game.player = createPlayer(level.spawn.x, level.spawn.y);
+  game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1 });
   game.camX = 0;
   if (resetScore) game.score = 0;
   game.state = STATES.PLAYING;
@@ -48,6 +63,11 @@ export function startLevel(game, num, resetScore = false) {
   game.message = '';
   game.messageT = 0;
   game.clearTimer = 0;
+  game.visionT = 0;
+  game.martyrTimer = 0;
+  game.martyrEnding = false;
+  game.martyrFade = 0;
+  game.cloudDefeated = false;
   clearAll();
 }
 
@@ -86,7 +106,7 @@ export function updateGame(game, dt) {
   }
 
   if (game.state === STATES.PLAYING) {
-    if (justPressed('pause')) {
+    if (justPressed('pause') && game.visionT <= 0 && !game.martyrEnding) {
       game.state = STATES.PAUSED;
       return;
     }
@@ -98,9 +118,41 @@ export function updateGame(game, dt) {
   }
 }
 
+function goClear(game) {
+  game.state = STATES.CLEAR;
+  game.clearTimer = 0;
+  game.messageT = 0;
+  clearAll();
+}
+
+function goWin(game) {
+  game.state = STATES.WIN;
+  game.messageT = 0;
+  clearAll();
+}
+
 function tickPlay(game, dt) {
   const { player, level } = game;
   if (game.messageT > 0) game.messageT -= dt;
+
+  // First Vision overlay — pause normal play
+  if (game.visionT > 0) {
+    game.visionT -= dt;
+    if (game.visionT <= 0) {
+      game.visionT = 0;
+      goClear(game);
+    }
+    return;
+  }
+
+  // Martyr ending sequence
+  if (game.martyrEnding) {
+    game.martyrFade += dt;
+    if (game.martyrFade > 120) {
+      goWin(game);
+    }
+    return;
+  }
 
   updatePlayer(player, level.solids, dt);
 
@@ -110,10 +162,32 @@ function tickPlay(game, dt) {
   const maxCam = level.widthPx - W;
   if (game.camX > maxCam) game.camX = maxCam;
 
-  if (!game.bossIntro && player.x >= level.bossZoneX) {
+  if (!game.bossIntro && level.bossTitle && player.x >= level.bossZoneX) {
     game.bossIntro = true;
     game.message = level.bossTitle || 'BOSS!';
     game.messageT = 90;
+  }
+
+  // Faith pray vs cloud
+  const cloud = level.enemies.find((e) => e.type === 'cloud' && e.alive);
+  if (cloud && player.alive) {
+    const near =
+      Math.abs(player.x + player.w / 2 - (cloud.x + cloud.w / 2)) < 70 * SCALE &&
+      Math.abs(player.y - cloud.y) < 90 * SCALE;
+    const praying =
+      player.crouching && player.onGround && Math.abs(player.vx) < 0.12 * SCALE;
+    if (near && praying) {
+      const killed = hurtEnemy(cloud, 1.1 * dt, { faith: true });
+      game.message = 'Pray.';
+      game.messageT = 20;
+      if (killed) {
+        game.score += cloud.score;
+        game.cloudDefeated = true;
+        game.visionT = 200;
+        sfx('heal');
+        return;
+      }
+    }
   }
 
   for (const e of level.enemies) {
@@ -137,7 +211,7 @@ function tickPlay(game, dt) {
       if (aabb(playerHitbox(player), knifeHitbox(k))) {
         k.alive = false;
         if (hurtPlayer(player, k.damage)) {
-          player.vx = (k.facing) * 2.2 * SCALE;
+          player.vx = k.facing * 2.2 * SCALE;
         }
       }
     }
@@ -148,6 +222,11 @@ function tickPlay(game, dt) {
     for (const e of level.enemies) {
       if (!e.alive) continue;
       if (aabb(ph, enemyHitbox(e))) {
+        if (e.immuneToPlates) {
+          plate.alive = false;
+          sfx('hit');
+          break;
+        }
         plate.alive = false;
         const killed = hurtEnemy(e, plate.damage);
         sfx('hit');
@@ -159,21 +238,73 @@ function tickPlay(game, dt) {
     }
   }
 
-  const boss = level.enemies.find((e) => e.type === 'boss');
-  if (boss && !boss.alive && player.alive) {
-    if (level.num >= MAX_LEVEL) {
-      game.state = STATES.WIN;
-      game.messageT = 0;
-      clearAll();
-    } else {
-      game.state = STATES.CLEAR;
-      game.clearTimer = 0;
-      game.messageT = 0;
-      clearAll();
+  // Pickup plates chest (level 3)
+  if (level.goal === 'pickup' && level.pickup && !level.pickup.taken && player.alive) {
+    const pk = level.pickup;
+    if (aabb(playerHitbox(player), { x: pk.x, y: pk.y, w: pk.w || 40, h: pk.h || 28 })) {
+      pk.taken = true;
+      game.score += 500;
+      sfx('heal');
+      goClear(game);
+      return;
+    }
+  }
+
+  // Reach Moroni (level 2)
+  if (level.goal === 'reach' && player.alive && level.goalX != null) {
+    if (player.x >= level.goalX) {
+      game.score += 500;
+      sfx('heal');
+      goClear(game);
+      return;
+    }
+  }
+
+  // Martyr last stand (level 7)
+  if (level.goal === 'martyr' && player.alive && level.goalX != null) {
+    if (player.x >= level.goalX && game.martyrTimer <= 0) {
+      game.martyrTimer = 1;
+      game.message = 'LAST STAND';
+      game.messageT = 60;
+    }
+    if (game.martyrTimer > 0) {
+      game.martyrTimer += dt;
+      // Survive ~20s (assuming ~60fps dt≈1 → 180 frames ≈ 3s at dt=1; use 180 frames as spec)
+      // Spec: ~180 frames then fade. Also trigger if all mobs dead after reaching window.
+      const mobsAlive = level.enemies.some((e) => e.alive);
+      if (game.martyrTimer > 180 || (!mobsAlive && game.martyrTimer > 60)) {
+        game.martyrEnding = true;
+        game.martyrFade = 0;
+        return;
+      }
+    }
+  }
+
+  // Boss-defeat clear (default for levels with boss / cloud handled via vision)
+  if (level.goal === 'boss' || !level.goal) {
+    const boss = level.enemies.find((e) => e.type === 'boss' || e.type === 'cloud');
+    if (boss && !boss.alive && player.alive && !game.cloudDefeated) {
+      // cloud path uses visionT; regular bosses clear/win here
+      if (boss.type === 'cloud') {
+        // handled above when killed by faith
+      } else if (level.num >= MAX_LEVEL) {
+        goWin(game);
+      } else {
+        goClear(game);
+      }
+      return;
     }
   }
 
   if (!player.alive) {
+    // During martyr last stand / ending — memorial WIN instead of LOSE
+    if (game.martyrEnding || (level.goal === 'martyr' && game.martyrTimer > 0)) {
+      game.martyrEnding = true;
+      game.martyrFade = Math.max(game.martyrFade, 1);
+      player.alive = true; // keep drawing respectful fade, not corpse defeat
+      player.hp = 0;
+      return;
+    }
     game.state = STATES.LOSE;
     clearAll();
   }
@@ -193,6 +324,16 @@ export function drawGame(ctx, game) {
   drawLevelBackground(ctx, game.camX, game.level);
   drawLevelTiles(ctx, game.camX, game.level);
 
+  // Plate chest
+  if (game.level.pickup) {
+    drawPlateChest(ctx, game.level.pickup.x - game.camX, game.level.pickup.y, game.level.pickup.taken);
+  }
+
+  // Moroni NPC
+  if (game.level.moroni) {
+    drawMoroni(ctx, game.level.moroni.x - game.camX, game.level.moroni.y, game.tick);
+  }
+
   for (const e of game.level.enemies) {
     drawEnemy(ctx, e, game.camX);
   }
@@ -204,13 +345,83 @@ export function drawGame(ctx, game) {
 
   drawHUD(ctx, game);
 
+  // Cloud faith meter
+  const cloud = game.level.enemies.find((e) => e.type === 'cloud' && e.alive);
+  if (cloud) {
+    const bx = 80 * SCALE;
+    const by = 26 * SCALE;
+    const bw = W - 160 * SCALE;
+    drawRect(ctx, bx, by, bw, 8 * SCALE, '#1a0a20');
+    const ratio = Math.max(0, cloud.hp / cloud.maxHp);
+    drawRect(ctx, bx + 2, by + 2, (bw - 4) * (1 - ratio), 8 * SCALE - 4, '#d4a84b');
+    drawText(ctx, 'FAITH', bx - 36 * SCALE, by + 1 * SCALE, COLORS.uiGold, 8);
+  }
+
   if (game.messageT > 0) {
     drawPanel(ctx, 40 * SCALE, 88 * SCALE, W - 80 * SCALE, 28 * SCALE);
     drawCentered(ctx, game.message, 97 * SCALE, COLORS.uiGold, 12);
   }
 
+  if (game.visionT > 0) {
+    drawVisionOverlay(ctx, game);
+  }
+
+  if (game.martyrEnding) {
+    drawMartyrFade(ctx, game);
+  }
+
   if (game.state === STATES.PAUSED || game.state === STATES.CLEAR) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.25)');
+  }
+}
+
+function drawVisionOverlay(ctx, game) {
+  const t = 200 - game.visionT;
+  const alpha = Math.min(0.92, t / 40);
+  // Golden light wash
+  const g = ctx.createRadialGradient(W / 2, H * 0.35, 10, W / 2, H * 0.4, W * 0.7);
+  g.addColorStop(0, `rgba(255,240,180,${0.85 * alpha})`);
+  g.addColorStop(0.45, `rgba(255,210,100,${0.45 * alpha})`);
+  g.addColorStop(1, `rgba(255,255,255,${0.15 * alpha})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Two radiant silhouettes (Father & Son) — stylized light only, no faces
+  if (t > 30) {
+    const fade = Math.min(1, (t - 30) / 40);
+    ctx.save();
+    ctx.globalAlpha = fade * 0.9;
+    for (const [cx, cy] of [
+      [W * 0.38, H * 0.32],
+      [W * 0.58, H * 0.34],
+    ]) {
+      ctx.fillStyle = 'rgba(255,250,230,0.95)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 20, 14, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 28, 22, 40, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,230,150,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 10, 40, 70, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if (t > 70) {
+    drawCentered(ctx, 'This is My Beloved Son.', 200 * SCALE, '#fff8e0', 12);
+    drawCentered(ctx, 'Hear Him!', 218 * SCALE, COLORS.uiGold, 14);
+  }
+}
+
+function drawMartyrFade(ctx, game) {
+  const a = Math.min(0.88, game.martyrFade / 90);
+  drawRect(ctx, 0, 0, W, H, `rgba(8,6,4,${a})`);
+  if (game.martyrFade > 40) {
+    drawCentered(ctx, 'He sealed his testimony.', 160 * SCALE, COLORS.uiGold, 12);
+    drawCentered(ctx, 'Carthage, 1844', 180 * SCALE, COLORS.uiCream, 10);
   }
 }
 
@@ -242,7 +453,6 @@ function drawTitleScene(ctx, game) {
       drawRect(ctx, sx + 1, sy - 1, 1, 5, 'rgba(255,245,210,0.35)');
     }
   }
-  // solid night forest wall + layered pine silhouettes (no sky holes)
   drawRect(ctx, 0, 250, W, 140, '#0a140c');
   for (let i = 0; i < 14; i++) {
     const tx = -10 + i * 42;
@@ -271,7 +481,6 @@ function drawTitleScene(ctx, game) {
   drawRect(ctx, 0, 380, W, 100, '#081008');
   drawRect(ctx, 0, 380, W, 2, '#1a2818');
   drawRect(ctx, 160, 400, 192, 4, '#1e2c14');
-  // grass tufts
   for (let i = 0; i < 24; i++) {
     drawRect(ctx, 12 + i * 22, 372, 2, 8, '#143018');
     drawRect(ctx, 15 + i * 22, 374, 2, 6, '#1e4020');

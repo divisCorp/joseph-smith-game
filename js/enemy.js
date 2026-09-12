@@ -1,5 +1,13 @@
 import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js';
-import { drawBrigand, drawWolf, drawBoss, drawScout, drawThug } from './sprites.js';
+import {
+  drawBrigand,
+  drawWolf,
+  drawBoss,
+  drawScout,
+  drawThug,
+  drawWisp,
+  drawCloudBoss,
+} from './sprites.js';
 import { aabb } from './player.js';
 import { createKnife, KNIFE_W } from './projectiles.js';
 
@@ -31,6 +39,8 @@ export function createEnemy(type, x, y, opts = {}) {
     bossKind: opts.bossKind || 'ringleader',
     title: opts.title || '',
     knives: [],
+    immuneToPlates: false,
+    noGravity: false,
   };
 
   if (type === 'wolf') {
@@ -50,6 +60,27 @@ export function createEnemy(type, x, y, opts = {}) {
     base.speed = 0.48 * SCALE;
     base.score = 140;
     base.damage = 1;
+  }
+  if (type === 'wisp') {
+    base.hp = base.maxHp = 1;
+    base.speed = 0.35 * SCALE;
+    base.w = 14 * SCALE;
+    base.h = 14 * SCALE;
+    base.score = 80;
+    base.damage = 1;
+    base.noGravity = true;
+  }
+  if (type === 'cloud') {
+    base.hp = base.maxHp = 180; // faith meter (drained by praying nearby)
+    base.speed = 0.28 * SCALE;
+    base.w = 64 * SCALE;
+    base.h = 40 * SCALE;
+    base.score = 2000;
+    base.damage = 1;
+    base.noGravity = true;
+    base.immuneToPlates = true;
+    base.patrolMin = opts.patrolMin ?? x - 60 * SCALE;
+    base.patrolMax = opts.patrolMax ?? x + 60 * SCALE;
   }
   if (type === 'boss') {
     const kind = base.bossKind;
@@ -94,6 +125,12 @@ export function enemyHitbox(e) {
   if (e.type === 'wolf') {
     return { x: e.x + 2 * SCALE, y: e.y + 4 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
   }
+  if (e.type === 'wisp') {
+    return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
+  }
+  if (e.type === 'cloud') {
+    return { x: e.x + 6 * SCALE, y: e.y + 4 * SCALE, w: e.w - 12 * SCALE, h: e.h - 8 * SCALE };
+  }
   return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
 }
 
@@ -105,6 +142,10 @@ export function updateEnemy(e, solids, player, dt) {
 
   if (e.type === 'boss') {
     updateBossAI(e, player, dt);
+  } else if (e.type === 'cloud') {
+    updateCloudAI(e, player, dt);
+  } else if (e.type === 'wisp') {
+    updateWispAI(e, player, dt);
   } else {
     const dx = player.x - e.x;
     const near = Math.abs(dx) < 100 * SCALE && Math.abs(player.y - e.y) < 48 * SCALE;
@@ -119,18 +160,21 @@ export function updateEnemy(e, solids, player, dt) {
     }
   }
 
-  e.vy += GRAVITY;
-  if (e.vy > MAX_FALL) e.vy = MAX_FALL;
+  if (!e.noGravity) {
+    e.vy += GRAVITY;
+    if (e.vy > MAX_FALL) e.vy = MAX_FALL;
+  }
 
   e.x += e.vx;
-  resolveEnemy(e, solids, true);
+  if (!e.noGravity) resolveEnemy(e, solids, true);
   e.y += e.vy;
   e.onGround = false;
-  resolveEnemy(e, solids, false);
+  if (!e.noGravity) resolveEnemy(e, solids, false);
 
 
-  // Humanoids / bosses throw knives when Joseph is in sight
-  if (e.type !== 'wolf' && player.alive && e.attackCd <= 0) {
+  // Humanoids / bosses throw knives when Joseph is in sight (not wisp/cloud/npc)
+  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'cloud' && e.type !== 'npc';
+  if (canThrow && player.alive && e.attackCd <= 0) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
     const range = e.type === 'boss' ? 170 * SCALE : 130 * SCALE;
@@ -144,15 +188,68 @@ export function updateEnemy(e, solids, player, dt) {
     }
   }
 
+  // Cloud occasional dark bolts (reuse knives with dark tint via damage flag)
+  if (e.type === 'cloud' && player.alive && e.attackCd <= 0) {
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    if (Math.abs(dx) < 140 * SCALE && Math.abs(dy) < 80 * SCALE) {
+      e.facing = dx > 0 ? 1 : -1;
+      const kx = e.facing > 0 ? e.x + e.w - 4 : e.x - KNIFE_W;
+      const ky = e.y + e.h * 0.55;
+      const k = createKnife(kx, ky, e.facing, 1);
+      k.dark = true;
+      e.knives.push(k);
+      e.attackCd = 95;
+    }
+  }
+
   e.animT += dt;
   if (e.animT > 10) {
     e.animT = 0;
     e.anim = (e.anim + 1) % 2;
   }
 
-  if (e.y > H + 80 * SCALE) {
+  if (e.y > H + 80 * SCALE && !e.noGravity) {
     e.alive = false;
   }
+}
+
+function updateWispAI(e, player, dt) {
+  e.aiTimer += dt;
+  const dx = player.x - e.x;
+  const dy = (player.y + player.h * 0.3) - (e.y + e.h * 0.5);
+  if (player.alive) {
+    e.facing = dx > 0 ? 1 : -1;
+    const dist = Math.hypot(dx, dy) || 1;
+    e.vx = (dx / dist) * e.speed;
+    e.vy = (dy / dist) * e.speed * 0.7 + Math.sin(e.aiTimer * 0.08) * 0.15 * SCALE;
+  } else {
+    e.vx = e.facing * e.speed * 0.5;
+    e.vy = Math.sin(e.aiTimer * 0.1) * 0.2 * SCALE;
+  }
+  // Soft float band
+  if (e.y < 4 * TILE_SAFE()) e.vy = Math.abs(e.vy);
+  if (e.y > 12 * TILE_SAFE()) e.vy = -Math.abs(e.vy);
+}
+
+function TILE_SAFE() {
+  return 16 * SCALE;
+}
+
+function updateCloudAI(e, player, dt) {
+  e.aiTimer += dt;
+  const dx = player.x - e.x;
+  if (player.alive) {
+    e.facing = dx > 0 ? 1 : -1;
+    e.vx = Math.sign(dx) * e.speed;
+  } else {
+    e.vx = 0;
+  }
+  // Hover / drift vertically a bit
+  const hoverY = 6 * TILE_SAFE();
+  e.vy = (hoverY - e.y) * 0.02 + Math.sin(e.aiTimer * 0.05) * 0.2 * SCALE;
+  if (e.x < e.patrolMin) { e.x = e.patrolMin; e.vx = Math.abs(e.vx); }
+  if (e.x > e.patrolMax) { e.x = e.patrolMax; e.vx = -Math.abs(e.vx); }
 }
 
 function updateBossAI(e, player, dt) {
@@ -220,12 +317,14 @@ function resolveEnemy(e, solids, horizontal) {
   }
 }
 
-export function hurtEnemy(e, dmg = 1) {
+export function hurtEnemy(e, dmg = 1, opts = {}) {
   if (!e.alive) return false;
+  if (e.immuneToPlates && !opts.faith) return false;
   e.hp -= dmg;
   e.hurtFlash = 10;
-  e.vx = 0;
+  if (!e.noGravity) e.vx = 0;
   if (e.hp <= 0) {
+    e.hp = 0;
     e.alive = false;
     return true;
   }
@@ -240,5 +339,7 @@ export function drawEnemy(ctx, e, camX) {
   else if (e.type === 'scout') drawScout(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
+  else if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
+  else if (e.type === 'cloud') drawCloudBoss(ctx, dx, e.y, e.anim, flash, e.hp / e.maxHp);
   else if (e.type === 'boss') drawBoss(ctx, dx, e.y, e.facing, e.anim, flash, e.bossKind);
 }
