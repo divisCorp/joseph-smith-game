@@ -1,4 +1,4 @@
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H } from './constants.js';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js';
 import { drawJoseph, drawPitchfork } from './sprites.js';
 import { isDown, justPressed } from './input.js';
 import { sfx } from './audio.js';
@@ -228,7 +228,7 @@ function resolve(p, solids, horizontal) {
       const overlapX = box.x < s.x + s.w && box.x + box.w > s.x;
       if (!overlapX) continue;
       const feet = p.y + p.h;
-      const slop = Math.max(8, p.vy + 2);
+      const slop = Math.max(TILE, p.vy + 4);
       if (p.vy >= 0 && feet >= s.y && feet <= s.y + slop && p.y < s.y) {
         p.y = s.y - p.h;
         p.vy = 0;

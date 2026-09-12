@@ -4,6 +4,7 @@
  */
 import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js';
 import { createEnemy } from './enemy.js';
+import { STAND_H } from './player.js';
 import { drawRect } from './sprites.js';
 
 function emptyTiles(cols, rows) {
@@ -66,6 +67,16 @@ function tilesToSolids(tiles) {
   return solids;
 }
 
+
+function floorYAt(tiles, x) {
+  const cols = tiles[0].length;
+  const c = Math.max(0, Math.min(cols - 1, Math.floor(x / TILE)));
+  for (let r = 0; r < tiles.length; r++) {
+    if (tiles[r][c] === 1 || tiles[r][c] === 3) return r * TILE;
+  }
+  return 13 * TILE;
+}
+
 function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZoneX, extras = {}) {
   const meta = LEVEL_META[num];
   return {
@@ -82,7 +93,7 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
     ]),
     enemies,
     decor,
-    spawn: { x: Math.round(W * 0.28), y: spawn.y },
+    spawn: { x: Math.round(W * 0.28), y: floorYAt(tiles, Math.round(W * 0.28)) - STAND_H },
     widthPx: cols * TILE,
     bossTriggered: false,
     bossZoneX,
