@@ -239,11 +239,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
       dy = oy - 5;
     } else if (pose === 'throw') {
-      // Throw/speak cells are busts (no legs). Use walk body + outstretched arm.
-      fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
-      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, oy, JOSEPH_DW, JOSEPH_DH, flip, false);
-      drawJosephThrowArm(ctx, ox, oy, flip);
-      return;
+      fi = JOSEPH_THROW[((frame % JOSEPH_THROW.length) + JOSEPH_THROW.length) % JOSEPH_THROW.length];
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
     } else if (pose === 'lookup') {
