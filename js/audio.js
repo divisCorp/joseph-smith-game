@@ -123,7 +123,39 @@ export function toggleMute() {
   muted = !muted;
   if (master) master.gain.value = muted ? 0 : 0.75;
   if (htmlKick) htmlKick.muted = muted;
+  syncMuteButton();
   return muted;
+}
+
+export function isMuted() {
+  return muted;
+}
+
+export function syncMuteButton() {
+  const btn = document.getElementById('mute-btn');
+  if (!btn) return;
+  btn.classList.toggle('is-muted', muted);
+  btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+  btn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  btn.textContent = muted ? 'MUTE' : '♪';
+}
+
+export function bindMuteButton() {
+  const btn = document.getElementById('mute-btn');
+  if (!btn) return;
+  const go = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!unlocked) unlockAudio();
+    else toggleMute();
+    syncMuteButton();
+  };
+  btn.addEventListener('pointerdown', go);
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  syncMuteButton();
 }
 
 function tone(freq, dur, type, vol, dest, slide) {

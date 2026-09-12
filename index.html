@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=39" />
+  <link rel="stylesheet" href="css/style.css?v=40" />
   <script>
     (function () {
       var touch =
@@ -31,13 +31,14 @@
   <div id="game-wrap">
     <div id="stage">
       <canvas id="game" width="512" height="480" aria-label="Joseph Smith Palmyra Quest"></canvas>
+      <button type="button" id="mute-btn" class="mute-btn" data-ui-mute aria-label="Mute sound" aria-pressed="false">♪</button>
 
       <!-- Crisp HTML overlays (sharp on retina phones). Canvas draws HD illustrated sprites. -->
       <div id="ui-overlays" aria-live="polite">
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=39" alt="" width="72" height="72" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=40" alt="" width="72" height="72" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -123,6 +124,6 @@
 
     <p id="hint">Arrows / WASD move · ↑ look up · X or A jump · ↓ duck / pray · Space / Z plates · M mute · phones: stick + A jump / B throw</p>
   </div>
-  <script type="module" src="js/main.js?v=39"></script>
+  <script type="module" src="js/main.js?v=40"></script>
 </body>
 </html>

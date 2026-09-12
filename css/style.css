@@ -754,3 +754,31 @@ body.touch-ui {
   background: #0a0806;
   box-shadow: 0 0 12px rgba(212, 168, 75, 0.35);
 }
+
+/* Always-on mute, bottom-left of the playfield */
+.mute-btn {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 6;
+  pointer-events: auto;
+  min-width: 44px;
+  height: 32px;
+  padding: 0 10px;
+  border: 2px solid #d4a84b;
+  background: rgba(12, 10, 8, 0.82);
+  color: #f0e6c8;
+  font: 700 13px/1 system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.mute-btn.is-muted {
+  color: #8a8070;
+  border-color: #6a5a40;
+  text-decoration: line-through;
+}
+.mute-btn:active {
+  transform: translateY(1px);
+}

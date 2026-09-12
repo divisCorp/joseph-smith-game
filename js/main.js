@@ -8,7 +8,7 @@ import { createGame, updateGame, drawGame } from './game.js';
 import { initVirtualControls, setAction } from './input.js';
 import { initOverlays, syncOverlays } from './ui.js';
 import { preloadSprites } from './sprites.js';
-import { unlockAudio, toggleMute } from './audio.js';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js';
 import { justPressed } from './input.js';
 
 const canvas = document.getElementById('game');
@@ -17,6 +17,7 @@ ctx.imageSmoothingEnabled = true;
 
 initVirtualControls();
 initOverlays();
+bindMuteButton();
 
 function armAudio() {
   unlockAudio();
