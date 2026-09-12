@@ -52,12 +52,13 @@ function tilesToSolids(tiles) {
     for (let c = 0; c < cols; c++) {
       const t = tiles[r][c];
       if (t === 1 || t === 2 || t === 3) {
+        const plat = t === 2;
         solids.push({
           x: c * TILE,
           y: r * TILE,
           w: TILE,
-          h: TILE,
-          kind: t === 2 ? 'plat' : t === 3 ? 'wall' : 'ground',
+          h: plat ? 8 : TILE,
+          kind: plat ? 'plat' : t === 3 ? 'wall' : 'ground',
         });
       }
     }

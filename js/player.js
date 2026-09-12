@@ -10,7 +10,7 @@ import {
 } from './projectiles.js';
 
 export const STAND_H = 36 * SCALE; // 72px — mid-size (~half of prior 64×128 draw)
-export const CROUCH_H = 22 * SCALE;
+export const CROUCH_H = 14 * SCALE; // low enough to slip under a 1-tile platform gap
 const STAND_SPEED = 1.55 * SCALE;
 const CROUCH_SPEED = 0.55 * SCALE;
 const JUMP_V = -6.2 * SCALE;
@@ -146,6 +146,18 @@ function resolve(p, solids, horizontal) {
   const box = playerHitbox(p);
   for (const s of solids) {
     if (!aabb(box, s)) continue;
+    if (s.kind === 'plat') {
+      if (horizontal) {
+        // Duck (or already fully under) to slip beneath ledges
+        const head = p.y + 2 * SCALE;
+        if (p.crouching || head >= s.y + s.h - 1) continue;
+      } else {
+        // One-way: only land when falling onto the top
+        if (p.vy <= 0) continue;
+        const prevFeet = p.y + p.h - p.vy;
+        if (prevFeet > s.y + 6) continue;
+      }
+    }
     if (horizontal) {
       if (p.vx > 0) p.x = s.x - (p.w - 2 * SCALE);
       else if (p.vx < 0) p.x = s.x + s.w - 2 * SCALE;
