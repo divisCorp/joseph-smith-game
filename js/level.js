@@ -82,7 +82,7 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
     ]),
     enemies,
     decor,
-    spawn,
+    spawn: { x: Math.round(W * 0.5 - 18), y: spawn.y },
     widthPx: cols * TILE,
     bossTriggered: false,
     bossZoneX,

@@ -505,17 +505,8 @@ function drawVignette(ctx) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawHUD(ctx, game) {
-  drawRect(ctx, 0, 0, W, 22 * SCALE, '#100c08');
-  drawRect(ctx, 0, 20 * SCALE, W, 2, '#6a4a18');
-  drawRect(ctx, 0, 21 * SCALE, W, 3, COLORS.uiGold);
-  for (let i = 0; i < game.player.maxHp; i++) {
-    drawHeart(ctx, (6 + i * 13) * SCALE, 5 * SCALE, i < game.player.hp);
-  }
-  const chap = `${game.levelNum}/${MAX_LEVEL}`;
-  drawText(ctx, chap, 76 * SCALE, 7 * SCALE, COLORS.uiGold, 8);
-  const score = String(game.score).padStart(6, '0');
-  drawText(ctx, score, W - measureText(score, 8) - 8 * SCALE, 7 * SCALE, COLORS.uiCream, 8);
+function drawHUD(_ctx, _game) {
+  // HTML HUD in index.html — canvas bar was clipping/overlapping on widescreen
 }
 
 function drawTitleScene(ctx, game) {

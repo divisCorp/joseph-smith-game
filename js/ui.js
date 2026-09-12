@@ -2,7 +2,7 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META } from './constants.js';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js';
 import { setAction } from './input.js';
 import { unlockAudio } from './audio.js';
 
@@ -210,6 +210,8 @@ export function syncOverlays(game) {
     }
   }
 
+  syncHud(game);
+
   const blink = Math.floor(game.titleBlink / 30) % 2 === 0;
   const activeId = SCREENS[state];
   if (activeId) {
@@ -217,4 +219,29 @@ export function syncOverlays(game) {
       n.classList.toggle('is-dim', !blink);
     });
   }
+}
+
+function syncHud(game) {
+  const hud = document.getElementById('hud');
+  if (!hud) return;
+  const play = game.state === STATES.PLAYING || game.state === STATES.PAUSED;
+  hud.hidden = !play || !game.player;
+  if (!play || !game.player) return;
+  const hearts = hud.querySelector('[data-hud-hearts]');
+  if (hearts) {
+    const n = game.player.maxHp;
+    const hp = game.player.hp;
+    let html = '';
+    for (let i = 0; i < n; i++) {
+      html += `<span class="hud-heart${i < hp ? '' : ' is-empty'}" aria-hidden="true">♥</span>`;
+    }
+    if (hearts.dataset.sig !== `${n}:${hp}`) {
+      hearts.dataset.sig = `${n}:${hp}`;
+      hearts.innerHTML = html;
+    }
+  }
+  const chap = hud.querySelector('[data-hud-chapter]');
+  if (chap) chap.textContent = `${game.levelNum}/${MAX_LEVEL}`;
+  const score = hud.querySelector('[data-hud-score]');
+  if (score) score.textContent = String(game.score).padStart(6, '0');
 }

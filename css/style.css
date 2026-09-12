@@ -948,7 +948,8 @@ body.touch-ui .touch-bar {
 }
 
 .mute-btn {
-  left: max(8px, env(safe-area-inset-left));
+  left: auto;
+  right: max(8px, env(safe-area-inset-right));
   bottom: auto;
   top: max(8px, env(safe-area-inset-top));
 }
@@ -1094,3 +1095,26 @@ html.needs-install .ui-install {
 @media (display-mode: standalone), (display-mode: fullscreen) {
   .ui-install { display: none !important; }
 }
+
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) 56px 8px max(14px, env(safe-area-inset-left));
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(12, 8, 6, 0.88) 0%, rgba(12, 8, 6, 0.35) 70%, transparent 100%);
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+  color: #f0e6d0;
+}
+#hud[hidden] { display: none !important; }
+.hud-hearts { display: flex; gap: 4px; min-width: 7.5rem; }
+.hud-heart { color: #e04040; font-size: 20px; line-height: 1; text-shadow: 0 1px 2px #000; }
+.hud-heart.is-empty { color: #4a3028; }
+.hud-chapter { font-weight: 700; letter-spacing: 0.12em; color: #f0d078; font-size: 15px; }
+.hud-score { font-weight: 700; letter-spacing: 0.08em; font-size: 15px; min-width: 5.5rem; text-align: right; }
