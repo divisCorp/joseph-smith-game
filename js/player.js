@@ -34,6 +34,7 @@ export function createPlayer(spawnX, spawnY) {
     alive: true,
     anim: 0,
     animT: 0,
+    walking: false,
     prayT: 0,
     plates: [],
   };
@@ -145,9 +146,11 @@ export function updatePlayer(p, solids, dt) {
 
   if (p.invuln > 0) p.invuln -= dt;
 
-  if (Math.abs(p.vx) > 0.2 * SCALE && p.onGround) {
+  const holdingDir = (isDown('left') || isDown('right')) && !p.crouching;
+  p.walking = holdingDir && p.onGround;
+  if (p.walking) {
     p.animT += dt;
-    if (p.animT > 5) {
+    if (p.animT > 6) {
       p.animT = 0;
       p.anim = (p.anim + 1) % 4;
     }
@@ -181,7 +184,8 @@ function resolve(p, solids, horizontal) {
       p.vx = 0;
       box.x = p.x + 2 * SCALE;
     } else {
-      if (p.vy > 0) {
+      const feet = p.y + p.h;
+      if (p.vy >= 0 && feet >= s.y && p.y < s.y + 4) {
         p.y = s.y - p.h;
         p.vy = 0;
         p.onGround = true;
@@ -211,7 +215,7 @@ export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
   if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
   const drawY = p.crouching ? p.y - (STAND_H - CROUCH_H) : p.y;
-  const moving = Math.abs(p.vx) > 0.2 * SCALE && p.onGround;
+  const moving = !!p.walking;
   drawJoseph(
     ctx,
     p.x - camX,
@@ -226,7 +230,7 @@ export function drawPlayer(ctx, p, camX) {
 }
 
 function aabb(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h >= b.y;
 }
 
 export { aabb };
