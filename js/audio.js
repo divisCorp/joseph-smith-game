@@ -137,7 +137,7 @@ export function syncMuteButton() {
   btn.classList.toggle('is-muted', muted);
   btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
   btn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
-  btn.textContent = muted ? 'MUTE' : '♪';
+  btn.textContent = muted ? '♪' : 'MUTE';
 }
 
 export function bindMuteButton() {
