@@ -244,11 +244,6 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       return;
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
-      // Upper body from sheet; swinging legs drawn so the stride reads at phone size
-      const bodyH = 42;
-      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, Math.floor(JOSEPH_FH * 0.58), ox, dy, JOSEPH_DW, bodyH, flip, false);
-      drawJosephWalkLegs(ctx, ox, dy, flip, frame);
-      return;
     }
     // Feet at bottom of scaled cell → ground at oy + JOSEPH_DH (matches STAND_H). Art width matches hitbox.
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, JOSEPH_DW, JOSEPH_DH, flip, false);
@@ -257,37 +252,6 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   drawJosephProcedural(ctx, ox, oy, flip, pose);
 }
 
-
-/** Clear 4-frame leg stride for walk (trousers + shoes). */
-function drawJosephWalkLegs(ctx, ox, oy, flip, frame) {
-  const phase = ((frame % 4) + 4) % 4;
-  const stride = [
-    { l: -7, r: 7 },
-    { l: -2, r: 2 },
-    { l: 7, r: -7 },
-    { l: 2, r: -2 },
-  ][phase];
-  const pant = '#6a4a30';
-  const pantD = '#4a3220';
-  const boot = '#2a1c10';
-  const bootHi = '#4a3424';
-  withFlip(ctx, ox, oy, JOSEPH_DW, flip, (bx, by) => {
-    const ground = by + JOSEPH_DH;
-    const hip = by + 40;
-    const legH = ground - hip - 8;
-    // left
-    roundRect(ctx, bx + 9 + stride.l, hip, 7, legH, 2, pant);
-    roundRect(ctx, bx + 8 + stride.l, ground - 10, 9, 10, 2, boot);
-    drawRect(ctx, bx + 9 + stride.l, ground - 7, 7, 2, bootHi);
-    // right
-    roundRect(ctx, bx + 18 + stride.r, hip, 7, legH, 2, pantD);
-    roundRect(ctx, bx + 17 + stride.r, ground - 10, 9, 10, 2, boot);
-    drawRect(ctx, bx + 18 + stride.r, ground - 7, 7, 2, bootHi);
-    // coat hem so the join isn't a gap
-    roundRect(ctx, bx + 6, hip - 4, 24, 10, 3, '#1a3a5c');
-    drawRect(ctx, bx + 7, hip - 3, 8, 3, 'rgba(80,120,180,0.25)');
-  });
-}
 
 /** Outstretched arm for throw pose (composited onto full-body walk). */
 function drawJosephThrowArm(ctx, ox, oy, flip) {
