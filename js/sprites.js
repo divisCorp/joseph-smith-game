@@ -97,8 +97,8 @@ let sheetsReady = false;
 let sheetsLoading = false;
 
 /** User sheet slices: idle 0-2, walk 3-6, jump 7, crouch/pray 8, throw/speak 9-10 */
-const JOSEPH_FW = 80;
-const JOSEPH_FH = 160;
+const JOSEPH_FW = 64;
+const JOSEPH_FH = 128;
 const JOSEPH_IDLE = [0, 1, 2];
 const JOSEPH_WALK = [3, 4, 5, 6];
 const JOSEPH_JUMP = 7;
@@ -248,11 +248,6 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
     } else if (pose === 'lookup') {
       fi = JOSEPH_IDLE[0];
-      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, oy, JOSEPH_DW, JOSEPH_DH, flip, false);
-      const srcH = Math.floor(JOSEPH_FH * 0.36);
-      const dstH = Math.floor(JOSEPH_DH * 0.36);
-      blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, srcH, ox, oy - 6, JOSEPH_DW, dstH, flip, false);
-      return;
     }
     // Feet at bottom of scaled cell → ground at oy + JOSEPH_DH (matches STAND_H). Art width matches hitbox.
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, JOSEPH_DW, JOSEPH_DH, flip, false);

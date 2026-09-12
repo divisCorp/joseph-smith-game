@@ -4,6 +4,7 @@
  */
 import { STATES, LEVEL_META } from './constants.js';
 import { setAction } from './input.js';
+import { unlockAudio } from './audio.js';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -27,6 +28,7 @@ function releaseStart() {
 function holdStart() {
   startHeld = true;
   setAction('start', true);
+  unlockAudio();
 }
 
 function bindStartTarget(el) {
