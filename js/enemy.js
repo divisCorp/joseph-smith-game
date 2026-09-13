@@ -46,8 +46,8 @@ export function createEnemy(type, x, y, opts = {}) {
   if (type === 'wolf') {
     base.hp = base.maxHp = 1;
     base.speed = 0.9 * SCALE;
-    base.w = 42 * SCALE;
-    base.h = 28 * SCALE;
+    base.w = 36 * SCALE;
+    base.h = 24 * SCALE;
     base.score = 150;
   }
   if (type === 'scout') {
