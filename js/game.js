@@ -40,7 +40,6 @@ export function createGame() {
     titleBlink: 0,
     tick: 0,
     clearTimer: 0,
-    visionT: 0,
     martyrTimer: 0,
     martyrEnding: false,
     martyrFade: 0,
@@ -70,7 +69,6 @@ export function startLevel(game, num, resetScore = false) {
   game.message = '';
   game.messageT = 0;
   game.clearTimer = 0;
-  game.visionT = 0;
   game.martyrTimer = 0;
   game.martyrEnding = false;
   game.martyrFade = 0;
@@ -120,7 +118,7 @@ export function updateGame(game, dt) {
   }
 
   if (game.state === STATES.PLAYING) {
-    if (justPressed('pause') && game.visionT <= 0 && !game.martyrEnding) {
+    if (justPressed('pause') && !game.martyrEnding) {
       game.state = STATES.PAUSED;
       return;
     }
@@ -150,16 +148,6 @@ function tickPlay(game, dt) {
   if (game.messageT > 0) game.messageT -= dt;
   if (game.shake > 0) game.shake -= dt;
   if (game.introFade > 0) game.introFade -= dt;
-
-  // First Vision overlay — pause normal play
-  if (game.visionT > 0) {
-    game.visionT -= dt;
-    if (game.visionT <= 0) {
-      game.visionT = 0;
-      goClear(game);
-    }
-    return;
-  }
 
   // Martyr ending sequence
   if (game.martyrEnding) {
@@ -201,8 +189,8 @@ function tickPlay(game, dt) {
       if (killed) {
         game.score += cloud.score;
         game.cloudDefeated = true;
-        game.visionT = 200;
         sfx('heal');
+        goClear(game);
         return;
       }
     } else if (inGrove || nearX) {
@@ -322,13 +310,12 @@ function tickPlay(game, dt) {
     }
   }
 
-  // Boss-defeat clear (default for levels with boss / cloud handled via vision)
+  // Boss-defeat clear
   if (level.goal === 'boss' || !level.goal) {
     const boss = level.enemies.find((e) => e.type === 'boss' || e.type === 'cloud');
     if (boss && !boss.alive && player.alive && !game.cloudDefeated) {
-      // cloud path uses visionT; regular bosses clear/win here
       if (boss.type === 'cloud') {
-        // handled above when killed by faith
+        // already cleared when faith killed the cloud
       } else if (level.num >= MAX_LEVEL) {
         goWin(game);
       } else {
@@ -433,57 +420,12 @@ export function drawGame(ctx, game) {
     drawRect(ctx, 0, 0, W, H, `rgba(6,4,2,${Math.min(0.85, game.introFade / 36)})`);
   }
 
-  if (game.visionT > 0) {
-    drawVisionOverlay(ctx, game);
-  }
-
   if (game.martyrEnding) {
     drawMartyrFade(ctx, game);
   }
 
   if (game.state === STATES.PAUSED || game.state === STATES.CLEAR) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.25)');
-  }
-}
-
-function drawVisionOverlay(ctx, game) {
-  const t = 200 - game.visionT;
-  const alpha = Math.min(0.92, t / 40);
-  // Golden light wash
-  const g = ctx.createRadialGradient(W / 2, H * 0.35, 10, W / 2, H * 0.4, W * 0.7);
-  g.addColorStop(0, `rgba(255,240,180,${0.85 * alpha})`);
-  g.addColorStop(0.45, `rgba(255,210,100,${0.45 * alpha})`);
-  g.addColorStop(1, `rgba(255,255,255,${0.15 * alpha})`);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-
-  // Two radiant silhouettes (Father & Son) — stylized light only, no faces
-  if (t > 30) {
-    const fade = Math.min(1, (t - 30) / 40);
-    ctx.save();
-    ctx.globalAlpha = fade * 0.9;
-    for (const [cx, cy] of [
-      [W * 0.38, H * 0.32],
-      [W * 0.58, H * 0.34],
-    ]) {
-      ctx.fillStyle = 'rgba(255,250,230,0.95)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 20, 14, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 28, 22, 40, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,230,150,0.35)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 10, 40, 70, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  if (t > 70) {
-    drawCentered(ctx, 'This is My Beloved Son.', 200 * SCALE, '#fff8e0', 12);
-    drawCentered(ctx, 'Hear Him!', 218 * SCALE, COLORS.uiGold, 14);
   }
 }
 

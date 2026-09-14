@@ -22,11 +22,11 @@ export const LEVEL_META = [
   {
     num: 1,
     name: 'Sacred Grove',
-    short: 'First Vision',
+    short: 'The Grove',
     blurb: 'Young Joseph. Pitchfork the wolves. Kneel and pray to pierce the darkness.',
     clearNext: 'A heavenly messenger awaits…',
     bossTitle: 'DARK CLOUD!',
-    clearTitle: 'First Vision',
+    clearTitle: 'The Cloud Breaks',
   },
   {
     num: 2,

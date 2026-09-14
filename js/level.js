@@ -102,7 +102,7 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
   };
 }
 
-// ── Level 1: Sacred Grove (boy / First Vision) ────────────
+// ── Level 1: Sacred Grove (pray to break the cloud) ────────────
 export function createLevel1() {
   const cols = 120;
   const rows = 15;
