@@ -92,18 +92,19 @@ const SHEETS = {
   wolf: null,
   bosses: null,
   portraits: null,
+  moroni: null,
 };
 let sheetsReady = false;
 let sheetsLoading = false;
 
-/** Original sheet: idle 0-2, walk 3-6, jump 7 (bust), crouch 8, throw 9-10 (busts) */
+/** v61 sheet: idle 0-1, walk 2-9 (8 even), jump 10, crouch 11, throw 12-13, hurt 14 */
 const JOSEPH_FW = 64;
 const JOSEPH_FH = 128;
-const JOSEPH_IDLE = [0, 1, 2];
-const JOSEPH_WALK = [3, 4, 5, 6];
-const JOSEPH_JUMP = 7;
-const JOSEPH_CROUCH = 8;
-const JOSEPH_THROW = [9, 10];
+const JOSEPH_IDLE = [0, 1];
+const JOSEPH_WALK = [2, 3, 4, 5, 6, 7, 8, 9];
+const JOSEPH_JUMP = 10;
+const JOSEPH_CROUCH = 11;
+const JOSEPH_THROW = [12, 13];
 const FOE_ROWS = { brigand: 0, scout: 1, thug: 2 };
 const BOSS_ROWS = { ringleader: 0, sentinel: 1, captain: 2, warden: 3, overseer: 4 };
 
@@ -131,16 +132,14 @@ export function preloadSprites() {
             SHEETS[key] = null;
             resolve(false);
           };
-          const file =
-            key === 'joseph'
-              ? 'joseph.png'
-              : key === 'foes'
-                ? 'foes.png'
-                : key === 'wolf'
-                  ? 'wolf.png'
-                  : key === 'portraits'
-                    ? 'portraits.png'
-                    : 'bosses.png';
+          const file = {
+            joseph: 'joseph.png',
+            foes: 'foes.png',
+            wolf: 'wolf.png',
+            bosses: 'bosses.png',
+            portraits: 'portraits.png',
+            moroni: 'moroni.png',
+          }[key];
           img.src = assetUrl(file);
         })
     )
@@ -306,10 +305,10 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     if (pose === 'crouch') {
       fi = JOSEPH_CROUCH;
     } else if (pose === 'jump') {
-      fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
-      dy = oy - Math.round(5 * sc);
+      fi = JOSEPH_JUMP;
+      dy = oy - Math.round(6 * sc);
     } else if (pose === 'throw') {
-      fi = JOSEPH_WALK[0];
+      fi = JOSEPH_THROW[frame % 2 === 1 ? 1 : 0];
     } else if (pose === 'walk') {
       fi = JOSEPH_WALK[((frame % JOSEPH_WALK.length) + JOSEPH_WALK.length) % JOSEPH_WALK.length];
     } else if (pose === 'lookup') {
@@ -494,7 +493,7 @@ function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
     const row = FOE_ROWS[kind] ?? 0;
     const dw = JOSEPH_DW;
     const dh = JOSEPH_DH;
-    const col = frame % 2;
+    const col = frame % 8;
     return blitSimple(ctx, img, col * 64, row * 128, 64, 128, ox, oy, dw, dh, facing < 0, flash);
   }
   return false;
@@ -595,9 +594,9 @@ export function drawWolf(ctx, x, y, facing, frame, flash = false) {
   const oy = Math.floor(y);
   const img = SHEETS.wolf;
   if (img) {
-    const col = frame % 2;
-    const dw = 72;
-    const dh = 48;
+    const col = frame % 8;
+    const dw = 84;
+    const dh = 52;
     blitSimple(ctx, img, col * 96, 0, 96, 64, ox, oy, dw, dh, facing < 0, flash);
     return;
   }
@@ -640,7 +639,7 @@ export function drawBoss(ctx, x, y, facing, frame, flash, bossKind = 'ringleader
   const img = SHEETS.bosses;
   if (img) {
     const row = BOSS_ROWS[bossKind] ?? 0;
-    const col = frame % 2;
+    const col = frame % 6;
     const dw = JOSEPH_DW;
     const dh = JOSEPH_DH;
     blitSimple(ctx, img, col * 80, row * 160, 80, 160, ox, oy, dw, dh, facing < 0, flash);
@@ -786,6 +785,12 @@ export function drawCloudBoss(ctx, x, y, frame = 0, flash = false, hpRatio = 1) 
 export function drawMoroni(ctx, x, y, t = 0) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
+  const img = SHEETS.moroni;
+  if (img) {
+    const fi = Math.floor(t / 14) % 4;
+    blitSimple(ctx, img, fi * 64, 0, 64, 128, ox, oy, JOSEPH_DW, JOSEPH_DH, false, false);
+    return;
+  }
   const pulse = 0.45 + Math.sin(t * 0.06) * 0.12;
   ctx.save();
   // Glow halo

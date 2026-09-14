@@ -463,7 +463,7 @@ function drawTitleScene(ctx, game) {
     const cam = 36 + (Math.sin(game.titleBlink * 0.01) * 0.5 + 0.5) * 64;
     drawLevelBackground(ctx, cam, game.titleLevel);
     drawLevelTiles(ctx, cam, game.titleLevel);
-    const walk = Math.floor(game.titleBlink / 10) % 4;
+    const walk = Math.floor(game.titleBlink / 8) % 8;
     drawJoseph(ctx, W * 0.28, game.titleLevel.spawn.y, 1, walk, false, false, false, true, false);
   } else {
     for (let i = 0; i < 20; i++) {

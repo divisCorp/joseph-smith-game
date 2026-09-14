@@ -263,7 +263,7 @@ export function drawPlayer(ctx, p, camX) {
   const crouchH = p.crouchH || CROUCH_H;
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
   const moving = Math.abs(p.vx) > 0.12 * SCALE || !!p.walking;
-  const walkFrame = Math.floor(Math.abs(p.x) / (4 * SCALE)) % 4;
+  const walkFrame = Math.floor(Math.abs(p.x) / (3 * SCALE)) % 8;
   if (!p.canThrow) {
     drawPitchfork(ctx, p.x - camX, drawY, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching);
   }

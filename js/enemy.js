@@ -46,8 +46,8 @@ export function createEnemy(type, x, y, opts = {}) {
   if (type === 'wolf') {
     base.hp = base.maxHp = 1;
     base.speed = 0.9 * SCALE;
-    base.w = 36 * SCALE;
-    base.h = 24 * SCALE;
+    base.w = 42 * SCALE;
+    base.h = 26 * SCALE;
     base.score = 150;
   }
   if (type === 'scout') {
@@ -206,7 +206,7 @@ export function updateEnemy(e, solids, player, dt) {
   e.animT += dt;
   if (e.animT > 7) {
     e.animT = 0;
-    e.anim = (e.anim + 1) % 4;
+    e.anim = (e.anim + 1) % 8;
   }
 
   if (e.y > H + 80 * SCALE && !e.noGravity) {
