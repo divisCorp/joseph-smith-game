@@ -321,7 +321,7 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
   if (!e.alive) return false;
   if (e.immuneToPlates && !opts.faith) return false;
   e.hp -= dmg;
-  e.hurtFlash = 10;
+  e.hurtFlash = 16;
   if (!e.noGravity) e.vx = 0;
   if (e.hp <= 0) {
     e.hp = 0;

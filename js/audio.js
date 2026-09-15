@@ -216,8 +216,15 @@ export function sfx(name) {
       tone(160, 0.08, 'square', 0.2, d, 90);
       break;
     case 'hit':
-      noise(0.09, 0.34, d, 900);
-      tone(180, 0.07, 'square', 0.18, d, 80);
+      noise(0.12, 0.42, d, 700);
+      noise(0.06, 0.28, d, 1600);
+      tone(160, 0.09, 'square', 0.26, d, 70);
+      tone(90, 0.11, 'triangle', 0.22, d, 50);
+      break;
+    case 'yelp':
+      tone(620, 0.07, 'square', 0.28, d, 380);
+      tone(480, 0.12, 'square', 0.22, d, 180);
+      noise(0.08, 0.2, d, 1400);
       break;
     case 'hurt':
       tone(320, 0.18, 'square', 0.28, d, 90);

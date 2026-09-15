@@ -22,6 +22,7 @@ export function createPlate(x, y, facing) {
     alive: true,
     traveled: 0,
     damage: 1,
+    trail: [],
   };
 }
 
@@ -32,6 +33,12 @@ export function plateHitbox(p) {
 export function updatePlates(plates, dt, camX, levelWidthPx) {
   for (const p of plates) {
     if (!p.alive) continue;
+    if (p.trail) {
+      p.trail.push({ x: p.x, y: p.y, life: 1 });
+      if (p.trail.length > 7) p.trail.shift();
+      for (const t of p.trail) t.life -= 0.14 * dt;
+      p.trail = p.trail.filter((t) => t.life > 0);
+    }
     const dx = p.vx * dt;
     p.x += dx;
     p.traveled += Math.abs(dx);
@@ -57,6 +64,16 @@ export function updatePlates(plates, dt, camX, levelWidthPx) {
 export function drawPlates(ctx, plates, camX) {
   for (const p of plates) {
     if (!p.alive) continue;
+    if (p.trail && p.trail.length) {
+      for (let i = 0; i < p.trail.length; i++) {
+        const t = p.trail[i];
+        const a = Math.max(0, Math.min(0.55, t.life * 0.5));
+        ctx.save();
+        ctx.globalAlpha = a;
+        drawGoldPlate(ctx, t.x - camX, t.y, p.facing);
+        ctx.restore();
+      }
+    }
     drawGoldPlate(ctx, p.x - camX, p.y, p.facing);
   }
 }

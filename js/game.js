@@ -46,6 +46,7 @@ export function createGame() {
     cloudDefeated: false,
     hasPlates: false,
     shake: 0,
+    hitStop: 0,
     introFade: 0,
     titleLevel: null,
   };
@@ -74,6 +75,7 @@ export function startLevel(game, num, resetScore = false) {
   game.martyrFade = 0;
   game.cloudDefeated = false;
   game.shake = 0;
+  game.hitStop = 0;
   game.introFade = 36;
   const meta = LEVEL_META[num];
   if (meta?.name) {
@@ -146,8 +148,14 @@ function goWin(game) {
 function tickPlay(game, dt) {
   const { player, level } = game;
   if (game.messageT > 0) game.messageT -= dt;
-  if (game.shake > 0) game.shake -= dt;
+  if (game.shake > 0) game.shake = Math.max(0, game.shake - dt);
   if (game.introFade > 0) game.introFade -= dt;
+
+  // Brief hit-stop: freeze simulation a few frames on solid hits
+  if (game.hitStop > 0) {
+    game.hitStop -= dt;
+    return;
+  }
 
   // Martyr ending sequence
   if (game.martyrEnding) {
@@ -208,7 +216,9 @@ function tickPlay(game, dt) {
       if (aabb(fork, enemyHitbox(e))) {
         player.forkHits.add(e);
         const killed = hurtEnemy(e, 1);
-        sfx('hit');
+        sfx(e.type === 'wolf' ? 'yelp' : 'hit');
+        game.hitStop = Math.max(game.hitStop, 5);
+        game.shake = Math.max(game.shake, 14);
         e.vx = player.facing * 2.6 * SCALE;
         e.vy = -2.2 * SCALE;
         if (killed) game.score += e.score;
@@ -223,7 +233,8 @@ function tickPlay(game, dt) {
     if (player.alive && aabb(playerHitbox(player), enemyHitbox(e))) {
       if (hurtPlayer(player, e.damage)) {
         player.vx = (player.x < e.x ? -1 : 1) * 2.5 * SCALE;
-        game.shake = 10;
+        game.hitStop = Math.max(game.hitStop, 6);
+        game.shake = Math.max(game.shake, 16);
       }
     }
   }
@@ -239,7 +250,8 @@ function tickPlay(game, dt) {
         k.alive = false;
         if (hurtPlayer(player, k.damage)) {
           player.vx = k.facing * 2.2 * SCALE;
-          game.shake = 10;
+          game.hitStop = Math.max(game.hitStop, 6);
+          game.shake = Math.max(game.shake, 16);
         }
       }
     }
@@ -257,7 +269,9 @@ function tickPlay(game, dt) {
         }
         plate.alive = false;
         const killed = hurtEnemy(e, plate.damage);
-        sfx('hit');
+        sfx(e.type === 'wolf' ? 'yelp' : 'hit');
+        game.hitStop = Math.max(game.hitStop, 4);
+        game.shake = Math.max(game.shake, 12);
         if (killed) game.score += e.score;
         e.vx = plate.facing * 2.2 * SCALE;
         e.vy = -2 * SCALE;
@@ -352,8 +366,12 @@ export function drawGame(ctx, game) {
 
   ctx.save();
   if (game.shake > 0) {
-    const mag = Math.min(6, game.shake * 0.55);
-    ctx.translate((Math.random() - 0.5) * mag * 2, (Math.random() - 0.5) * mag * 2);
+    const mag = Math.min(8, game.shake * 0.65);
+    const decay = Math.min(1, game.shake / 16);
+    ctx.translate(
+      (Math.random() - 0.5) * mag * 2 * decay,
+      (Math.random() - 0.5) * mag * 2 * decay
+    );
   }
   const zoom = 1.08;
   const ax = W * 0.5;

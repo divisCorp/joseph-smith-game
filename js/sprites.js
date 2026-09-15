@@ -183,7 +183,7 @@ function blitSheet(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
     ctx.restore();
     // Use filter for hurt flash (widely supported on modern mobile)
     ctx.save();
-    ctx.filter = 'brightness(1.35) sepia(0.4) hue-rotate(-20deg) saturate(2)';
+    ctx.filter = 'brightness(2.0) sepia(0.65) hue-rotate(-30deg) saturate(2.6) contrast(1.1)';
     if (flip) {
       ctx.translate(Math.floor(dx + dw), Math.floor(dy));
       ctx.scale(-1, 1);
@@ -200,7 +200,7 @@ function blitSimple(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flip, flash) {
   if (!img) return false;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  if (flash) ctx.filter = 'brightness(1.4) sepia(0.5) hue-rotate(-25deg) saturate(2.2)';
+  if (flash) ctx.filter = 'brightness(2.1) sepia(0.7) hue-rotate(-35deg) saturate(2.8) contrast(1.15)';
   if (flip) {
     ctx.translate(Math.floor(dx + dw), Math.floor(dy));
     ctx.scale(-1, 1);
