@@ -947,7 +947,7 @@ body.touch-ui .touch-bar {
   justify-content: space-between;
 }
 
-.mute-btn {
+#stage > .mute-btn {
   left: auto;
   right: max(8px, env(safe-area-inset-right));
   bottom: auto;
@@ -1103,18 +1103,42 @@ html.needs-install .ui-install {
   right: 0;
   z-index: 4;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: max(10px, env(safe-area-inset-top)) 56px 8px max(14px, env(safe-area-inset-left));
+  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 8px max(14px, env(safe-area-inset-left));
   pointer-events: none;
   background: linear-gradient(180deg, rgba(12, 8, 6, 0.88) 0%, rgba(12, 8, 6, 0.35) 70%, transparent 100%);
   font-family: Cinzel, "Palatino Linotype", Palatino, serif;
   color: #f0e6d0;
 }
-#hud[hidden] { display: none !important; }
+#hud[hidden] {
+  display: flex !important;
+  background: none;
+}
+#hud[hidden] .hud-hearts,
+#hud[hidden] .hud-chapter,
+#hud[hidden] .hud-score {
+  visibility: hidden;
+}
+#hud[hidden] .mute-btn { pointer-events: auto; }
+
 .hud-hearts { display: flex; gap: 4px; min-width: 7.5rem; }
 .hud-heart { color: #e04040; font-size: 20px; line-height: 1; text-shadow: 0 1px 2px #000; }
 .hud-heart.is-empty { color: #4a3028; }
-.hud-chapter { font-weight: 700; letter-spacing: 0.12em; color: #f0d078; font-size: 15px; }
+.hud-chapter { font-weight: 700; letter-spacing: 0.12em; color: #f0d078; font-size: 15px; padding-top: 2px; }
+.hud-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: auto;
+}
 .hud-score { font-weight: 700; letter-spacing: 0.08em; font-size: 15px; min-width: 5.5rem; text-align: right; }
+#hud .mute-btn {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+}
