@@ -158,7 +158,7 @@ export function updatePlayer(p, solids, dt) {
   p.vy += GRAVITY;
   if (p.vy > MAX_FALL) p.vy = MAX_FALL;
 
-  p.x += p.vx;
+  p.x += p.vx + (p.extVx || 0);
   if (p.x < 8) {
     p.x = 8;
     if (p.vx < 0) p.vx = 0;
@@ -220,8 +220,9 @@ function resolve(p, solids, horizontal) {
       // Floor underfoot is not a wall
       if (Math.abs(p.y + p.h - s.y) <= 4) continue;
       if (!aabb(box, s)) continue;
-      if (p.vx > 0) p.x = s.x - (p.w - 2 * SCALE);
-      else if (p.vx < 0) p.x = s.x + s.w - 2 * SCALE;
+      const mv = p.vx + (p.extVx || 0);
+      if (mv > 0) p.x = s.x - (p.w - 2 * SCALE);
+      else if (mv < 0) p.x = s.x + s.w - 2 * SCALE;
       p.vx = 0;
       box.x = p.x + 2 * SCALE;
     } else {

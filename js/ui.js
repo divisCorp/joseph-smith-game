@@ -173,7 +173,6 @@ export function initOverlays(game) {
   });
   document.querySelectorAll('[data-ui-start]').forEach(bindStartTarget);
   // Whole-screen dismiss for win/clear (START keys + touch START still work via input map)
-  bindStartTarget(document.getElementById('ui-win'));
   bindStartTarget(document.getElementById('ui-clear'));
   bindShareLinks();
   // Leaving the tab / app mid-chapter pauses instead of letting enemies act
@@ -201,6 +200,15 @@ export function syncOverlays(game) {
     lastState = state;
     if (state !== STATES.INTRO) introSig = '';
     if (state !== STATES.TITLE) titleSig = '';
+    if (state === STATES.WIN) {
+      // Restart the credits roll from the bottom
+      const roll = document.querySelector('[data-ui-credits-roll]');
+      if (roll) {
+        roll.classList.remove('is-rolling');
+        void roll.offsetWidth;
+        roll.classList.add('is-rolling');
+      }
+    }
     if (state === STATES.PLAYING || state === STATES.PAUSED) releaseStart();
   }
 
@@ -238,12 +246,16 @@ export function syncOverlays(game) {
       n.setAttribute('href', intent);
     });
     if (state === STATES.WIN) {
-      const heading = root?.querySelector('.ui-heading');
-      if (heading) heading.textContent = 'He sealed his testimony.';
-      const bodies = root?.querySelectorAll('.ui-body');
-      if (bodies?.[0]) bodies[0].textContent = 'Joseph stood firm through every trial.';
-      const muted = root?.querySelector('.ui-muted');
-      if (muted) muted.textContent = 'Carthage, 1844.';
+      root?.querySelectorAll('[data-ui-best-final]').forEach((n) => {
+        n.textContent = `Best: ${bestScore()}`;
+      });
+    }
+    if (state === STATES.LOSE) {
+      root?.querySelectorAll('[data-ui-retry-label]').forEach((n) => {
+        const cp = game.checkpointIdx >= 0;
+        n.textContent = cp ? 'Retry from Checkpoint' : 'Retry Chapter';
+        n.setAttribute('aria-label', cp ? 'Retry from the last checkpoint' : 'Retry this chapter');
+      });
     }
   }
 

@@ -11,6 +11,8 @@ import {
 } from './player.js';
 import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar } from './setpieces.js';
 import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js';
 import {
   drawHeart,
@@ -60,6 +62,9 @@ export function createGame() {
     tip: null,
     tipQueue: [],
     safe: null,
+    checkpointIdx: -1,
+    cpScore: 0,
+    prayIdle: 999,
   };
 }
 
@@ -80,12 +85,13 @@ export function startCampaign(game, fromChapter = 1) {
   startLevel(game, num, true);
 }
 
-export function startLevel(game, num, resetScore = false) {
+export function startLevel(game, num, resetScore = false, opts = {}) {
   const level = createLevel(num);
+  if (!opts.checkpoint) game.checkpointIdx = -1;
   game.level = level;
   game.levelNum = num;
   if (resetScore) game.score = 0;
-  game.chapterStartScore = game.score;
+  if (!opts.checkpoint) game.chapterStartScore = game.score;
   game.hasPlates = num > 3;
   game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
   game.camX = Math.max(0, game.player.x + game.player.w / 2 - W * 0.5);
@@ -107,13 +113,61 @@ export function startLevel(game, num, resetScore = false) {
   game.tip = null;
   game.tipQueue = [];
   game.safe = { x: game.player.x, y: game.player.y };
+  game.prayIdle = 999;
+  game.onCheckpoint = (cp) => reachCheckpoint(game, cp);
   unlockChapter(num);
+  if (opts.checkpoint && game.checkpointIdx >= 0) placeAtCheckpoint(game);
   clearAll();
 }
 
+function reachCheckpoint(game, cp) {
+  const idx = game.level.checkpoints.indexOf(cp);
+  if (idx <= game.checkpointIdx) return;
+  game.checkpointIdx = idx;
+  game.cpScore = game.score;
+  const p = game.player;
+  p.hp = p.maxHp;
+  game.message = 'CHECKPOINT';
+  game.messageT = 60;
+  sfx('checkpoint');
+}
+
+/** Resume a chapter at its last lit lantern: full hearts, passed foes stay cleared. */
+function placeAtCheckpoint(game) {
+  const { level, player } = game;
+  const cp = level.checkpoints[game.checkpointIdx];
+  if (!cp) return;
+  for (let i = 0; i <= game.checkpointIdx; i++) level.checkpoints[i].lit = true;
+  level.enemies = level.enemies.filter((e) => e.type === 'boss' || e.type === 'cloud' || e.x > cp.x + 4 * TILE);
+  if (level.pickup && level.pickup.x < cp.x) level.pickup.taken = true;
+  player.x = cp.x + 2 * SCALE;
+  player.y = cp.y - player.standH;
+  player.hp = player.maxHp;
+  player.invuln = 60;
+  game.score = game.cpScore;
+  game.camX = Math.max(0, Math.min(level.widthPx - W, player.x + player.w / 2 - W * 0.5));
+  game.safe = { x: player.x, y: player.y };
+  game.state = STATES.PLAYING;
+  game.stateT = 0;
+  game.introFade = 30;
+  game.message = 'CHECKPOINT';
+  game.messageT = 50;
+}
+
+/** Full chapter restart (pause menu). */
 function restartChapter(game) {
   game.score = game.chapterStartScore || 0;
   startLevel(game, game.levelNum, false);
+}
+
+/** After a loss: back to the last checkpoint if one is lit, else the chapter start. */
+function retryAfterLoss(game) {
+  if (game.checkpointIdx >= 0) {
+    startLevel(game, game.levelNum, false, { checkpoint: true });
+    // keep the chapter's opening score for a later full restart
+  } else {
+    restartChapter(game);
+  }
 }
 
 function quitToTitle(game) {
@@ -157,10 +211,10 @@ function runCommand(game, cmd) {
       if (game.state === STATES.PAUSED) setState(game, STATES.PLAYING);
       break;
     case 'restart':
-      if (game.state === STATES.PAUSED || game.state === STATES.LOSE) restartChapter(game);
+      if (game.state === STATES.PAUSED) restartChapter(game);
       break;
     case 'retry':
-      if (game.state === STATES.LOSE) restartChapter(game);
+      if (game.state === STATES.LOSE) retryAfterLoss(game);
       break;
     case 'sound':
       toggleMute();
@@ -240,13 +294,14 @@ export function updateGame(game, dt) {
   }
 
   if (game.state === STATES.WIN) {
-    if (confirmPressed() && game.stateT > 60) quitToTitle(game);
+    const go = justPressed('start') || justPressed('pause');
+    if (go && game.stateT > 120) quitToTitle(game);
     return;
   }
 
   if (game.state === STATES.LOSE) {
     if (game.stateT > 40) {
-      if (justPressed('start') || justPressed('jump')) restartChapter(game);
+      if (justPressed('start') || justPressed('jump')) retryAfterLoss(game);
       else if (justPressed('pause')) quitToTitle(game);
     }
     return;
@@ -275,7 +330,7 @@ const TIP_TEXT = {
   jump: { touch: 'Tap A to jump', keys: 'Press X (or K) to jump' },
   attack: { touch: 'Tap B to swing the pitchfork', keys: 'Space or Z swings the pitchfork' },
   kneel: { touch: 'Hurt? Hold the stick ▼ to kneel and pray — it heals', keys: 'Hurt? Hold ↓ to kneel and pray — it heals' },
-  cloud: { touch: 'Stay kneeling until the PRAY bar fills', keys: 'Stay kneeling until the PRAY bar fills' },
+  cloud: { touch: "Kneel and pray to drain the Dark Cloud's bar", keys: "Kneel and pray to drain the Dark Cloud's bar" },
 };
 
 function isTouchUi() {
@@ -354,6 +409,13 @@ function goWin(game) {
   clearAll();
 }
 
+const PHASE_LINES = {
+  captain: 'The captain calls for more torches!',
+  warden: 'The warden stamps in anger!',
+  overseer: 'The ringleader grows desperate!',
+  ringleader: 'The ringleader grows desperate!',
+};
+
 function hasFooting(p, solids) {
   const feet = p.y + p.h;
   const probe = (x) =>
@@ -382,10 +444,11 @@ function tickPlay(game, dt) {
     return;
   }
 
+  updateSetPieces(game, dt);
   updatePlayer(player, level.solids, dt);
 
   // Remember solid footing; a fall into a gap costs one heart, not the whole run.
-  if (player.alive && player.onGround && hasFooting(player, level.solids)) {
+  if (player.alive && player.onGround && hasFooting(player, level.solids.filter((s) => !s.unsafe))) {
     game.safe = { x: player.x, y: player.y + player.h - player.standH };
   }
   if (player.fellOut) {
@@ -431,10 +494,8 @@ function tickPlay(game, dt) {
     const praying =
       (player.crouching || isDownHold('down')) && Math.abs(player.vx) < 0.2 * SCALE;
     if ((inGrove || nearX) && praying) {
+      game.prayIdle = 0;
       const killed = hurtEnemy(cloud, 2.4 * dt, { faith: true });
-      const pct = Math.max(0, Math.min(100, Math.round((1 - cloud.hp / cloud.maxHp) * 100)));
-      game.message = `Praying… ${pct}%`;
-      game.messageT = 30;
       if (killed) {
         game.score += cloud.score;
         game.cloudDefeated = true;
@@ -443,8 +504,13 @@ function tickPlay(game, dt) {
         return;
       }
     } else if (inGrove || nearX) {
-      game.message = isTouchUi() ? 'Hold ▼ to kneel and pray' : 'Hold ↓ to kneel and pray';
-      game.messageT = 20;
+      game.prayIdle += dt;
+      // Gentle reminder only after a while without praying (the boss bar shows progress)
+      if (game.prayIdle > 200 && game.messageT <= 0) {
+        game.message = isTouchUi() ? 'Hold ▼ to kneel and pray' : 'Hold ↓ to kneel and pray';
+        game.messageT = 70;
+        game.prayIdle = 0;
+      }
     }
   }
 
@@ -460,16 +526,34 @@ function tickPlay(game, dt) {
         sfx(e.type === 'wolf' ? 'yelp' : 'hit');
         game.hitStop = Math.max(game.hitStop, 5);
         game.shake = Math.max(game.shake, 14);
-        e.vx = player.facing * 2.6 * SCALE;
-        e.vy = -2.2 * SCALE;
+        if (e.type === 'boss') e.vx = player.facing * 1.2 * SCALE;
+        else {
+          e.vx = player.facing * 2.6 * SCALE;
+          e.vy = -2.2 * SCALE;
+        }
         if (killed) game.score += e.score;
       }
     }
   }
 
+  const world = {
+    hazards: level.hazards,
+    enemies: level.enemies,
+    solids: level.solids,
+    active: game.bossIntro,
+    onPhase: (e) => {
+      game.message = PHASE_LINES[e.bossKind] || (e.type === 'cloud' ? 'The darkness presses closer!' : 'The foe grows desperate!');
+      if (e.type === 'cloud') game.message = 'The darkness presses closer!';
+      game.messageT = 70;
+      game.shake = Math.max(game.shake, 18);
+    },
+    onSlam: () => {
+      game.shake = Math.max(game.shake, 14);
+    },
+  };
   for (const e of level.enemies) {
     if (!e.alive) continue;
-    updateEnemy(e, level.solids, player, dt);
+    updateEnemy(e, level.solids, player, dt, world);
 
     if (player.alive && aabb(playerHitbox(player), enemyHitbox(e))) {
       if (hurtPlayer(player, e.damage)) {
@@ -480,6 +564,39 @@ function tickPlay(game, dt) {
     }
   }
 
+  updateHazards(level.hazards, level.solids, dt, level.widthPx);
+  const pbox = playerHitbox(player);
+  for (const h of level.hazards) {
+    if (!hazardActive(h)) continue;
+    // Pitchfork and plates can smash barrels
+    if (h.breakable) {
+      let broke = false;
+      if (fork && aabb(fork, hazardHitbox(h))) broke = true;
+      for (const plate of player.plates) {
+        if (plate.alive && aabb(plateHitbox(plate), hazardHitbox(h))) {
+          plate.alive = false;
+          broke = true;
+        }
+      }
+      if (broke) {
+        h.alive = false;
+        game.score += 50;
+        sfx('hit');
+        level.hazards.push(createHazard('puff', h.x, h.y + h.h / 2, { w: h.w, h: 10 * SCALE }));
+        continue;
+      }
+    }
+    if (player.alive && aabb(pbox, hazardHitbox(h))) {
+      if (hurtPlayer(player, h.damage)) {
+        player.vx = (h.vx > 0 ? 1 : h.vx < 0 ? -1 : player.x < h.x ? -1 : 1) * 2.4 * SCALE;
+        game.hitStop = Math.max(game.hitStop, 5);
+        game.shake = Math.max(game.shake, 14);
+        if (h.kind === 'barrel' || h.kind === 'knife' || h.kind === 'drop' || h.kind === 'brick' || h.kind === 'torch') {
+          h.alive = false;
+        }
+      }
+    }
+  }
   updatePlates(player.plates, dt, game.camX, level.widthPx);
   for (const e of level.enemies) {
     if (!e.knives) continue;
@@ -514,8 +631,10 @@ function tickPlay(game, dt) {
         game.hitStop = Math.max(game.hitStop, 4);
         game.shake = Math.max(game.shake, 12);
         if (killed) game.score += e.score;
-        e.vx = plate.facing * 2.2 * SCALE;
-        e.vy = -2 * SCALE;
+        if (e.type !== 'boss') {
+          e.vx = plate.facing * 2.2 * SCALE;
+          e.vy = -2 * SCALE;
+        }
         break;
       }
     }
@@ -603,6 +722,10 @@ export function drawGame(ctx, game) {
     drawTitleScene(ctx, game);
     return;
   }
+  if (game.state === STATES.WIN) {
+    drawCreditsScene(ctx, game);
+    return;
+  }
 
   if (!game.level || !game.player) return;
 
@@ -623,7 +746,9 @@ export function drawGame(ctx, game) {
   ctx.translate(-ax, -ay);
 
   drawLevelBackground(ctx, game.camX, game.level);
+  drawSetPiecesBack(ctx, game);
   drawLevelTiles(ctx, game.camX, game.level);
+  drawSetPiecesMid(ctx, game);
 
   // Plate chest
   if (game.level.pickup) {
@@ -643,31 +768,22 @@ export function drawGame(ctx, game) {
   for (const e of game.level.enemies) {
     if (e.knives) drawKnives(ctx, e.knives, game.camX);
   }
+  drawHazards(ctx, game.level.hazards || [], game.camX, game.tick);
+  drawSetPiecesFront(ctx, game);
 
   drawVignette(ctx);
   ctx.restore();
 
   drawHUD(ctx, game);
 
-  // Faith meter only when the cloud is in play
-  const cloud = game.level.enemies.find((e) => e.type === 'cloud' && e.alive);
-  const nearCloud =
-    cloud &&
-    game.player &&
-    (game.player.x >= game.level.bossZoneX - 8 * SCALE ||
-      Math.abs(cloud.x - game.camX - W * 0.5) < W);
-  if (nearCloud) {
-    const label = 'PRAY';
-    const lx = 8 * SCALE;
-    const by = 28 * SCALE;
-    const lw = measureText(label, 8);
-    drawText(ctx, label, lx, by + 1 * SCALE, COLORS.uiGold, 8);
-    const bx = lx + lw + 8;
-    const bw = W - bx - 10 * SCALE;
-    drawRect(ctx, bx - 2, by - 2, bw + 4, 12 * SCALE, '#2a1a08');
-    drawRect(ctx, bx, by, bw, 8 * SCALE, '#140810');
-    const ratio = Math.max(0, 1 - cloud.hp / cloud.maxHp);
-    drawRect(ctx, bx + 2, by + 2, Math.max(0, (bw - 4) * ratio), 8 * SCALE - 4, '#d4a84b');
+  // Boss health bar (name + half-health phase tick)
+  const boss = game.level.enemies.find((e) => (e.type === 'boss' || e.type === 'cloud') && e.alive);
+  const cloudNear =
+    boss?.type === 'cloud' &&
+    (game.player.x >= game.level.bossZoneX - 8 * TILE || Math.abs(boss.x - game.camX - W * 0.5) < W * 0.6);
+  if (boss && (game.bossIntro || cloudNear) && game.state !== STATES.INTRO) {
+    const name = boss.type === 'cloud' ? 'THE DARK CLOUD' : boss.title || 'BOSS';
+    drawBossBar(ctx, boss, name, boss.bs?.phase || 1);
   }
 
   if (game.messageT > 0) {
@@ -734,4 +850,32 @@ function drawTitleScene(ctx, game) {
   drawVignette(ctx);
   drawRect(ctx, 0, 0, W, 56, 'rgba(6,4,2,0.35)');
   drawRect(ctx, 0, H - 90, W, 90, 'rgba(6,4,2,0.45)');
+}
+
+/** Calm closing backdrop: the grove at sunrise, slowly drifting. */
+function drawCreditsScene(ctx, game) {
+  if (!game.titleLevel) {
+    try {
+      game.titleLevel = createLevel(1);
+    } catch (_) {
+      game.titleLevel = null;
+    }
+  }
+  if (game.titleLevel) {
+    const cam = 200 + game.stateT * 0.25;
+    drawLevelBackground(ctx, cam % (game.titleLevel.widthPx - W - 400), game.titleLevel);
+    drawLevelTiles(ctx, cam % (game.titleLevel.widthPx - W - 400), game.titleLevel);
+  }
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(255,190,120,0.35)');
+  g.addColorStop(0.55, 'rgba(255,220,170,0.12)');
+  g.addColorStop(1, 'rgba(20,12,6,0.55)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  const sun = ctx.createRadialGradient(W * 0.5, H * 0.62, 10, W * 0.5, H * 0.62, H * 0.7);
+  sun.addColorStop(0, 'rgba(255,236,190,0.45)');
+  sun.addColorStop(1, 'rgba(255,236,190,0)');
+  ctx.fillStyle = sun;
+  ctx.fillRect(0, 0, W, H);
+  drawVignette(ctx);
 }

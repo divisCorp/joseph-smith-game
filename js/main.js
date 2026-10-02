@@ -64,8 +64,15 @@ window.addEventListener('keydown', armAudio, { once: false });
 
 const game = createGame();
 initOverlays(game);
-// QA hook: ?debug exposes the game object for automated tests
-if (new URLSearchParams(location.search).has('debug')) window.__pq = game;
+// QA hook for automated tests: needs BOTH ?debug in the URL and a local opt-in flag,
+// so a shared link alone never exposes game internals.
+try {
+  if (new URLSearchParams(location.search).has('debug') && localStorage.getItem('palmyraQuest.debug') === '1') {
+    window.__pq = game;
+  }
+} catch (_) {
+  /* storage blocked: no debug hook */
+}
 
 /** Tap/click canvas to start / return to title when menus are up (phones + desktop). */
 let canvasStartHeld = false;

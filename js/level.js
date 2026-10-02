@@ -6,6 +6,7 @@ import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js';
 import { createEnemy } from './enemy.js';
 import { STAND_H } from './player.js';
 import { drawRect } from './sprites.js';
+import { initSetPieces, buildDock } from './setpieces.js';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -421,8 +422,10 @@ export function createLevel6() {
   fillGround(tiles, groundR, cols, [
     [30, 31],
     [58, 60],
-    [84, 85],
+    [84, 100],
   ]);
+  // Mississippi river dock section (planks are added as dynamic solids)
+  placeWater(tiles, groundR, cols, [[84, 100]]);
   placePlatform(tiles, 8, 10, 4);
   placePlatform(tiles, 16, 8, 4);
   placePlatform(tiles, 26, 9, 3);
@@ -526,7 +529,17 @@ export function createLevel7() {
   });
 }
 
-export function createLevel(num) {
+const CHECKPOINT_COLS = {
+  1: [50, 96],
+  2: [62],
+  3: [58, 104],
+  4: [52, 108],
+  5: [56, 112],
+  6: [64, 111],
+  7: [30],
+};
+
+function buildLevel(num) {
   switch (num) {
     case 1: return createLevel1();
     case 2: return createLevel2();
@@ -537,6 +550,26 @@ export function createLevel(num) {
     case 7: return createLevel7();
     default: return createLevel1();
   }
+}
+
+export function createLevel(num) {
+  const level = buildLevel(num);
+  level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => ({
+    x: c * TILE,
+    y: floorYAt(level.tiles, c * TILE + TILE / 2),
+    lit: false,
+  }));
+  initSetPieces(level);
+  if (level.num === 6) {
+    buildDock(level, 84, 100, [87, 88, 92, 93, 94, 98]);
+    level.scaffolds = [
+      { x: 37 * TILE, w: 7 * TILE, top: 10 * TILE, bottom: 13 * TILE },
+      { x: 45 * TILE, w: 6 * TILE, top: 7 * TILE, bottom: 13 * TILE },
+      { x: 53 * TILE, w: 5 * TILE, top: 9 * TILE, bottom: 13 * TILE },
+    ];
+  }
+  if (level.num === 5) level.theme = 'river';
+  return level;
 }
 
 // ── Drawing (HD illustrated environments @ 2×) ────────────

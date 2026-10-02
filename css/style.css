@@ -1386,3 +1386,94 @@ body.touch-ui .ui-menu-hint { display: none; }
 
 /* Muted state reads as a word, not a glyph */
 .mute-btn.is-muted { text-decoration: none; color: #b8a888; }
+
+/* —— Round 2: credits roll —— */
+#ui-win.ui-credits {
+  justify-content: space-between;
+  padding: max(10px, env(safe-area-inset-top)) 4% max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(10, 8, 6, 0.35) 0%, rgba(10, 8, 6, 0.15) 40%, rgba(10, 8, 6, 0.7) 100%);
+}
+.ui-credits-view {
+  position: relative;
+  flex: 1 1 auto;
+  width: min(92%, 620px);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 85%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 85%, transparent 100%);
+}
+.ui-credits-roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  text-align: center;
+  color: #f0e6d0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+  font-size: clamp(13px, 2.6vw, 16px);
+  line-height: 1.5;
+}
+.ui-credits-roll.is-rolling {
+  animation: pq-credits 46s linear 0.6s both;
+}
+@keyframes pq-credits {
+  from { transform: translateY(var(--pq-roll-from, 60vh)); }
+  to { transform: translateY(-100%); }
+}
+.ui-credits-roll p { margin: 0.15em 0; }
+.ui-credits-roll h3 {
+  margin: 1.4em 0 0.4em;
+  font: 700 clamp(14px, 3vw, 18px)/1.2 Cinzel, "Palatino Linotype", Palatino, serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #d4a84b;
+}
+.ui-credits-head {
+  margin: 0.2em 0 0.1em;
+  font: 800 clamp(24px, 5.6vw, 38px)/1.15 Cinzel, "Palatino Linotype", Palatino, serif;
+  color: #fff4d8;
+}
+.ui-credits-sub {
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+  font-style: italic;
+  color: #f0d078;
+  letter-spacing: 0.08em;
+}
+.ui-credits-line { margin: 1em 0 !important; font-size: 1.06em; }
+.ui-credits-note { color: #c8b898; font-size: 0.9em; margin-bottom: 0.5em !important; }
+.ui-credits-roll b { color: #fff4d8; font-weight: 700; }
+.ui-credits-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+  pointer-events: auto;
+}
+.ui-credits-score {
+  margin: 0;
+  font: 700 clamp(13px, 2.8vw, 16px)/1.2 "Source Sans 3", system-ui, sans-serif;
+  color: #ffd878;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px #000;
+}
+.ui-credits-foot .ui-actions { margin-top: 0.4em; }
+.ui-credits-foot .ui-start-btn { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-credits-roll.is-rolling { animation: none; position: static; }
+  .ui-credits-view { overflow-y: auto; pointer-events: auto; }
+}
+
+/* —— Round 2: iPhone install hint sits at the top, off the grass —— */
+.ui-install {
+  top: max(10px, env(safe-area-inset-top));
+  bottom: auto !important;
+  width: auto;
+  max-width: min(60%, 420px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(12, 8, 6, 0.72);
+  border: 1px solid rgba(212, 168, 75, 0.45);
+  font-size: 11px;
+  white-space: nowrap;
+}

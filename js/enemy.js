@@ -10,6 +10,8 @@ import {
 } from './sprites.js';
 import { aabb } from './player.js';
 import { createKnife, KNIFE_W } from './projectiles.js';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js';
+import { sfx } from './audio.js';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -101,17 +103,17 @@ export function createEnemy(type, x, y, opts = {}) {
     } else if (kind === 'captain') {
       base.hp = base.maxHp = 15;
       base.speed = 0.78 * SCALE;
-      base.damage = 2;
+      base.damage = 1;
       base.score = 1400;
     } else if (kind === 'warden') {
       base.hp = base.maxHp = 16;
       base.speed = 0.8 * SCALE;
-      base.damage = 2;
+      base.damage = 1;
       base.score = 1600;
     } else if (kind === 'overseer') {
       base.hp = base.maxHp = 20;
       base.speed = 0.85 * SCALE;
-      base.damage = 2;
+      base.damage = 1;
       base.score = 2500;
     }
   }
@@ -134,16 +136,16 @@ export function enemyHitbox(e) {
   return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
 }
 
-export function updateEnemy(e, solids, player, dt) {
+export function updateEnemy(e, solids, player, dt, world = null) {
   if (!e.alive) return;
 
   if (e.hurtFlash > 0) e.hurtFlash -= dt;
   if (e.attackCd > 0) e.attackCd -= dt;
 
   if (e.type === 'boss') {
-    updateBossAI(e, player, dt);
+    updateBossAI(e, player, dt, world || {});
   } else if (e.type === 'cloud') {
-    updateCloudAI(e, player, dt);
+    updateCloudAI(e, player, dt, world || {});
   } else if (e.type === 'wisp') {
     updateWispAI(e, player, dt);
   } else {
@@ -173,7 +175,7 @@ export function updateEnemy(e, solids, player, dt) {
 
 
   // Humanoids / bosses throw knives when Joseph is in sight (not wisp/cloud/npc)
-  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'cloud' && e.type !== 'npc';
+  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'cloud' && e.type !== 'npc' && e.type !== 'boss';
   if (canThrow && player.alive && e.attackCd <= 0) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
@@ -188,22 +190,7 @@ export function updateEnemy(e, solids, player, dt) {
     }
   }
 
-  // Cloud occasional dark bolts (reuse knives with dark tint via damage flag)
-  if (e.type === 'cloud' && player.alive && e.attackCd <= 0) {
-    const dx = player.x - e.x;
-    const dy = player.y - e.y;
-    if (Math.abs(dx) < 140 * SCALE && Math.abs(dy) < 80 * SCALE) {
-      e.facing = dx > 0 ? 1 : -1;
-      const kx = e.facing > 0 ? e.x + e.w - 4 : e.x - KNIFE_W;
-      const ky = e.y + e.h * 0.55;
-      const k = createKnife(kx, ky, e.facing, 1);
-      k.dark = true;
-      e.knives.push(k);
-      e.attackCd = 95;
-    }
-  }
-
-  e.animT += dt;
+  if (!e.telling) e.animT += dt;
   if (e.animT > 7) {
     e.animT = 0;
     e.anim = (e.anim + 1) % 8;
@@ -236,62 +223,352 @@ function TILE_SAFE() {
   return 16 * SCALE;
 }
 
-function updateCloudAI(e, player, dt) {
-  e.aiTimer += dt;
-  const dx = player.x - e.x;
-  if (player.alive) {
-    e.facing = dx > 0 ? 1 : -1;
-    e.vx = Math.sign(dx) * e.speed;
-  } else {
+// ── Bosses: walk → tell (wind-up) → attack → recover, phase change at half health ──
+const BOSS_DEF = {
+  captain: {
+    p1: ['charge', 'torches'],
+    p2: ['charge2', 'torches', 'charge'],
+    tell: [44, 30],
+    walk: [80, 54],
+  },
+  warden: {
+    p1: ['slam', 'keys'],
+    p2: ['slam2', 'keys2', 'slam'],
+    tell: [46, 32],
+    walk: [80, 54],
+  },
+  overseer: {
+    p1: ['fan', 'summon', 'fan'],
+    p2: ['dash', 'fan5', 'summon', 'fan5'],
+    tell: [42, 30],
+    walk: [74, 50],
+  },
+};
+BOSS_DEF.ringleader = BOSS_DEF.overseer;
+BOSS_DEF.sentinel = BOSS_DEF.warden;
+const CLOUD_DEF = { p1: ['bolts', 'rain'], p2: ['rain', 'bolts', 'rain'], tell: [50, 36], walk: [100, 70] };
+
+function bossState(e) {
+  if (!e.bs) e.bs = { mode: 'walk', t: 0, phase: 1, idx: 0, attack: null, sub: 0, tellT: 40, clock: 0, did: 0 };
+  return e.bs;
+}
+
+function floorUnder(e, world) {
+  const top = world.solids ? groundTopBelow(world.solids, e.x + e.w / 2, e.y, true) : null;
+  return top ?? e.y + e.h;
+}
+
+function beginTell(e, def) {
+  const bs = e.bs;
+  const list = bs.phase === 2 ? def.p2 : def.p1;
+  bs.attack = list[bs.idx % list.length];
+  bs.idx++;
+  bs.mode = 'tell';
+  bs.t = 0;
+  bs.tellT = def.tell[bs.phase - 1];
+  sfx('tell');
+}
+
+function checkPhase(e, world) {
+  const bs = e.bs;
+  if (bs.phase === 1 && e.hp <= e.maxHp / 2) {
+    bs.phase = 2;
+    bs.mode = 'roar';
+    bs.t = 0;
+    bs.idx = 0;
+    e.invuln = true;
+    e.ghost = false;
     e.vx = 0;
+    sfx('roar');
+    world.onPhase?.(e);
+    return true;
   }
-  // Hover / drift vertically a bit
+  return false;
+}
+
+function updateCloudAI(e, player, dt, world) {
+  const bs = bossState(e);
+  bs.t += dt;
+  bs.clock += dt;
+  e.aiTimer += dt;
+  const def = CLOUD_DEF;
+  const p2 = bs.phase === 2;
+  const dx = player.x + player.w / 2 - (e.x + e.w / 2);
+  checkPhase(e, world);
+  e.telling = bs.mode === 'tell' || bs.mode === 'roar';
   const hoverY = 9 * TILE_SAFE();
   e.vy = (hoverY - e.y) * 0.02 + Math.sin(e.aiTimer * 0.05) * 0.2 * SCALE;
+  if (bs.mode === 'walk') {
+    e.facing = dx > 0 ? 1 : -1;
+    e.vx = player.alive ? Math.sign(dx) * e.speed * (p2 ? 1.4 : 1) : 0;
+    if (Math.abs(dx) < 10 * SCALE) e.vx = 0;
+    if (bs.t > def.walk[bs.phase - 1] && world.active !== false) beginTell(e, def);
+  } else if (bs.mode === 'roar') {
+    e.vx = 0;
+    if (bs.t > 60) {
+      e.invuln = false;
+      bs.mode = 'walk';
+      bs.t = 0;
+    }
+  } else if (bs.mode === 'tell') {
+    e.vx = 0;
+    if (bs.t > bs.tellT) {
+      bs.mode = 'attack';
+      bs.t = 0;
+      bs.sub = 0;
+    }
+  } else if (bs.mode === 'attack') {
+    e.vx = 0;
+    if (bs.attack === 'bolts') {
+      const shots = p2 ? 3 : 2;
+      if (bs.sub < shots && bs.t >= bs.sub * 16) {
+        e.facing = dx > 0 ? 1 : -1;
+        const kx = e.facing > 0 ? e.x + e.w - 4 : e.x - KNIFE_W;
+        const k = createKnife(kx, e.y + e.h * 0.55, e.facing, 1);
+        k.dark = true;
+        e.knives.push(k);
+        bs.sub++;
+        sfx('throw');
+      }
+      if (bs.t > shots * 16 + 10) endAttack(e);
+    } else if (bs.attack === 'rain') {
+      if (bs.sub === 0) {
+        const n = p2 ? 7 : 5;
+        const spread = (p2 ? 90 : 70) * SCALE;
+        const px = player.x + player.w / 2;
+        for (let i = 0; i < n; i++) {
+          // Spread around Joseph with gaps so there is always somewhere safe to step
+          const x = px - spread + (i * 2 * spread) / (n - 1) + (i % 2 ? 6 : -6) * SCALE;
+          const landY = world.solids ? groundTopBelow(world.solids, x, e.y + e.h) : null;
+          world.hazards?.push(
+            createHazard('drop', x - 5 * SCALE, e.y + e.h * 0.7, { warn: 48 + i * 5, landY: landY ?? 13 * 32 })
+          );
+        }
+        bs.sub = 1;
+      }
+      if (bs.t > 90) endAttack(e);
+    }
+  } else {
+    e.vx = 0;
+    if (bs.t > (p2 ? 30 : 46)) {
+      bs.mode = 'walk';
+      bs.t = 0;
+    }
+  }
   if (e.x < e.patrolMin) { e.x = e.patrolMin; e.vx = Math.abs(e.vx); }
   if (e.x > e.patrolMax) { e.x = e.patrolMax; e.vx = -Math.abs(e.vx); }
 }
 
-function updateBossAI(e, player, dt) {
+function endAttack(e) {
+  e.bs.mode = 'recover';
+  e.bs.t = 0;
+  e.bs.sub = 0;
+  e.ghost = false;
+}
+
+function updateBossAI(e, player, dt, world) {
+  const bs = bossState(e);
+  bs.t += dt;
+  bs.clock += dt;
   e.aiTimer += dt;
-  const dx = player.x - e.x;
+  const def = BOSS_DEF[e.bossKind] || BOSS_DEF.overseer;
+  const p2 = bs.phase === 2;
+  const spd = e.speed * (p2 ? 1.35 : 1);
+  const dx = player.x + player.w / 2 - (e.x + e.w / 2);
+  const face = () => { e.facing = dx > 0 ? 1 : -1; };
+  checkPhase(e, world);
+  e.telling = bs.mode === 'tell' || bs.mode === 'roar' || (bs.mode === 'attack' && bs.mini > 0);
 
-  const enraged = e.hp <= e.maxHp / 2;
-  let spd = e.speed * (enraged ? 1.6 : 1);
-  if (e.bossKind === 'overseer' && enraged) spd = e.speed * 1.85;
-
-  const chaseT = e.bossKind === 'overseer' ? 70 : 90;
-  const leapT = e.bossKind === 'warden' || e.bossKind === 'overseer' ? 45 : 50;
-  const pauseT = e.bossKind === 'captain' ? 32 : 40;
-  const leapVy = (e.bossKind === 'sentinel' ? -5.8 : e.bossKind === 'overseer' ? -6.0 : -5.5) * SCALE;
-
-  if (e.aiPhase === 0) {
-    e.facing = dx > 0 ? 1 : -1;
-    e.vx = e.facing * spd;
-    if (e.aiTimer > chaseT) {
-      e.aiTimer = 0;
-      e.aiPhase = 1;
+  switch (bs.mode) {
+    case 'roar':
+      e.vx *= FRICTION;
+      face();
+      if (bs.t > 60) {
+        e.invuln = false;
+        bs.mode = 'walk';
+        bs.t = 0;
+      }
+      break;
+    case 'walk': {
+      face();
+      const far = Math.abs(dx) > 90 * SCALE;
+      const close = Math.abs(dx) < 36 * SCALE;
+      e.vx = far ? e.facing * spd : close ? -e.facing * spd * 0.6 : e.facing * spd * 0.35;
+      if (bs.t > def.walk[bs.phase - 1] && player.alive && world.active !== false) beginTell(e, def);
+      break;
     }
-  } else if (e.aiPhase === 1) {
-    if (e.onGround && e.aiTimer < 5) {
-      e.vy = leapVy;
-      e.vx = e.facing * spd * 1.8;
+    case 'tell':
+      e.vx *= FRICTION;
+      face();
+      if (bs.t > bs.tellT) {
+        bs.mode = 'attack';
+        bs.t = 0;
+        bs.sub = 0;
+        bs.mini = 0;
+        bs.landed = false;
+      }
+      break;
+    case 'attack':
+      runBossAttack(e, player, dt, world, dx, face, p2);
+      break;
+    default:
+      e.vx *= FRICTION;
+      if (bs.t > (p2 ? 26 : 40)) {
+        bs.mode = 'walk';
+        bs.t = 0;
+      }
+      break;
+  }
+  if (e.x < e.patrolMin) { e.x = e.patrolMin; if (e.vx < 0) e.vx = 0; }
+  if (e.x > e.patrolMax) { e.x = e.patrolMax; if (e.vx > 0) e.vx = 0; }
+}
+
+function runBossAttack(e, player, dt, world, dx, face, p2) {
+  const bs = e.bs;
+  const a = bs.attack;
+  const floorY = floorUnder(e, world);
+  // Short re-tell between repeated moves (e.g. second charge / second slam)
+  if (bs.mini > 0) {
+    bs.mini -= dt;
+    e.vx *= FRICTION;
+    face();
+    if (bs.mini <= 0) {
+      bs.t = 0;
+      bs.landed = false;
     }
-    e.facing = dx > 0 ? 1 : -1;
-    if (e.aiTimer > leapT) {
-      e.aiTimer = 0;
-      e.aiPhase = 2;
+    return;
+  }
+  if (a === 'charge' || a === 'charge2') {
+    if (bs.t <= dt) {
+      face();
+      sfx('dash');
+    }
+    e.vx = e.facing * (p2 ? 6 : 5.2) * SCALE;
+    const atEdge = (e.facing > 0 && e.x >= e.patrolMax - 2) || (e.facing < 0 && e.x <= e.patrolMin + 2);
+    if (bs.t > 60 || atEdge) {
+      e.vx = 0;
+      bs.sub++;
+      if (a === 'charge2' && bs.sub < 2) {
+        bs.mini = 22;
+        sfx('tell');
+      } else endAttack(e);
+    }
+  } else if (a === 'torches') {
+    if (bs.sub === 0) {
+      face();
+      const n = p2 ? 3 : 2;
+      const px = player.x + player.w / 2;
+      for (let i = 0; i < n; i++) {
+        const target = px + (i - (n - 1) / 2) * 44 * SCALE;
+        const vy0 = -6 * SCALE;
+        const T = (2 * Math.abs(vy0)) / (0.8 * 0.35 * SCALE) + 8;
+        const sx = e.x + e.w / 2;
+        world.hazards?.push(createHazard('torch', sx, e.y + 10 * SCALE, { vx: (target - sx) / T, vy: vy0 - i * 0.3 * SCALE }));
+      }
+      sfx('throw');
+      bs.sub = 1;
+    }
+    if (bs.t > 34) endAttack(e);
+  } else if (a === 'slam' || a === 'slam2') {
+    if (bs.t <= dt) {
+      face();
+      e.vy = -6.6 * SCALE;
+      e.vx = Math.max(-3.2 * SCALE, Math.min(3.2 * SCALE, dx / 48));
+      bs.landed = false;
+      sfx('jump');
+    }
+    if (!bs.landed && bs.t > 10 && e.onGround) {
+      bs.landed = true;
+      e.vx = 0;
+      const cx = e.x + e.w / 2;
+      const sp = (p2 ? 3.6 : 3) * SCALE;
+      world.hazards?.push(createHazard('shock', cx - 20 * SCALE, floorY - 14 * SCALE, { vx: -sp }));
+      world.hazards?.push(createHazard('shock', cx + 2 * SCALE, floorY - 14 * SCALE, { vx: sp }));
+      world.onSlam?.(e);
+      sfx('slam');
+      bs.sub++;
+    }
+    if (bs.landed && bs.t > 30) {
+      if (a === 'slam2' && bs.sub < 2) {
+        bs.mini = 20;
+        sfx('tell');
+      } else endAttack(e);
+    }
+  } else if (a === 'keys' || a === 'keys2') {
+    const throwRing = (low) => {
+      face();
+      const y = low ? floorY - 14 * SCALE : e.y + e.h * 0.3;
+      const x = e.facing > 0 ? e.x + e.w : e.x - 16 * SCALE;
+      world.hazards?.push(createHazard('keys', x, y, { vx: e.facing * 5.2 * SCALE, owner: e }));
+      sfx('throw');
+    };
+    if (bs.sub === 0) {
+      throwRing(false);
+      bs.sub = 1;
+    }
+    if (a === 'keys2' && bs.sub === 1 && bs.t > 34) {
+      throwRing(true);
+      bs.sub = 2;
+    }
+    e.vx *= FRICTION;
+    if (bs.t > (a === 'keys2' ? 80 : 56)) endAttack(e);
+  } else if (a === 'fan' || a === 'fan5') {
+    if (bs.sub === 0) {
+      face();
+      const n = a === 'fan5' ? 5 : 3;
+      const kx = e.facing > 0 ? e.x + e.w : e.x - 8 * SCALE;
+      const ky = e.y + e.h * 0.38;
+      for (let i = 0; i < n; i++) {
+        const spread = (i - (n - 1) / 2) * 0.55 * SCALE;
+        world.hazards?.push(createHazard('knife', kx, ky, { vx: e.facing * 3.2 * SCALE, vy: spread }));
+      }
+      sfx('throw');
+      bs.sub = 1;
+    }
+    e.vx *= FRICTION;
+    if (bs.t > 36) endAttack(e);
+  } else if (a === 'summon') {
+    if (bs.sub === 0) {
+      const allies = (world.enemies || []).filter((x) => x.alive && x.summoned).length;
+      const want = Math.max(0, 2 - allies);
+      for (let i = 0; i < want; i++) {
+        const side = i % 2 ? e.patrolMax : e.patrolMin;
+        const ally = createEnemy(i % 2 ? 'thug' : 'brigand', side, e.y - 40 * SCALE, {
+          patrolMin: e.patrolMin,
+          patrolMax: e.patrolMax,
+        });
+        ally.summoned = true;
+        ally.score = 50;
+        ally.hp = ally.maxHp = 1;
+        world.enemies?.push(ally);
+      }
+      sfx('whistle');
+      bs.sub = 1;
+    }
+    e.vx *= FRICTION;
+    if (bs.t > 40) endAttack(e);
+  } else if (a === 'dash') {
+    // Slip into the crowd and reappear on Joseph's other side
+    e.vx = 0;
+    if (bs.t < 22) {
+      e.ghost = true;
+      e.ghostA = 1 - bs.t / 22;
+    } else if (bs.sub === 0) {
+      const side = player.facing > 0 ? -1 : 1;
+      e.x = Math.max(e.patrolMin, Math.min(e.patrolMax, player.x + side * 70 * SCALE));
+      bs.sub = 1;
+      sfx('dash');
+    } else {
+      e.ghostA = Math.min(1, (bs.t - 22) / 16);
+      face();
+      if (bs.t > 40) {
+        e.ghost = false;
+        endAttack(e);
+      }
     }
   } else {
-    e.vx *= FRICTION;
-    if (e.aiTimer > pauseT) {
-      e.aiTimer = 0;
-      e.aiPhase = 0;
-    }
+    endAttack(e);
   }
-
-  if (e.x < e.patrolMin) { e.x = e.patrolMin; e.facing = 1; }
-  if (e.x > e.patrolMax) { e.x = e.patrolMax; e.facing = -1; }
 }
 
 function resolveEnemy(e, solids, horizontal) {
@@ -320,6 +597,7 @@ function resolveEnemy(e, solids, horizontal) {
 export function hurtEnemy(e, dmg = 1, opts = {}) {
   if (!e.alive) return false;
   if (e.immuneToPlates && !opts.faith) return false;
+  if (e.invuln) return false;
   e.hp -= dmg;
   e.hurtFlash = 16;
   if (!e.noGravity) e.vx = 0;
@@ -340,6 +618,48 @@ export function drawEnemy(ctx, e, camX) {
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
-  else if (e.type === 'cloud') drawCloudBoss(ctx, dx, e.y, e.anim, flash, e.hp / e.maxHp);
-  else if (e.type === 'boss') drawBoss(ctx, dx, e.y, e.facing, e.anim, flash, e.bossKind);
+  else if (e.type === 'cloud') {
+    drawBossAura(ctx, e, dx, tickNow(e));
+    drawCloudBoss(ctx, dx, e.y, e.anim, flash || (e.telling && Math.floor((e.bs?.t || 0) / 4) % 2 === 0), e.hp / e.maxHp);
+    if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + 64, e.y, e.bs.t, '#d0a0ff');
+  } else if (e.type === 'boss') {
+    drawBossAura(ctx, e, dx, tickNow(e));
+    ctx.save();
+    if (e.ghost) ctx.globalAlpha = Math.max(0.12, e.ghostA ?? 0.3);
+    const late = e.telling && e.bs?.mode === 'tell' && e.bs.t > e.bs.tellT - 12;
+    drawBoss(ctx, dx, e.y, e.facing, e.telling ? 0 : e.anim, flash || (late && Math.floor(e.bs.t / 3) % 2 === 0), e.bossKind);
+    ctx.restore();
+    if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + e.w / 2, e.y, e.bs.t);
+  }
+}
+
+function tickNow(e) {
+  return e.bs ? e.bs.clock : 0;
+}
+
+/** Wind-up glow (gold) and phase-2 aura (red) drawn behind a boss. */
+function drawBossAura(ctx, e, dx, t) {
+  const bs = e.bs;
+  if (!bs) return;
+  const cx = dx + e.w / 2;
+  const cy = e.y + e.h * 0.55;
+  const rx = e.w * 0.9;
+  const ry = e.h * 0.6;
+  ctx.save();
+  if (bs.phase === 2) {
+    ctx.globalAlpha = 0.18 + 0.08 * Math.sin(t * 0.2);
+    ctx.fillStyle = e.type === 'cloud' ? '#8040c0' : '#e04020';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 1.1, ry * 1.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (e.telling) {
+    const k = bs.mode === 'roar' ? 1 : Math.min(1, bs.t / Math.max(1, bs.tellT || 40));
+    ctx.globalAlpha = 0.25 + 0.35 * k * (0.6 + 0.4 * Math.sin(bs.t * 0.6));
+    ctx.fillStyle = bs.mode === 'roar' ? '#ff6040' : e.type === 'cloud' ? '#c090ff' : '#ffd060';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * (0.9 + 0.2 * k), ry * (0.9 + 0.15 * k), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }

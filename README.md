@@ -10,7 +10,7 @@ Play: https://palmyra-quest.netlify.app/
 python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
-Add `?debug` to the URL to expose the game object as `window.__pq` for automated tests.
+For automated tests, `window.__pq` is exposed only when the URL has `?debug` **and** `localStorage['palmyraQuest.debug'] === '1'` (set it in DevTools first). Production players never see it.
 
 ## Controls
 
@@ -38,6 +38,13 @@ Add `?debug` to the URL to expose the game object as `window.__pq` for automated
 | 7 | Carthage Jail | 1844 | Last stand; respectful ending |
 
 Each chapter opens with a short title card (chapter, story line, place and year).
+
+## Round 2 features
+
+- **Checkpoints** — glowing lanterns midway through each chapter. Touching one refills hearts; dying (or choosing *Retry from Checkpoint* after losing the last heart) respawns you there. Pause → Restart still restarts the whole chapter.
+- **Bosses** — the Dark Cloud, Mob Captain, Jail Warden and Ringleader each show a wind-up tell (gold aura, "!" bubble, held pose, beep cue, flash) before every attack, have at least two attack patterns, and change phase at half health (roar + new moves). A named health bar appears at the top with a half-way tick.
+- **Chapter set pieces** — Ch4 Missouri night: lamp-lit streets, rolling barrels (edge "!" warning, breakable for points) and thrown torches. Ch5 Far West road: snowstorm with "WIND COMING" warnings and gusts that push you back. Ch6 Nauvoo: temple scaffolds with falling bricks (shadow warning) and a river dock with sinking planks.
+- **Credits** — after the Carthage fade a calm sunrise credits roll shows the story, chapter list, music credits, final and best score, and *Share on X*.
 
 ## Saving
 

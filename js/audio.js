@@ -83,6 +83,8 @@ export const TRACKS = {
   nauvoo: track(S.AUSTRIAN, { id: 'nauvoo', bpm: 100, leadVol: 0.17, bassStyle: 'root5' }),
   // BETHANY (Lowell Mason, 1856) — "Nearer, My God, to Thee"
   carthage: track(S.BETHANY, { id: 'carthage', bpm: 70, leadWave: 'triangle', leadVol: 0.36, bassStyle: 'hold', bassVol: 0.2 }),
+  // Credits roll after Carthage: Amazing Grace, slow and gentle
+  credits: track(S.NEW_BRITAIN, { id: 'credits', bpm: 70, leadWave: 'triangle', leadVol: 0.34, bassStyle: 'hold', bassVol: 0.2 }),
   // Camp-meeting tune (c. 1856) later used for the "Battle Hymn of the Republic"
   boss: track(S.BATTLE_HYMN, { id: 'boss', bpm: 138, leadVol: 0.19, bassStyle: 'pulse', bassVol: 0.26, leadGate: 0.8 }),
 };
@@ -291,6 +293,47 @@ export function sfx(name) {
       setTimeout(() => tone(659, 0.12, 'square', 0.22, d), 220);
       setTimeout(() => tone(784, 0.28, 'square', 0.26, d), 330);
       break;
+    case 'tell':
+      // Two rising warning beeps: an attack is coming
+      tone(660, 0.07, 'square', 0.2, d);
+      setTimeout(() => tone(880, 0.09, 'square', 0.2, d), 90);
+      break;
+    case 'roar':
+      tone(140, 0.5, 'sawtooth', 0.22, d, 60);
+      noise(0.45, 0.25, d, 300);
+      break;
+    case 'dash':
+      noise(0.18, 0.24, d, 1800);
+      tone(300, 0.15, 'square', 0.14, d, 120);
+      break;
+    case 'slam':
+      tone(80, 0.25, 'triangle', 0.35, d, 40);
+      noise(0.25, 0.35, d, 250);
+      break;
+    case 'whistle':
+      tone(1200, 0.12, 'square', 0.14, d, 1500);
+      setTimeout(() => tone(1500, 0.16, 'square', 0.14, d, 1100), 140);
+      break;
+    case 'rumble':
+      noise(0.6, 0.22, d, 180);
+      tone(70, 0.5, 'triangle', 0.2, d, 55);
+      break;
+    case 'wind':
+      noise(0.9, 0.12, d, 900);
+      break;
+    case 'gust':
+      noise(1.4, 0.26, d, 600);
+      break;
+    case 'splash':
+      noise(0.3, 0.25, d, 1400);
+      tone(240, 0.12, 'triangle', 0.16, d, 90);
+      break;
+    case 'checkpoint':
+      tone(523, 0.1, 'triangle', 0.3, d);
+      setTimeout(() => tone(659, 0.1, 'triangle', 0.3, d), 100);
+      setTimeout(() => tone(784, 0.1, 'triangle', 0.3, d), 200);
+      setTimeout(() => tone(1047, 0.22, 'triangle', 0.3, d), 300);
+      break;
     default:
       break;
   }
@@ -408,7 +451,8 @@ export function stopMusic() {
 /** Which track fits the current moment of play. */
 export function trackFor(game) {
   const st = game.state;
-  if (st === STATES.TITLE || st === STATES.WIN || st === STATES.CLEAR) return 'title';
+  if (st === STATES.WIN) return 'credits';
+  if (st === STATES.TITLE || st === STATES.CLEAR) return 'title';
   if (st === STATES.LOSE) return null;
   const n = game.levelNum || 1;
   if (game.martyrEnding) return 'carthage';

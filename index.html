@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=66" />
+  <link rel="stylesheet" href="css/style.css?v=67" />
   <script>
     (function () {
       var touch =
@@ -66,7 +66,7 @@
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=66" alt="" width="88" height="88" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=67" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -119,16 +119,43 @@
           </div>
         </div>
 
-        <div id="ui-win" class="ui-screen ui-screen--dim" hidden>
-          <div class="ui-panel ui-panel--wide">
-            <p class="ui-flourish">◆</p>
-            <h2 class="ui-heading ui-heading--gold">He sealed his testimony.</h2>
-            <p class="ui-body">Joseph stood firm through every trial.</p>
-            <p class="ui-score" data-ui-score>Score: 0</p>
-            <p class="ui-muted">Carthage, 1844.</p>
+        <div id="ui-win" class="ui-screen ui-credits" hidden>
+          <div class="ui-credits-view" aria-label="Credits">
+            <div class="ui-credits-roll" data-ui-credits-roll>
+              <p class="ui-flourish">◆</p>
+              <h2 class="ui-credits-head">He sealed his testimony.</h2>
+              <p class="ui-credits-sub">Carthage Jail, Illinois · June 27, 1844</p>
+              <p class="ui-credits-line">Joseph stood firm through every trial,<br />from a boy praying in the grove to his last day.</p>
+              <h3>The Prophet’s Path</h3>
+              <p>Sacred Grove · 1820</p>
+              <p>A Messenger · 1823</p>
+              <p>Hill Cumorah · 1827</p>
+              <p>Missouri Night · 1838</p>
+              <p>Far West Road · 1838–39</p>
+              <p>Nauvoo · 1844</p>
+              <p>Carthage Jail · 1844</p>
+              <h3>Music</h3>
+              <p class="ui-credits-note">All melodies are public-domain hymn tunes, arranged as chiptunes for this game.</p>
+              <p><b>Jesus Loves Me</b> — William B. Bradbury, 1862</p>
+              <p><b>Amazing Grace</b> (New Britain) — American folk melody, 1829</p>
+              <p><b>Old Hundredth</b> — Genevan Psalter, 1551</p>
+              <p><b>How Firm a Foundation</b> — Funk’s Genuine Church Music, 1832</p>
+              <p><b>Come, Come, Ye Saints</b> (All Is Well) — folk hymn, 1842–44</p>
+              <p><b>Onward, Christian Soldiers</b> (St. Gertrude) — Arthur Sullivan, 1871</p>
+              <p><b>Glorious Things of Thee Are Spoken</b> (Austrian Hymn) — Joseph Haydn, 1797</p>
+              <p><b>Nearer, My God, to Thee</b> (Bethany) — Lowell Mason, 1856</p>
+              <p><b>Battle Hymn</b> tune — American camp-meeting song, c. 1856</p>
+              <h3>Made with</h3>
+              <p>HTML5 canvas · Web Audio · no build step</p>
+              <p class="ui-credits-line">Thank you for playing.</p>
+              <p class="ui-flourish">◆</p>
+            </div>
+          </div>
+          <div class="ui-credits-foot">
+            <p class="ui-credits-score"><span data-ui-score>Score: 0</span> · <span data-ui-best-final>Best: 0</span></p>
             <div class="ui-actions">
-              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Title</button>
-              <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share</a>
+              <a class="ui-share-btn ui-share-btn--x" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-cmd="title" aria-label="Return to title">Title</button>
             </div>
           </div>
         </div>
@@ -139,7 +166,7 @@
             <p class="ui-body">Rise again, Joseph.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
             <div class="ui-actions">
-              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-cmd="retry" aria-label="Retry this chapter">Retry Chapter</button>
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-cmd="retry" data-ui-retry-label aria-label="Retry this chapter">Retry Chapter</button>
               <button type="button" class="ui-share-btn" data-ui-cmd="title" aria-label="Return to title">Title</button>
               <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share</a>
             </div>
@@ -178,6 +205,6 @@
 
     <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M</p>
   </div>
-  <script type="module" src="js/main.js?v=66"></script>
+  <script type="module" src="js/main.js?v=67"></script>
 </body>
 </html>
