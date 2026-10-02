@@ -4,9 +4,9 @@
  * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
-import { STATES } from './constants.js?v=68';
-import { savedMuted, saveMuted } from './save.js?v=68';
-import * as S from './songs.js?v=68';
+import { STATES } from './constants.js?v=69';
+import { savedMuted, saveMuted } from './save.js?v=69';
+import * as S from './songs.js?v=69';
 
 let actx = null;
 let master = null;
@@ -69,7 +69,7 @@ export const TRACKS = {
   title: track(S.JESUS_LOVES_ME, { id: 'title', bpm: 108, leadVol: 0.18, bassStyle: 'root5' }),
   // NEW BRITAIN (American folk, pub. 1829) — "Amazing Grace"
   grove: track(S.NEW_BRITAIN, { id: 'grove', bpm: 78, leadWave: 'triangle', leadVol: 0.34, bassStyle: 'hold', bassVol: 0.2 }),
-  // Same tune, lower and slower, while kneeling against the Dark Cloud
+  // Same tune, lower and slower, while Joseph kneels in the grove
   prayer: track(S.NEW_BRITAIN, { id: 'prayer', bpm: 62, transpose: -5, leadWave: 'triangle', leadVol: 0.36, bassStyle: 'hold', bassVol: 0.22 }),
   // OLD HUNDREDTH (Genevan Psalter, 1551)
   moroni: track(S.OLD_100TH, { id: 'moroni', bpm: 84, leadWave: 'triangle', leadVol: 0.34, bassStyle: 'hold', bassVol: 0.2 }),
@@ -478,10 +478,10 @@ export function trackFor(game) {
   if (st === STATES.LOSE) return null;
   const n = game.levelNum || 1;
   if (game.martyrEnding) return 'carthage';
-  if (game.bossIntro && st !== STATES.INTRO) {
-    if (n === 1) return 'prayer';
-    if (n >= 4 && n <= 6) return 'boss';
-  }
+  // Chapter 1: the hymn turns low and slow as Joseph kneels in the grove
+  const camp = game.level?.camp?.state;
+  if (n === 1 && (camp === 'kneel' || camp === 'light' || camp === 'done')) return 'prayer';
+  if (game.bossIntro && st !== STATES.INTRO && n >= 4 && n <= 6) return 'boss';
   return CHAPTER_TRACK[n] || 'title';
 }
 

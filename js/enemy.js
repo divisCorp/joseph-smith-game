@@ -1,4 +1,4 @@
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=68';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=69';
 import {
   drawBrigand,
   drawWolf,
@@ -6,13 +6,12 @@ import {
   drawScout,
   drawThug,
   drawWisp,
-  drawCloudBoss,
-} from './sprites.js?v=68';
-import { aabb } from './player.js?v=68';
-import { createKnife, KNIFE_W } from './projectiles.js?v=68';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=68';
-import { sfx } from './audio.js?v=68';
-import { isEasy, reduceFlash } from './save.js?v=68';
+} from './sprites.js?v=69';
+import { aabb } from './player.js?v=69';
+import { createKnife, KNIFE_W } from './projectiles.js?v=69';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=69';
+import { sfx } from './audio.js?v=69';
+import { isEasy, reduceFlash } from './save.js?v=69';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -73,18 +72,6 @@ export function createEnemy(type, x, y, opts = {}) {
     base.damage = 1;
     base.noGravity = true;
   }
-  if (type === 'cloud') {
-    base.hp = base.maxHp = 100; // faith meter (drained by praying nearby)
-    base.speed = 0.28 * SCALE;
-    base.w = 64 * SCALE;
-    base.h = 40 * SCALE;
-    base.score = 2000;
-    base.damage = 1;
-    base.noGravity = true;
-    base.immuneToPlates = true;
-    base.patrolMin = opts.patrolMin ?? x - 60 * SCALE;
-    base.patrolMax = opts.patrolMax ?? x + 60 * SCALE;
-  }
   if (type === 'boss') {
     const kind = base.bossKind;
     base.w = 28 * SCALE;
@@ -131,9 +118,6 @@ export function enemyHitbox(e) {
   if (e.type === 'wisp') {
     return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
   }
-  if (e.type === 'cloud') {
-    return { x: e.x + 6 * SCALE, y: e.y + 4 * SCALE, w: e.w - 12 * SCALE, h: e.h - 8 * SCALE };
-  }
   return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
 }
 
@@ -148,8 +132,6 @@ export function updateEnemy(e, solids, player, dt, world = null) {
 
   if (e.type === 'boss') {
     updateBossAI(e, player, dt, world || {});
-  } else if (e.type === 'cloud') {
-    updateCloudAI(e, player, dt, world || {});
   } else if (e.type === 'wisp') {
     updateWispAI(e, player, dt);
   } else {
@@ -178,8 +160,8 @@ export function updateEnemy(e, solids, player, dt, world = null) {
   if (!e.noGravity) resolveEnemy(e, solids, false);
 
 
-  // Humanoids / bosses throw knives when Joseph is in sight (not wisp/cloud/npc)
-  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'cloud' && e.type !== 'npc' && e.type !== 'boss';
+  // Humanoids / bosses throw knives when Joseph is in sight (not wisp/npc)
+  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'npc' && e.type !== 'boss';
   if (canThrow && player.alive && e.attackCd <= 0) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
@@ -250,7 +232,6 @@ const BOSS_DEF = {
 };
 BOSS_DEF.ringleader = BOSS_DEF.overseer;
 BOSS_DEF.sentinel = BOSS_DEF.warden;
-const CLOUD_DEF = { p1: ['bolts', 'rain'], p2: ['rain', 'bolts', 'rain'], tell: [50, 36], walk: [100, 70] };
 
 function bossState(e) {
   if (!e.bs) e.bs = { mode: 'walk', t: 0, phase: 1, idx: 0, attack: null, sub: 0, tellT: 40, clock: 0, did: 0 };
@@ -288,79 +269,6 @@ function checkPhase(e, world) {
     return true;
   }
   return false;
-}
-
-function updateCloudAI(e, player, dt, world) {
-  const bs = bossState(e);
-  bs.t += dt;
-  bs.clock += dt;
-  e.aiTimer += dt;
-  const def = CLOUD_DEF;
-  const p2 = bs.phase === 2;
-  const dx = player.x + player.w / 2 - (e.x + e.w / 2);
-  checkPhase(e, world);
-  e.telling = bs.mode === 'tell' || bs.mode === 'roar';
-  const hoverY = 9 * TILE_SAFE();
-  e.vy = (hoverY - e.y) * 0.02 + Math.sin(e.aiTimer * 0.05) * 0.2 * SCALE;
-  if (bs.mode === 'walk') {
-    e.facing = dx > 0 ? 1 : -1;
-    e.vx = player.alive ? Math.sign(dx) * e.speed * (p2 ? 1.4 : 1) : 0;
-    if (Math.abs(dx) < 10 * SCALE) e.vx = 0;
-    if (bs.t > def.walk[bs.phase - 1] && world.active !== false) beginTell(e, def);
-  } else if (bs.mode === 'roar') {
-    e.vx = 0;
-    if (bs.t > 60) {
-      e.invuln = false;
-      bs.mode = 'walk';
-      bs.t = 0;
-    }
-  } else if (bs.mode === 'tell') {
-    e.vx = 0;
-    if (bs.t > bs.tellT) {
-      bs.mode = 'attack';
-      bs.t = 0;
-      bs.sub = 0;
-    }
-  } else if (bs.mode === 'attack') {
-    e.vx = 0;
-    if (bs.attack === 'bolts') {
-      const shots = p2 ? 3 : 2;
-      if (bs.sub < shots && bs.t >= bs.sub * 16) {
-        e.facing = dx > 0 ? 1 : -1;
-        const kx = e.facing > 0 ? e.x + e.w - 4 : e.x - KNIFE_W;
-        const k = createKnife(kx, e.y + e.h * 0.55, e.facing, 1);
-        k.dark = true;
-        e.knives.push(k);
-        bs.sub++;
-        sfx('throw');
-      }
-      if (bs.t > shots * 16 + 10) endAttack(e);
-    } else if (bs.attack === 'rain') {
-      if (bs.sub === 0) {
-        const n = p2 ? 7 : 5;
-        const spread = (p2 ? 90 : 70) * SCALE;
-        const px = player.x + player.w / 2;
-        for (let i = 0; i < n; i++) {
-          // Spread around Joseph with gaps so there is always somewhere safe to step
-          const x = px - spread + (i * 2 * spread) / (n - 1) + (i % 2 ? 6 : -6) * SCALE;
-          const landY = world.solids ? groundTopBelow(world.solids, x, e.y + e.h) : null;
-          world.hazards?.push(
-            createHazard('drop', x - 5 * SCALE, e.y + e.h * 0.7, { warn: 48 + i * 5, landY: landY ?? 13 * 32 })
-          );
-        }
-        bs.sub = 1;
-      }
-      if (bs.t > 90) endAttack(e);
-    }
-  } else {
-    e.vx = 0;
-    if (bs.t > (p2 ? 30 : 46)) {
-      bs.mode = 'walk';
-      bs.t = 0;
-    }
-  }
-  if (e.x < e.patrolMin) { e.x = e.patrolMin; e.vx = Math.abs(e.vx); }
-  if (e.x > e.patrolMax) { e.x = e.patrolMax; e.vx = -Math.abs(e.vx); }
 }
 
 function endAttack(e) {
@@ -622,11 +530,7 @@ export function drawEnemy(ctx, e, camX) {
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
-  else if (e.type === 'cloud') {
-    drawBossAura(ctx, e, dx, tickNow(e));
-    drawCloudBoss(ctx, dx, e.y, e.anim, flash || (!reduceFlash() && e.telling && Math.floor((e.bs?.t || 0) / 4) % 2 === 0), e.hp / e.maxHp);
-    if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + 64, e.y, e.bs.t, '#d0a0ff');
-  } else if (e.type === 'boss') {
+  else if (e.type === 'boss') {
     drawBossAura(ctx, e, dx, tickNow(e));
     ctx.save();
     if (e.ghost) ctx.globalAlpha = Math.max(0.12, e.ghostA ?? 0.3);
@@ -654,7 +558,7 @@ function drawBossAura(ctx, e, dx, t) {
   ctx.save();
   if (bs.phase === 2) {
     ctx.globalAlpha = 0.18 + 0.08 * Math.sin(t * 0.2);
-    ctx.fillStyle = e.type === 'cloud' ? '#8040c0' : '#e04020';
+    ctx.fillStyle = '#e04020';
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 1.1, ry * 1.05, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -662,7 +566,7 @@ function drawBossAura(ctx, e, dx, t) {
   if (e.telling) {
     const k = bs.mode === 'roar' ? 1 : Math.min(1, bs.t / Math.max(1, bs.tellT || 40));
     ctx.globalAlpha = 0.25 + 0.35 * k * (0.6 + 0.4 * Math.sin(bs.t * 0.6));
-    ctx.fillStyle = bs.mode === 'roar' ? '#ff6040' : e.type === 'cloud' ? '#c090ff' : '#ffd060';
+    ctx.fillStyle = bs.mode === 'roar' ? '#ff6040' : '#ffd060';
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * (0.9 + 0.2 * k), ry * (0.9 + 0.15 * k), 0, 0, Math.PI * 2);
     ctx.fill();

@@ -3,13 +3,14 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js?v=68';
-import { createGame, updateGame, drawGame, titleTapBegins } from './game.js?v=68';
-import { initVirtualControls, setAction } from './input.js?v=68';
-import { initOverlays, syncOverlays } from './ui.js?v=68';
-import { preloadSprites } from './sprites.js?v=68';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=68';
-import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=68';
+import { STATES } from './constants.js?v=69';
+import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=69';
+import { isStandalone } from './fullscreen.js?v=69';
+import { initVirtualControls, setAction } from './input.js?v=69';
+import { initOverlays, syncOverlays } from './ui.js?v=69';
+import { preloadSprites } from './sprites.js?v=69';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=69';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=69';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -18,46 +19,11 @@ ctx.imageSmoothingEnabled = true;
 initVirtualControls();
 bindMuteButton();
 
-function isStandalone() {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: fullscreen)').matches ||
-    !!window.navigator.standalone
-  );
-}
-
-function isIos() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
-async function enterArcade() {
-  if (isStandalone()) return;
-  const root = document.documentElement;
-  try {
-    if (!document.fullscreenElement && root.requestFullscreen) {
-      await root.requestFullscreen({ navigationUI: 'hide' });
-    } else if (!document.fullscreenElement) {
-      const req = root.webkitRequestFullscreen;
-      if (req) await req.call(root);
-    }
-  } catch (_) {
-    /* iOS Safari blocks this; Home Screen is the no-toolbar path */
-  }
-  try {
-    if (screen.orientation?.lock) await screen.orientation.lock('landscape');
-  } catch (_) {
-    /* lock only works after fullscreen on some browsers */
-  }
-}
-
-if (isIos() && !isStandalone()) {
-  document.documentElement.classList.add('needs-install');
-}
+// Full screen is an explicit choice now (title, pause menu and HUD buttons): see fullscreen.js
+setFullscreenOffered(!isStandalone());
 
 function armAudio() {
   unlockAudio();
-  enterArcade();
 }
 window.addEventListener('pointerdown', armAudio, { once: false });
 window.addEventListener('keydown', armAudio, { once: false });

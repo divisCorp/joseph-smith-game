@@ -4,11 +4,11 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { W, H, TILE, SCALE } from './constants.js?v=68';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=68';
-import { drawText, measureText, drawRect } from './sprites.js?v=68';
-import { sfx } from './audio.js?v=68';
-import { isEasy, reduceFlash } from './save.js?v=68';
+import { W, H, TILE, SCALE } from './constants.js?v=69';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=69';
+import { drawText, measureText, drawRect } from './sprites.js?v=69';
+import { sfx } from './audio.js?v=69';
+import { isEasy, reduceFlash } from './save.js?v=69';
 
 const S = SCALE;
 
@@ -596,7 +596,7 @@ export function drawBossBar(ctx, boss, name, phase, alpha = 1) {
   drawRect(ctx, bx - 3, by - 3, bw + 6, 8 * S + 6, '#000000');
   drawRect(ctx, bx - 1, by - 1, bw + 2, 8 * S + 2, '#a07a30');
   drawRect(ctx, bx, by, bw, 8 * S, '#1a0c0c');
-  const fill = boss.type === 'finale' ? '#e0b040' : boss.type === 'cloud' ? '#8a5ac8' : phase === 2 ? '#e04a2a' : '#c83a3a';
+  const fill = boss.type === 'finale' ? '#e0b040' : phase === 2 ? '#e04a2a' : '#c83a3a';
   drawRect(ctx, bx, by, Math.round(bw * ratio), 8 * S, fill);
   drawRect(ctx, bx, by, Math.round(bw * ratio), 2 * S, 'rgba(255,255,255,0.25)');
   if (boss.type !== 'finale') drawRect(ctx, bx + bw / 2 - 1, by - 2, 2, 8 * S + 4, '#f0e6d0');

@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=68" />
+  <link rel="stylesheet" href="css/style.css?v=69" />
   <script>
     (function () {
       var touch =
@@ -56,6 +56,7 @@
         <div class="hud-end">
           <div class="hud-score" data-hud-score>000000</div>
           <div class="hud-btns">
+            <button type="button" class="fs-btn" data-ui-cmd="fullscreen" data-ui-fs-icon aria-label="Play full screen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <button type="button" id="mute-btn" class="mute-btn" data-ui-mute aria-label="Mute sound" aria-pressed="false">MUTE</button>
             <button type="button" class="pause-btn" data-ui-cmd="pause" aria-label="Pause">II</button>
           </div>
@@ -66,7 +67,7 @@
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=68" alt="" width="88" height="88" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=69" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -86,7 +87,7 @@
             <button type="button" class="ui-opt-btn" data-ui-cmd="flash" data-ui-flash-label aria-label="Reduce flashing">Reduce flashing: Off</button>
           </div>
           <p class="ui-best" data-ui-best hidden></p>
-          <p class="ui-install" id="install-hint">iPhone: Share → Add to Home Screen for no toolbar</p>
+          <button type="button" class="ui-fs-title-btn" data-ui-cmd="fullscreen" data-ui-fs-label aria-label="Play full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-ui-fs-text>Full screen</span></button>
         </div>
 
         <div id="ui-chapters" class="ui-screen ui-screen--dim" hidden>
@@ -101,6 +102,17 @@
               <button type="button" class="ui-chapter-card" data-ui-cmd="play:5" data-ui-chapter="5"><span class="ui-chapter-num">5</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
               <button type="button" class="ui-chapter-card" data-ui-cmd="play:6" data-ui-chapter="6"><span class="ui-chapter-num">6</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
               <button type="button" class="ui-chapter-card" data-ui-cmd="play:7" data-ui-chapter="7"><span class="ui-chapter-num">7</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+            </div>
+            <div class="ui-journal-row" role="group" aria-label="Journal entries">
+              <span class="ui-journal-label">Journal</span>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:1" data-ui-journal-btn="1">1</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:2" data-ui-journal-btn="2">2</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:3" data-ui-journal-btn="3">3</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:4" data-ui-journal-btn="4">4</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:5" data-ui-journal-btn="5">5</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:6" data-ui-journal-btn="6">6</button>
+              <button type="button" class="ui-journal-btn" data-ui-cmd="journal:7" data-ui-journal-btn="7">7</button>
+              <span class="ui-journal-hint" data-ui-journal-hint>Find all 3 pages in a chapter to read its entry</span>
             </div>
             <div class="ui-actions">
               <button type="button" class="ui-share-btn" data-ui-cmd="back" aria-label="Back to title">Back</button>
@@ -120,6 +132,17 @@
           <p class="ui-intro-skip">Tap or press Enter to begin</p>
         </div>
 
+        <div id="ui-journal" class="ui-screen ui-screen--dim" hidden>
+          <div class="ui-parchment" role="dialog" aria-labelledby="ui-journal-title">
+            <p class="ui-parch-kicker" data-ui-journal-kicker>Journal · Chapter 1</p>
+            <h2 class="ui-parch-title" id="ui-journal-title" data-ui-journal-title></h2>
+            <p class="ui-parch-place" data-ui-journal-place></p>
+            <p class="ui-parch-body" data-ui-journal-body></p>
+            <p class="ui-parch-tip" data-ui-journal-tip hidden></p>
+            <button type="button" class="ui-start-btn ui-start-btn--compact ui-parch-btn" data-ui-cmd="journal-close">Continue</button>
+          </div>
+        </div>
+
         <div id="ui-pause" class="ui-screen ui-screen--dim" hidden>
           <div class="ui-panel ui-pause-panel" role="dialog" aria-label="Paused">
             <h2 class="ui-heading">Paused</h2>
@@ -127,6 +150,7 @@
             <div class="ui-menu">
               <button type="button" class="ui-menu-btn" data-ui-cmd="resume">Resume</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="restart">Restart Chapter</button>
+              <button type="button" class="ui-menu-btn ui-menu-btn--fs" data-ui-cmd="fullscreen" data-ui-fs-label>Full screen</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="difficulty" data-ui-diff-label>Difficulty: Normal</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="flash" data-ui-flash-label>Reduce flashing: Off</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="sound" data-ui-sound-label>Sound: On</button>
@@ -207,6 +231,27 @@
         </div>
       </div>
 
+      <div id="ui-fs-help" class="ui-fs-help" role="dialog" aria-modal="true" aria-labelledby="ui-fs-help-title" hidden>
+        <div class="ui-fs-card">
+          <h2 class="ui-fs-title" id="ui-fs-help-title">Play full screen</h2>
+          <div data-fs-ios>
+            <p class="ui-fs-lead">Tap <b>Share</b>, then <b>Add to Home Screen</b> for full screen.</p>
+            <ol class="ui-fs-steps">
+              <li><span class="ui-fs-ico ui-fs-ico--share"><svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path d="M17 18h-5a2.5 2.5 0 0 0-2.5 2.5v19A2.5 2.5 0 0 0 12 42h24a2.5 2.5 0 0 0 2.5-2.5v-19A2.5 2.5 0 0 0 36 18h-5" fill="none" stroke="#2f7cf6" stroke-width="3.4" stroke-linecap="round"/><path d="M24 30V5M15.5 13.5 24 5l8.5 8.5" fill="none" stroke="#2f7cf6" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ui-fs-cap"><b>1</b> Tap <b>Share</b> in Safari</span></li>
+              <li class="ui-fs-arrow" aria-hidden="true">→</li>
+              <li><span class="ui-fs-ico ui-fs-ico--menu"><span class="ui-fs-menu-row">Add to Home Screen <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="8" fill="none" stroke="#222" stroke-width="3.4"/><path d="M24 15v18M15 24h18" stroke="#222" stroke-width="3.4" stroke-linecap="round"/></svg></span></span><span class="ui-fs-cap"><b>2</b> Choose <b>Add to Home Screen</b></span></li>
+              <li class="ui-fs-arrow" aria-hidden="true">→</li>
+              <li><span class="ui-fs-ico ui-fs-ico--app"><img src="assets/apple-touch-icon.png?v=69" alt="" width="44" height="44" /></span><span class="ui-fs-cap"><b>3</b> Open <b>Palmyra Quest</b> from your Home Screen</span></li>
+            </ol>
+            <p class="ui-fs-note">On newer iPhones, Share may be inside the <b>•••</b> menu.</p>
+          </div>
+          <div data-fs-other hidden>
+            <p class="ui-fs-lead">This browser can’t switch a web page to full screen. Open the browser menu and choose <b>Add to Home screen</b> or <b>Install app</b>, then start Palmyra Quest from there.</p>
+          </div>
+          <button type="button" class="ui-start-btn ui-start-btn--compact" data-fs-close>Got it</button>
+        </div>
+      </div>
+
       <div id="ui-tip" class="ui-tip" role="status" aria-live="polite"></div>
       <div id="ui-toast" class="ui-toast" role="status" aria-live="polite"></div>
 
@@ -239,6 +284,6 @@
 
     <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M · Gamepad supported</p>
   </div>
-  <script type="module" src="js/main.js?v=68"></script>
+  <script type="module" src="js/main.js?v=69"></script>
 </body>
 </html>

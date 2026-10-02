@@ -1,5 +1,5 @@
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=68';
-import { justPressed, clearAll, isDown as isDownHold } from './input.js?v=68';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=69';
+import { justPressed, clearAll } from './input.js?v=69';
 import {
   createPlayer,
   updatePlayer,
@@ -8,12 +8,12 @@ import {
   playerAttackBox,
   hurtPlayer,
   aabb,
-} from './player.js?v=68';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=68';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=68';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=68';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=68';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=68';
+} from './player.js?v=69';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=69';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=69';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=69';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=69';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=69';
 import {
   drawHeart,
   drawText,
@@ -25,8 +25,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=68';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=68';
+} from './sprites.js?v=69';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=69';
 import {
   unlockChapter,
   unlockedChapter,
@@ -38,7 +38,10 @@ import {
   reduceFlash,
   setReduceFlash,
   recordChapter,
-} from './save.js?v=68';
+  journalUnlocked,
+  unlockJournal,
+} from './save.js?v=69';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=69';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -63,7 +66,8 @@ export function createGame() {
     martyrTimer: 0,
     martyrEnding: false,
     martyrFade: 0,
-    cloudDefeated: false,
+    journalN: 0,
+    journalFrom: 'play',
     hasPlates: false,
     shake: 0,
     hitStop: 0,
@@ -79,7 +83,6 @@ export function createGame() {
     safe: null,
     checkpointIdx: -1,
     cpScore: 0,
-    prayIdle: 999,
     // chapter run stats (kept through checkpoint retries)
     chapterT: 0,
     heartsLost: 0,
@@ -94,10 +97,17 @@ export function createGame() {
   };
 }
 
+let fsOffered = true;
+/** Home Screen web apps are already full screen: hide that option there. */
+export function setFullscreenOffered(on) {
+  fsOffered = !!on;
+}
+
 /** Title choices: Continue only appears once a later chapter is unlocked. */
 export function titleOptions() {
   const n = unlockedChapter();
   const base = ['begin', 'chapters', 'difficulty', 'flash'];
+  if (fsOffered) base.push('fullscreen');
   return n > 1 ? ['continue', ...base] : base;
 }
 
@@ -106,7 +116,7 @@ export function titleTapBegins() {
   return unlockedChapter() <= 1;
 }
 
-export const PAUSE_OPTIONS = ['resume', 'restart', 'difficulty', 'flash', 'sound', 'quit'];
+export const PAUSE_OPTIONS = ['resume', 'restart', 'fullscreen', 'difficulty', 'flash', 'sound', 'quit'];
 
 function applyDifficulty(game) {
   const p = game.player;
@@ -165,7 +175,6 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
   game.martyrTimer = 0;
   game.martyrEnding = false;
   game.martyrFade = 0;
-  game.cloudDefeated = false;
   game.shake = 0;
   game.hitStop = 0;
   game.introFade = 0;
@@ -173,8 +182,11 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
   game.tip = null;
   game.tipQueue = [];
   game.safe = { x: game.player.x, y: game.player.y };
-  game.prayIdle = 999;
   game.onCheckpoint = (cp) => reachCheckpoint(game, cp);
+  game.onGroveDone = () => {
+    game.score += 1000;
+    goClear(game);
+  };
   unlockChapter(num);
   if (opts.checkpoint && game.checkpointIdx >= 0) placeAtCheckpoint(game);
   clearAll();
@@ -198,7 +210,7 @@ function placeAtCheckpoint(game) {
   const cp = level.checkpoints[game.checkpointIdx];
   if (!cp) return;
   for (let i = 0; i <= game.checkpointIdx; i++) level.checkpoints[i].lit = true;
-  level.enemies = level.enemies.filter((e) => e.type === 'boss' || e.type === 'cloud' || e.x > cp.x + 4 * TILE);
+  level.enemies = level.enemies.filter((e) => e.type === 'boss' || e.x > cp.x + 4 * TILE);
   if (level.pickup && level.pickup.x < cp.x) level.pickup.taken = true;
   player.x = cp.x + 2 * SCALE;
   player.y = cp.y - player.standH;
@@ -306,6 +318,10 @@ function runCommand(game, cmd) {
     case 'sound':
       toggleMute();
       break;
+    case 'fullscreen':
+      // keyboard / pad path (buttons call the Fullscreen API directly in their click)
+      game.onFullscreen?.();
+      break;
     case 'quit':
     case 'title':
       quitToTitle(game);
@@ -313,13 +329,32 @@ function runCommand(game, cmd) {
     case 'skip':
       if (game.state === STATES.INTRO && game.introT > 20) endIntro(game);
       break;
+    case 'journal-close':
+      if (game.state === STATES.JOURNAL) closeJournal(game);
+      break;
     default:
       if (cmd.startsWith('play:') && game.state === STATES.CHAPTERS) {
         const n = parseInt(cmd.slice(5), 10);
         if (n >= 1 && n <= unlockedChapter()) startCampaign(game, n);
+      } else if (cmd.startsWith('journal:') && game.state === STATES.CHAPTERS) {
+        const n = parseInt(cmd.slice(8), 10);
+        if (journalUnlocked(n)) openJournal(game, n, 'chapters');
       }
       break;
   }
+}
+
+/** Parchment pop-up for a chapter's journal entry (pauses play). */
+function openJournal(game, n, from) {
+  game.journalN = n;
+  game.journalFrom = from;
+  game.tip = null;
+  setState(game, STATES.JOURNAL);
+}
+
+function closeJournal(game) {
+  if (game.journalFrom === 'chapters') setState(game, STATES.CHAPTERS);
+  else setState(game, STATES.PLAYING);
 }
 
 function advanceFromClear(game) {
@@ -401,6 +436,12 @@ export function updateGame(game, dt) {
     return;
   }
 
+  if (game.state === STATES.JOURNAL) {
+    const close = confirmPressed() || justPressed('pause');
+    if (close && game.stateT > 30) closeJournal(game);
+    return;
+  }
+
   if (game.state === STATES.WIN) {
     const go = justPressed('start') || justPressed('pause');
     if (go && game.stateT > 120) quitToTitle(game);
@@ -432,13 +473,13 @@ export function updateGame(game, dt) {
   }
 }
 
-// ── First-run tips (chapter 1 only, each shown once ever) ─────────────────
+// ── First-run tips (each shown once ever): move/jump/attack in chapter 1,
+// prayer-to-heal in chapter 2 (its journal entry explains it in full) ─────
 const TIP_TEXT = {
   move: { touch: 'Drag the stick ◀ ▶ to walk', keys: 'Walk with ← → or A / D' },
   jump: { touch: 'Tap A to jump', keys: 'Press X (or K) to jump' },
   attack: { touch: 'Tap B to swing the pitchfork', keys: 'Space or Z swings the pitchfork' },
-  kneel: { touch: 'Hurt? Hold the stick ▼ to kneel and pray — it heals', keys: 'Hurt? Hold ↓ to kneel and pray — it heals' },
-  cloud: { touch: "Kneel and pray to drain the Dark Cloud's bar", keys: "Kneel and pray to drain the Dark Cloud's bar" },
+  kneel: { touch: 'Hurt? Stand still and hold the stick ▼ to kneel and pray. It heals.', keys: 'Hurt? Stand still and hold ↓ to kneel and pray. It heals.' },
 };
 
 function isTouchUi() {
@@ -460,7 +501,7 @@ function showTip(game, id) {
 }
 
 function tickTips(game, dt) {
-  if (game.levelNum !== 1 || !game.player) {
+  if (game.levelNum > 2 || !game.player || (game.level.camp && game.level.camp.state !== 'idle')) {
     game.tip = null;
     return;
   }
@@ -470,9 +511,9 @@ function tickTips(game, dt) {
   const free = !game.tip || game.tip.t > 150;
   if (!free) {
     /* let the current tip finish */
-  } else if (!tipSeen('cloud') && game.bossIntro) showTip(game, 'cloud');
-  else if (!tipSeen('kneel') && p.hp < p.maxHp && p.alive) showTip(game, 'kneel');
-  else if (!tipSeen('attack')) {
+  } else if (game.levelNum === 2) {
+    if (!tipSeen('kneel') && p.hp < p.maxHp && p.alive) showTip(game, 'kneel');
+  } else if (!tipSeen('attack')) {
     const near = level.enemies.some(
       (e) => e.alive && e.type === 'wolf' && Math.abs(e.x - p.x) < 9 * TILE
     );
@@ -491,7 +532,6 @@ function tickTips(game, dt) {
     if (tip.id === 'jump' && !p.onGround) tip.done = true;
     if (tip.id === 'attack' && p.attackTimer > 0) tip.done = true;
     if (tip.id === 'kneel' && p.hp >= p.maxHp) tip.done = true;
-    if (tip.id === 'cloud' && p.crouching) tip.done = true;
     if (tip.done) tip.t = Math.max(tip.t, 300 - 20);
   }
   if (tip.t > 300) game.tip = null;
@@ -587,8 +627,13 @@ function tickPlay(game, dt) {
     return;
   }
 
+  // Chapter 1 story: preachers, the camp meeting, and the prayer in the grove
+  const story = level.camp && level.camp.state !== 'idle' && level.camp.state !== 'kneel';
+  const locked = updateGrove(game, dt, story ? confirmPressed() : false);
+  if (game.state !== STATES.PLAYING) return;
+
   updateSetPieces(game, dt);
-  updatePlayer(player, level.solids, dt);
+  if (!locked) updatePlayer(player, level.solids, dt);
 
   // Remember solid footing; a fall into a gap costs one heart, not the whole run.
   if (player.alive && player.onGround && hasFooting(player, level.solids.filter((s) => !s.unsafe))) {
@@ -646,39 +691,16 @@ function tickPlay(game, dt) {
         game.pagesGot |= 1 << pg.i;
         const got = [0, 1, 2].filter((i) => game.pagesGot & (1 << i)).length;
         game.score += 250;
-        game.message = got >= 3 ? 'ALL JOURNAL PAGES FOUND!' : `JOURNAL PAGE ${got}/3`;
-        game.messageT = 70;
         sfx('page');
-      }
-    }
-  }
-
-  // Faith pray vs cloud — kneel anywhere under/near the grove cloud
-  const cloud = level.enemies.find((e) => e.type === 'cloud' && e.alive);
-  if (cloud && player.alive) {
-    const px = player.x + player.w / 2;
-    const cx = cloud.x + cloud.w / 2;
-    const inGrove = player.x >= level.bossZoneX - 4 * SCALE;
-    const nearX = Math.abs(px - cx) < 110 * SCALE;
-    const praying =
-      (player.crouching || isDownHold('down')) && Math.abs(player.vx) < 0.2 * SCALE;
-    if ((inGrove || nearX) && praying) {
-      game.prayIdle = 0;
-      const killed = hurtEnemy(cloud, 2.4 * dt, { faith: true });
-      if (killed) {
-        game.score += cloud.score;
-        game.cloudDefeated = true;
-        sfx('heal');
-        goClear(game);
-        return;
-      }
-    } else if (inGrove || nearX) {
-      game.prayIdle += dt;
-      // Gentle reminder only after a while without praying (the boss bar shows progress)
-      if (game.prayIdle > 200 && game.messageT <= 0) {
-        game.message = isTouchUi() ? 'Hold ▼ to kneel and pray' : 'Hold ↓ to kneel and pray';
+        if (got >= 3) {
+          // All three: pause for the chapter's journal entry
+          unlockJournal(game.levelNum);
+          game.messageT = 0;
+          openJournal(game, game.levelNum, 'play');
+          return;
+        }
+        game.message = `JOURNAL PAGE ${got}/3`;
         game.messageT = 70;
-        game.prayIdle = 0;
       }
     }
   }
@@ -711,8 +733,7 @@ function tickPlay(game, dt) {
     solids: level.solids,
     active: game.bossIntro && game.bossBannerT <= 40, // bosses wait out most of their entrance
     onPhase: (e) => {
-      game.message = PHASE_LINES[e.bossKind] || (e.type === 'cloud' ? 'The darkness presses closer!' : 'The foe grows desperate!');
-      if (e.type === 'cloud') game.message = 'The darkness presses closer!';
+      game.message = PHASE_LINES[e.bossKind] || 'The foe grows desperate!';
       game.messageT = 70;
       game.shake = Math.max(game.shake, 18);
     },
@@ -837,11 +858,9 @@ function tickPlay(game, dt) {
 
   // Boss-defeat clear
   if (level.goal === 'boss' || !level.goal) {
-    const boss = level.enemies.find((e) => e.type === 'boss' || e.type === 'cloud');
-    if (boss && !boss.alive && player.alive && !game.cloudDefeated) {
-      if (boss.type === 'cloud') {
-        // already cleared when faith killed the cloud
-      } else if (level.num >= MAX_LEVEL) {
+    const boss = level.enemies.find((e) => e.type === 'boss');
+    if (boss && !boss.alive && player.alive) {
+      if (level.num >= MAX_LEVEL) {
         goWin(game);
       } else {
         goClear(game);
@@ -896,6 +915,7 @@ export function drawGame(ctx, game) {
   drawSetPiecesBack(ctx, game);
   drawLevelTiles(ctx, game.camX, game.level);
   drawSetPiecesMid(ctx, game);
+  drawGroveBack(ctx, game);
   drawPages(ctx, game.level, game.camX, game.tick);
 
   // Plate chest
@@ -911,7 +931,9 @@ export function drawGame(ctx, game) {
   for (const e of game.level.enemies) {
     drawEnemy(ctx, e, game.camX);
   }
+  drawGroveNpcs(ctx, game);
   drawPlayer(ctx, game.player, game.camX);
+  drawGroveBubbles(ctx, game);
   drawPlates(ctx, game.player.plates, game.camX);
   for (const e of game.level.enemies) {
     if (e.knives) drawKnives(ctx, e.knives, game.camX);
@@ -925,12 +947,12 @@ export function drawGame(ctx, game) {
   drawHUD(ctx, game);
 
   // Boss entrance banner, then the health bar (name + half-health phase tick)
-  const boss = game.level.enemies.find((e) => (e.type === 'boss' || e.type === 'cloud') && e.alive);
+  const boss = game.level.enemies.find((e) => e.type === 'boss' && e.alive);
   if (game.state !== STATES.INTRO) {
     if (game.bossBannerT > 0 && game.level.bossTitle) {
       drawBossBanner(ctx, game.level.bossTitle, game.bossBannerT, BANNER_T);
     } else if (boss && game.bossIntro && game.bossBarA > 0) {
-      const name = boss.type === 'cloud' ? 'THE DARK CLOUD' : boss.title || 'BOSS';
+      const name = boss.title || 'BOSS';
       drawBossBar(ctx, boss, name, boss.bs?.phase || 1, game.bossBarA);
     }
     const f = game.level.finale;
@@ -953,7 +975,9 @@ export function drawGame(ctx, game) {
     drawMartyrFade(ctx, game);
   }
 
-  if (game.state === STATES.PAUSED || game.state === STATES.CLEAR) {
+  drawGroveUi(ctx, game);
+
+  if (game.state === STATES.PAUSED || game.state === STATES.CLEAR || game.state === STATES.JOURNAL) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.25)');
   }
 }
@@ -991,7 +1015,7 @@ function drawTitleScene(ctx, game) {
   if (game.titleLevel) {
     const cam = 36 + (Math.sin(game.titleBlink * 0.01) * 0.5 + 0.5) * 64;
     drawLevelBackground(ctx, cam, game.titleLevel);
-    drawLevelTiles(ctx, cam, game.titleLevel);
+    drawLevelTiles(ctx, cam, game.titleLevel, { noStacks: true });
     const walk = Math.floor(game.titleBlink / 8) % 8;
     drawJoseph(ctx, W * 0.28, game.titleLevel.spawn.y, 1, walk, false, false, false, true, false);
   } else {

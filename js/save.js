@@ -2,11 +2,11 @@
  * Local progress (localStorage). Every read is validated and every write is
  * wrapped so private-mode / quota errors can never break the game.
  */
-import { MAX_LEVEL } from './constants.js?v=68';
+import { MAX_LEVEL } from './constants.js?v=69';
 
 const KEY = 'palmyraQuest.save.v1';
 
-const DEFAULTS = { unlocked: 1, best: 0, muted: false, tips: {}, diff: 'normal', reduceFlash: false, chapters: {} };
+const DEFAULTS = { unlocked: 1, best: 0, muted: false, tips: {}, diff: 'normal', reduceFlash: false, chapters: {}, journals: 0 };
 
 let data = load();
 
@@ -32,6 +32,7 @@ function load() {
     diff: raw.diff === 'easy' ? 'easy' : 'normal',
     reduceFlash: raw.reduceFlash === true,
     chapters: cleanChapters(raw.chapters),
+    journals: clampInt(raw.journals, 0, 255, 0),
   };
 }
 
@@ -151,4 +152,17 @@ export function recordChapter(n, stars, pagesMask, time) {
   data.chapters[k] = next;
   persist();
   return { prev, next, improved };
+}
+
+// ── Journal entries (all three pages of a chapter found) ───
+export function journalUnlocked(n) {
+  const k = clampInt(n, 1, MAX_LEVEL, 1);
+  return !!(data.journals & (1 << k)) || (chapterRecord(k).pages & 7) === 7;
+}
+
+export function unlockJournal(n) {
+  const k = clampInt(n, 1, MAX_LEVEL, 1);
+  if (data.journals & (1 << k)) return;
+  data.journals = (data.journals | (1 << k)) & 255;
+  persist();
 }

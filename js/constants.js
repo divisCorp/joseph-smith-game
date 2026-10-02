@@ -16,6 +16,7 @@ export const STATES = {
   CLEAR: 'clear',
   WIN: 'win',
   LOSE: 'lose',
+  JOURNAL: 'journal',
 };
 
 /** Campaign metadata (1-indexed levels) — The Prophet's Path */
@@ -23,16 +24,16 @@ export const LEVEL_META = [
   null,
   {
     num: 1,
-    par: 120, // seconds for the time star (Easy gets ×1.5)
+    par: 150, // seconds for the time star (Easy gets ×1.5) — includes the camp meeting
     year: 'Spring 1820',
     place: 'Palmyra, New York',
     story: 'A farm boy with a question walks into the woods to pray.',
     name: 'Sacred Grove',
     short: 'The Grove',
-    blurb: 'Young Joseph. Pitchfork the wolves. Kneel and pray to pierce the darkness.',
+    blurb: 'Young Joseph. Mind the wolves, hear the preachers, and seek wisdom in the grove.',
     clearNext: 'A heavenly messenger awaits…',
-    bossTitle: 'DARK CLOUD!',
-    clearTitle: 'The Cloud Breaks',
+    bossTitle: '',
+    clearTitle: 'A Prayer in the Grove',
   },
   {
     num: 2,

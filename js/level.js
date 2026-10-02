@@ -1,13 +1,16 @@
 /**
  * Level data — The Prophet's Path campaign (Levels 1–7)
- * Tile codes: 0 empty, 1 solid ground, 2 platform, 3 wall, 4 water (visual/hazard gap).
+ * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
+ * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=68';
-import { createEnemy } from './enemy.js?v=68';
-import { STAND_H } from './player.js?v=68';
-import { drawRect } from './sprites.js?v=68';
-import { initSetPieces, buildDock } from './setpieces.js?v=68';
-import { reduceFlash } from './save.js?v=68';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=69';
+import { createEnemy } from './enemy.js?v=69';
+import { STAND_H } from './player.js?v=69';
+import { drawRect } from './sprites.js?v=69';
+import { initSetPieces, buildDock } from './setpieces.js?v=69';
+import { reduceFlash } from './save.js?v=69';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=69';
+import { initGrove } from './grove.js?v=69';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -54,7 +57,7 @@ function tilesToSolids(tiles) {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const t = tiles[r][c];
-      if (t === 1 || t === 2 || t === 3) {
+      if (t === 1 || t === 2 || t === 3 || t === STACK) {
         const plat = t === 2;
         solids.push({
           x: c * TILE,
@@ -62,6 +65,7 @@ function tilesToSolids(tiles) {
           w: TILE,
           h: plat ? 8 : TILE,
           kind: plat ? 'plat' : t === 3 ? 'wall' : 'ground',
+          stack: t === STACK,
         });
       }
     }
@@ -74,7 +78,7 @@ function floorYAt(tiles, x) {
   const cols = tiles[0].length;
   const c = Math.max(0, Math.min(cols - 1, Math.floor(x / TILE)));
   for (let r = 0; r < tiles.length; r++) {
-    if (tiles[r][c] === 1 || tiles[r][c] === 3) return r * TILE;
+    if (tiles[r][c] === 1 || tiles[r][c] === 3 || tiles[r][c] === STACK) return r * TILE;
   }
   return 13 * TILE;
 }
@@ -104,7 +108,7 @@ function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZon
   };
 }
 
-// ── Level 1: Sacred Grove (pray to break the cloud) ────────────
+// ── Level 1: Sacred Grove (preachers, camp meeting, prayer) ────────────
 export function createLevel1() {
   const cols = 120;
   const rows = 15;
@@ -116,7 +120,7 @@ export function createLevel1() {
     [79, 81],
   ]);
   placePlatform(tiles, 18, 10, 4);
-  placePlatform(tiles, 35, 9, 3);
+  placePlatform(tiles, 36, 10, 3);
   placePlatform(tiles, 42, 11, 3);
   placePlatform(tiles, 60, 10, 5);
   placePlatform(tiles, 70, 8, 3);
@@ -133,10 +137,6 @@ export function createLevel1() {
     createEnemy('wolf', 38 * TILE, 7 * TILE, { patrolMin: 35 * TILE, patrolMax: 42 * TILE }),
     createEnemy('wolf', 65 * TILE, 8 * TILE, { patrolMin: 60 * TILE, patrolMax: 70 * TILE }),
     createEnemy('wolf', 92 * TILE, 11 * TILE, { patrolMin: 88 * TILE, patrolMax: 96 * TILE }),
-    createEnemy('cloud', 108 * TILE, 8 * TILE, {
-      patrolMin: 102 * TILE,
-      patrolMax: 116 * TILE,
-    }),
   ];
 
   const decor = [];
@@ -154,9 +154,13 @@ export function createLevel1() {
   decor.push({ type: 'gate', x: 100 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'gate', x: 101 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'cabin', x: 8 * TILE, y: 9 * TILE });
+  // the grove itself: tall trees past the camp meeting
+  for (const c of [111, 113.4, 116, 118.2]) {
+    decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: Math.floor(c) % 3, tall: true });
+  }
 
   return wrapLevel(1, 'woods', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 100 * TILE, {
-    goal: 'boss',
+    goal: 'grove',
   });
 }
 
@@ -234,12 +238,12 @@ export function createLevel3() {
   placePlatform(tiles, 16, 9, 3);
   placePlatform(tiles, 28, 10, 4);
   placePlatform(tiles, 36, 8, 3);
-  placePlatform(tiles, 48, 9, 4);
+  placePlatform(tiles, 49, 10, 3);
   placePlatform(tiles, 56, 7, 3);
   placePlatform(tiles, 62, 10, 3);
   placePlatform(tiles, 72, 8, 4);
   placePlatform(tiles, 80, 6, 3);
-  placePlatform(tiles, 92, 9, 4);
+  placePlatform(tiles, 93, 10, 3);
   placePlatform(tiles, 100, 7, 3);
   placePlatform(tiles, 108, 10, 4);
   for (let c = 120; c < cols; c++) {
@@ -435,8 +439,9 @@ export function createLevel6() {
   placePlatform(tiles, 54, 9, 3);
   placePlatform(tiles, 66, 10, 4);
   placePlatform(tiles, 74, 8, 5);
-  placePlatform(tiles, 90, 10, 3);
-  placePlatform(tiles, 96, 7, 4);
+  // crates stacked on the sturdy (non-sinking) dock pilings
+  placePlatform(tiles, 90, 11, 2);
+  placePlatform(tiles, 96, 11, 2);
   placePlatform(tiles, 106, 9, 4);
   for (let c = 116; c < cols; c++) {
     tiles[groundR][c] = 1;
@@ -487,13 +492,13 @@ export function createLevel7() {
   const groundR = 13;
   fillGround(tiles, groundR, cols, []);
   // Cell platforms / stairs feel
-  placePlatform(tiles, 6, 11, 4);
+  placePlatform(tiles, 8, 11, 3);
   placePlatform(tiles, 12, 9, 3);
-  placePlatform(tiles, 18, 11, 4);
-  placePlatform(tiles, 26, 10, 3);
-  placePlatform(tiles, 32, 8, 4);
-  placePlatform(tiles, 40, 10, 3);
-  placePlatform(tiles, 46, 9, 4);
+  placePlatform(tiles, 18, 11, 3);
+  placePlatform(tiles, 29, 10, 2);
+  placePlatform(tiles, 32, 8, 3);
+  placePlatform(tiles, 38, 10, 3);
+  placePlatform(tiles, 48, 11, 2);
   // Stone wall segments (indoor cells)
   for (let r = 8; r < groundR; r++) {
     tiles[r][0] = 3;
@@ -535,13 +540,13 @@ export function createLevel7() {
 }
 
 const CHECKPOINT_COLS = {
-  1: [50, 96],
+  1: [50, 92],
   2: [62],
-  3: [58, 104],
+  3: [60, 104],
   4: [52, 108],
-  5: [56, 112],
+  5: [62, 112],
   6: [64, 111],
-  7: [30],
+  7: [25],
 };
 
 function buildLevel(num) {
@@ -559,12 +564,17 @@ function buildLevel(num) {
 
 export function createLevel(num) {
   const level = buildLevel(num);
+  // Platforms become grounded piles (logs, hay, crates, rocks…) — nothing floats
+  level.stacks = convertStacks(level.tiles, level.num);
+  level.solids = tilesToSolids(level.tiles).concat([{ x: -TILE, y: 0, w: TILE, h: level.rows * TILE, kind: 'wall' }]);
+  settleEnemies(level);
   level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => ({
     x: c * TILE,
     y: floorYAt(level.tiles, c * TILE + TILE / 2),
     lit: false,
   }));
   initSetPieces(level);
+  initGrove(level);
   placePages(level);
   if (level.num === 6) {
     buildDock(level, 84, 100, [87, 88, 92, 93, 94, 98]);
@@ -580,6 +590,20 @@ export function createLevel(num) {
     level.solids.push({ x: level.finale.doorX, y: 8 * TILE, w: TILE, h: 5 * TILE, kind: 'wall' });
   }
   return level;
+}
+
+/** Foes authored at old platform heights: lift any that start inside a pile. */
+function settleEnemies(level) {
+  for (const e of level.enemies) {
+    if (e.noGravity) continue;
+    for (let k = 0; k < 12; k++) {
+      const hit = level.solids.find(
+        (s) => s.kind !== 'plat' && e.x + 4 < s.x + s.w && e.x + e.w - 4 > s.x && e.y < s.y + s.h && e.y + e.h > s.y
+      );
+      if (!hit) break;
+      e.y = hit.y - e.h - 1;
+    }
+  }
 }
 
 /**
@@ -598,9 +622,10 @@ function placePages(level) {
   for (let r = 0; r < rows; r++) {
     let c = 0;
     while (c < cols) {
-      if (tiles[r][c] === 2 && (r === 0 || tiles[r - 1][c] === 0)) {
+      const isTop = (cc) => (tiles[r][cc] === 2 || tiles[r][cc] === STACK) && (r === 0 || tiles[r - 1][cc] === 0);
+      if (isTop(c)) {
         const c0 = c;
-        while (c < cols && tiles[r][c] === 2) c++;
+        while (c < cols && isTop(c)) c++;
         surfaces.push({ r, c0, c1: c - 1, plat: true });
       } else c++;
     }
@@ -1039,7 +1064,7 @@ function drawBgStorm(ctx, camX, level) {
   }
 }
 
-export function drawLevelTiles(ctx, camX, level) {
+export function drawLevelTiles(ctx, camX, level, opts = {}) {
   const startC = Math.max(0, Math.floor(camX / TILE) - 1);
   const endC = Math.min(level.cols, Math.ceil((camX + W) / TILE) + 1);
   const theme = level.theme || 'woods';
@@ -1055,6 +1080,7 @@ export function drawLevelTiles(ctx, camX, level) {
       else if (t === 4) drawWaterTile(ctx, x, y, c, r);
     }
   }
+  if (!opts.noStacks) drawStacks(ctx, level, camX);
 }
 
 function drawGroundTile(ctx, x, y, c, r, level, theme) {

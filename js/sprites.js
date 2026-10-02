@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=68';
+import { COLORS, W, SCALE } from './constants.js?v=69';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -144,11 +144,25 @@ export function preloadSprites() {
         })
     )
   ).then(() => {
+    try {
+      SHEETS.foesFixed = SHEETS.foes ? reproportionFoes(SHEETS.foes) : null;
+    } catch (_) {
+      SHEETS.foesFixed = null; // e.g. tainted canvas: fall back to the raw sheet
+    }
+    try {
+      buildPreacherSheets();
+    } catch (_) {
+      /* preachers fall back to procedural drawing */
+    }
     sheetsReady = !!(SHEETS.joseph || SHEETS.foes);
     sheetsLoading = false;
     return sheetsReady;
   });
   return sheetsLoading;
+}
+
+export function sheetImage(key) {
+  return SHEETS[key] || null;
 }
 
 export function spritesReady() {
@@ -284,7 +298,7 @@ export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false
 }
 
 
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false) {
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false, airFrame = null) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
@@ -314,12 +328,19 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     } else if (pose === 'lookup') {
       fi = JOSEPH_IDLE[0];
     }
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath();
-    ctx.ellipse(ox + dw / 2, oy + dh - 3, dw * 0.28, 4 * sc, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // Airborne poses: 10 push-off, 12 tucked apex, 13 falling (painted frames)
+    const air = airFrame != null && !attacking && !crouching;
+    if (air) {
+      fi = airFrame;
+      dy = oy - Math.round(6 * sc);
+    } else {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(ox + dw / 2, oy + dh - 3, dw * 0.28, 4 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, dw, dh, flip, false);
     return;
   }
@@ -485,10 +506,248 @@ export function drawKnife(ctx, x, y, facing = 1) {
   ctx.restore();
 }
 
+/**
+ * The foe sheet is drawn chibi-style (head ≈ 35% of height) while Joseph and
+ * the bosses are ≈ 25%, so foes read as "huge head". The PNG is untouched:
+ * at load we slice each frame at its neck (narrowest row between head and
+ * shoulders), draw the head at 70% around the neck centre and stretch the
+ * body 15% taller, so the feet stay put and overall height is unchanged.
+ */
+const FOE_HEAD_K = 0.7;
+const FOE_BODY_K = 1.15;
+function reproportionFoes(img) {
+  const W0 = img.width;
+  const H0 = img.height;
+  const src = document.createElement('canvas');
+  src.width = W0;
+  src.height = H0;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.drawImage(img, 0, 0);
+  const data = sctx.getImageData(0, 0, W0, H0).data;
+  const out = document.createElement('canvas');
+  out.width = W0;
+  out.height = H0;
+  const o = out.getContext('2d');
+  o.imageSmoothingEnabled = true;
+  o.imageSmoothingQuality = 'high';
+  const FW = 64;
+  const FH = 128;
+  for (let row = 0; row < Math.floor(H0 / FH); row++) {
+    for (let col = 0; col < Math.floor(W0 / FW); col++) {
+      const fx = col * FW;
+      const fy = row * FH;
+      // neck = narrowest opaque row in the 44..68 band
+      let ny = 58;
+      let best = 1e9;
+      let nx = FW / 2;
+      for (let y = 44; y <= 68; y++) {
+        let n = 0;
+        let sx = 0;
+        for (let x = 0; x < FW; x++) {
+          if (data[((fy + y) * W0 + fx + x) * 4 + 3] > 40) {
+            n++;
+            sx += x;
+          }
+        }
+        if (n > 4 && n < best) {
+          best = n;
+          ny = y;
+          nx = sx / n;
+        }
+      }
+      const bodyH = FH - ny;
+      const bodyDH = Math.round(bodyH * FOE_BODY_K);
+      const bodyTop = FH - bodyDH;
+      o.drawImage(img, fx, fy + ny, FW, bodyH, fx, fy + bodyTop, FW, bodyDH);
+      const headDW = FW * FOE_HEAD_K;
+      const headDH = ny * FOE_HEAD_K;
+      const hx = fx + nx - nx * FOE_HEAD_K;
+      const hy = fy + bodyTop + 2 - headDH;
+      o.drawImage(img, fx, fy, FW, ny, hx, hy, headDW, headDH);
+    }
+  }
+  return out;
+}
+
+// ── Preachers (Sacred Grove NPCs) ─────────────────────────
+/*
+ * Respectful period clergy built at load from existing painted frames (PNG
+ * files untouched): re-proportioned at the neck like the foes, then recoloured
+ * into sober dress. No weapons, no villain colours.
+ *  methodist   — circuit rider: tall hat, black frock coat (from the top-hat frames)
+ *  presbyterian — older minister: grey hair, black coat, white preaching bands (from Joseph)
+ *  baptist     — country preacher: low wide-brim hat, brown cloak, pewter trim
+ */
+const PREACHER_DEFS = {
+  methodist: { sheet: 'bosses', fw: 80, fh: 160, row: 0, frames: [0, 1], headK: 0.74, bodyK: 1.1 },
+  presbyterian: { sheet: 'joseph', fw: 64, fh: 128, row: 0, frames: [0, 1], headK: 1, bodyK: 1 },
+  baptist: { sheet: 'bosses', fw: 80, fh: 160, row: 4, frames: [0, 5], headK: 0.74, bodyK: 1.1 },
+};
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn;
+  const sat = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h;
+  if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (mx === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return [h * 60, sat, l];
+}
+
+function hslToRgb(h, sat, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  if (sat === 0) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat;
+  const p = 2 * l - q;
+  const f = (t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+}
+
+function recolorPreacher(kind, data, w, h) {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 20) continue;
+      const [hh, ss, ll] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+      let out = null;
+      const yf = y / h;
+      if (kind === 'methodist') {
+        if ((hh < 14 || hh > 330) && ss > 0.3) out = hslToRgb(24, 0.14, Math.min(0.32, ll * 0.42 + 0.04)); // red coat → black-brown
+        else if (hh > 225 && hh <= 330 && ss > 0.12) out = hslToRgb(30, 0.08, ll * 0.36 + 0.03); // purple hat → black felt
+        else if (hh >= 14 && hh <= 62 && ss > 0.24 && yf > 0.4 && ll > 0.22) out = hslToRgb(28, 0.1, ll * 0.42); // gold trim / orange waistcoat → plain dark
+      } else if (kind === 'baptist') {
+        if (hh > 225 && hh <= 330 && ss > 0.18 && yf < 0.3) out = hslToRgb(28, 0.2, ll * 0.42 + 0.03); // hat → dark brown
+        else if (hh > 225 && hh <= 330 && ss > 0.18) out = hslToRgb(26, 0.3, ll * 0.62 + 0.05); // cloak → brown wool
+        else if (hh >= 36 && hh <= 58 && ss > 0.4) out = hslToRgb(40, 0.1, ll * 0.8); // gold → pewter
+        else if (hh > 200 && hh <= 260 && ll < 0.4) out = hslToRgb(25, 0.12, ll * 0.8); // navy coat → dark brown-grey
+      } else if (kind === 'presbyterian') {
+        if (hh > 185 && hh <= 260 && ss > 0.15) out = hslToRgb(220, 0.06, ll * 0.42 + 0.02); // blue coat → black
+        else if (hh >= 30 && hh <= 62 && ss > 0.22 && yf > 0.3 && ll > 0.25) out = hslToRgb(220, 0.04, ll * 0.4); // trim → black
+        else if (yf < 0.33 && hh >= 8 && hh <= 40 && ll < 0.5 && ss > 0.2) out = hslToRgb(30, 0.04, 0.42 + ll * 0.75); // brown hair → grey
+        else if (yf > 0.33 && yf < 0.8 && hh >= 10 && hh <= 40 && ll < 0.42) out = hslToRgb(30, 0.06, ll * 0.55); // waistcoat/trousers → charcoal
+      }
+      if (out) {
+        data[i] = out[0];
+        data[i + 1] = out[1];
+        data[i + 2] = out[2];
+      }
+    }
+  }
+}
+
+function reproportionFrame(img, sx, sy, fw, fh, headK, bodyK, out, dx, dy) {
+  const o = out.getContext('2d', { willReadFrequently: true });
+  o.imageSmoothingEnabled = true;
+  o.imageSmoothingQuality = 'high';
+  if (headK === 1 && bodyK === 1) {
+    o.drawImage(img, sx, sy, fw, fh, dx, dy, fw, fh);
+    return;
+  }
+  const tmp = document.createElement('canvas');
+  tmp.width = fw;
+  tmp.height = fh;
+  const t = tmp.getContext('2d', { willReadFrequently: true });
+  t.drawImage(img, sx, sy, fw, fh, 0, 0, fw, fh);
+  const d = t.getImageData(0, 0, fw, fh).data;
+  let ny = Math.round(fh * 0.45);
+  let nx = fw / 2;
+  let best = 1e9;
+  for (let y = Math.round(fh * 0.36); y <= Math.round(fh * 0.55); y++) {
+    let n = 0;
+    let sxs = 0;
+    for (let x = 0; x < fw; x++) {
+      if (d[(y * fw + x) * 4 + 3] > 40) {
+        n++;
+        sxs += x;
+      }
+    }
+    if (n > 4 && n < best) {
+      best = n;
+      ny = y;
+      nx = sxs / n;
+    }
+  }
+  const bodyH = fh - ny;
+  const bodyDH = Math.round(bodyH * bodyK);
+  const bodyTop = fh - bodyDH;
+  o.drawImage(tmp, 0, ny, fw, bodyH, dx, dy + bodyTop, fw, bodyDH);
+  o.drawImage(tmp, 0, 0, fw, ny, dx + nx - nx * headK, dy + bodyTop + 2 - ny * headK, fw * headK, ny * headK);
+}
+
+function buildPreacherSheets() {
+  for (const [kind, def] of Object.entries(PREACHER_DEFS)) {
+    const img = SHEETS[def.sheet];
+    if (!img) continue;
+    const c = document.createElement('canvas');
+    c.width = def.fw * def.frames.length;
+    c.height = def.fh;
+    def.frames.forEach((f, k) => {
+      reproportionFrame(img, f * def.fw, def.row * def.fh, def.fw, def.fh, def.headK, def.bodyK, c, k * def.fw, 0);
+    });
+    const g = c.getContext('2d', { willReadFrequently: true });
+    const id = g.getImageData(0, 0, c.width, c.height);
+    for (let k = 0; k < def.frames.length; k++) {
+      // recolour per frame so y-fractions are frame-relative
+      const sub = g.getImageData(k * def.fw, 0, def.fw, def.fh);
+      recolorPreacher(kind, sub.data, def.fw, def.fh);
+      g.putImageData(sub, k * def.fw, 0);
+    }
+    void id;
+    if (kind === 'presbyterian') {
+      // white Geneva preaching bands at the collar
+      for (let k = 0; k < def.frames.length; k++) {
+        g.fillStyle = '#f4f0e6';
+        g.fillRect(k * def.fw + 34, 42, 2, 7);
+        g.fillRect(k * def.fw + 37, 42, 2, 7);
+        g.fillStyle = 'rgba(0,0,0,0.25)';
+        g.fillRect(k * def.fw + 34, 48, 5, 1);
+      }
+    }
+    SHEETS['preacher_' + kind] = c;
+  }
+}
+
+/** Preacher NPC at the shared 56×112 humanoid size; gentle two-frame "speaking" sway. */
+export function drawPreacher(ctx, x, y, facing, kind, t = 0, speaking = false) {
+  const def = PREACHER_DEFS[kind];
+  const img = SHEETS['preacher_' + kind];
+  const ox = Math.floor(x);
+  const oy = Math.floor(y);
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.ellipse(ox + JOSEPH_DW / 2, oy + JOSEPH_DH - 3, JOSEPH_DW * 0.3, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  if (!img || !def) {
+    drawRect(ctx, ox + 18, oy + 30, 20, 70, '#2a2420');
+    ellipse(ctx, ox + 28, oy + 22, 9, 10, '#e2bc98');
+    return;
+  }
+  const k = speaking ? Math.floor(t / 22) % def.frames.length : 0;
+  blitSimple(ctx, img, k * def.fw, 0, def.fw, def.fh, ox, oy, JOSEPH_DW, JOSEPH_DH, facing < 0, false);
+}
+
+export function foeSheetsForQa() {
+  return { raw: SHEETS.foes, fixed: SHEETS.foesFixed };
+}
+
 function drawFoeFromSheet(ctx, x, y, facing, frame, flash, kind) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
-  const img = SHEETS.foes;
+  const img = SHEETS.foesFixed || SHEETS.foes;
   if (img) {
     const row = FOE_ROWS[kind] ?? 0;
     const dw = JOSEPH_DW;
@@ -742,42 +1001,6 @@ export function drawWisp(ctx, x, y, frame = 0, flash = false) {
   if (frame % 2 === 0) {
     ellipse(ctx, ox + 18, oy + 8, 3, 2, 'rgba(120,60,180,0.5)');
   }
-  ctx.restore();
-}
-
-/** Large hovering dark cloud boss — layered ovals, purple/black, lightning flicker */
-export function drawCloudBoss(ctx, x, y, frame = 0, flash = false, hpRatio = 1) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  const flicker = frame % 5 === 0;
-  ctx.save();
-  // Outer gloom
-  ellipse(ctx, ox + 64, oy + 36, 70, 36, 'rgba(10,0,20,0.45)');
-  ellipse(ctx, ox + 64, oy + 40, 62, 30, '#0a0610');
-  ellipse(ctx, ox + 40, oy + 38, 36, 22, '#140820');
-  ellipse(ctx, ox + 90, oy + 36, 40, 24, '#1a0a28');
-  ellipse(ctx, ox + 64, oy + 28, 48, 22, '#221030');
-  ellipse(ctx, ox + 52, oy + 24, 28, 16, '#2a1840');
-  ellipse(ctx, ox + 78, oy + 26, 30, 14, '#301848');
-  // Purple veins
-  ellipse(ctx, ox + 60, oy + 42, 20, 8, 'rgba(80,20,120,0.55)');
-  if (flicker || flash) {
-    ctx.strokeStyle = flash ? '#e8c0ff' : '#a060e0';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ox + 50, oy + 48);
-    ctx.lineTo(ox + 58, oy + 62);
-    ctx.lineTo(ox + 54, oy + 68);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ox + 78, oy + 46);
-    ctx.lineTo(ox + 72, oy + 60);
-    ctx.lineTo(ox + 80, oy + 70);
-    ctx.stroke();
-  }
-  // Faith remaining glow (weakens as hp drops)
-  const a = 0.15 + hpRatio * 0.25;
-  ellipse(ctx, ox + 64, oy + 20, 18, 8, `rgba(80,40,120,${a})`);
   ctx.restore();
 }
 

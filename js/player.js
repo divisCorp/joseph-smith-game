@@ -1,15 +1,15 @@
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=68';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=68';
-import { isDown, justPressed } from './input.js?v=68';
-import { sfx } from './audio.js?v=68';
-import { isEasy, reduceFlash } from './save.js?v=68';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=69';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=69';
+import { isDown, justPressed } from './input.js?v=69';
+import { sfx } from './audio.js?v=69';
+import { isEasy, reduceFlash } from './save.js?v=69';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=68';
+} from './projectiles.js?v=69';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 export const CROUCH_H = 18 * SCALE;
@@ -49,6 +49,10 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     lookingUp: false,
     prayT: 0,
     wasOnGround: true,
+    jumpT: 99,
+    landT: 0,
+    landK: 0,
+    dust: [],
     plates: [],
     canThrow: !!opts.canThrow,
     forkHits: new Set(),
@@ -132,8 +136,12 @@ export function updatePlayer(p, solids, dt) {
   if (justPressed('jump') && p.onGround && !p.crouching) {
     p.vy = JUMP_V;
     p.onGround = false;
+    p.jumpT = 0;
+    p.landT = 0;
+    puff(p, 3, 0.6);
     sfx('jump');
   }
+  if (p.jumpT < 99) p.jumpT += dt;
   p.lookingUp = isDown('up') && p.onGround && !p.crouching && !isDown('left') && !isDown('right');
 
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
@@ -166,11 +174,29 @@ export function updatePlayer(p, solids, dt) {
   }
   resolve(p, solids, true);
 
+  const vyBefore = p.vy;
   p.y += p.vy;
   p.onGround = false;
   resolve(p, solids, false);
-  if (p.onGround && !p.wasOnGround) sfx('land');
+  if (p.onGround && !p.wasOnGround) {
+    sfx('land');
+    // landing squash + a small dust puff, scaled by how hard we came down
+    p.landK = Math.max(0.35, Math.min(1, vyBefore / (7 * SCALE)));
+    p.landT = LAND_T;
+    p.jumpT = 99;
+    if (vyBefore > 3) puff(p, p.landK > 0.6 ? 7 : 4, p.landK);
+  }
   p.wasOnGround = p.onGround;
+  if (p.landT > 0) p.landT = Math.max(0, p.landT - dt);
+  for (const d of p.dust) {
+    d.x += d.vx * dt;
+    d.y += d.vy * dt;
+    d.vx *= 0.9;
+    d.vy *= 0.9;
+    d.r += 0.25 * dt;
+    d.life -= dt;
+  }
+  if (p.dust.length) p.dust = p.dust.filter((d) => d.life > 0);
 
 
   // Kneel / pray in place to regenerate hearts
@@ -184,7 +210,7 @@ export function updatePlayer(p, solids, dt) {
   } else if (!(p.crouching && p.onGround && Math.abs(p.vx) < 0.12 * SCALE)) {
     p.prayT = 0;
   } else {
-    // Praying at full HP — still accumulate prayT for faith meter / cloud
+    // Praying at full HP — keeps counting (used by the grove ending)
     p.prayT += dt;
   }
 
@@ -258,8 +284,82 @@ export function hurtPlayer(p, dmg = 1) {
   return true;
 }
 
+const LAND_T = 9;
+
+function puff(p, n, k) {
+  const fx = p.x + p.w / 2;
+  const fy = p.y + p.h;
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? 1 : -1;
+    p.dust.push({
+      x: fx + side * (4 + Math.random() * 8),
+      y: fy - 2 - Math.random() * 3,
+      vx: side * (0.8 + Math.random() * 1.6) * k * SCALE,
+      vy: -(0.2 + Math.random() * 0.5) * SCALE,
+      r: 3 + Math.random() * 3,
+      life: 18 + Math.random() * 10,
+      max: 28,
+    });
+  }
+}
+
+function drawDust(ctx, p, camX) {
+  for (const d of p.dust) {
+    const a = Math.max(0, Math.min(1, d.life / 20)) * 0.55;
+    ctx.fillStyle = `rgba(214,196,160,${a})`;
+    ctx.beginPath();
+    ctx.arc(d.x - camX, d.y, d.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255,244,220,${a * 0.6})`;
+    ctx.beginPath();
+    ctx.arc(d.x - camX - d.r * 0.3, d.y - d.r * 0.3, d.r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * Jump pose + squash/stretch: takeoff squash → rising stretch (frame 10) →
+ * tucked apex (frame 12) → falling (frame 13) → landing squash.
+ */
+export function jumpPose(p) {
+  let frame = null;
+  let sx = 1;
+  let sy = 1;
+  let rot = 0;
+  if (!p.onGround && !p.crouching && p.attackTimer <= 0) {
+    const vy = p.vy;
+    if (p.jumpT < 5 && vy < 0) {
+      frame = 10;
+      const k = 1 - p.jumpT / 5;
+      sx = 1 + 0.1 * k;
+      sy = 1 - 0.12 * k;
+    } else if (vy < -3.2) {
+      frame = 10;
+      const k = Math.min(1, -vy / 10);
+      sx = 1 - 0.06 * k;
+      sy = 1 + 0.08 * k;
+    } else if (vy < 2.6) {
+      frame = 12;
+      rot = 0.05 * p.facing;
+    } else {
+      frame = 13;
+      const k = Math.min(1, vy / 12);
+      sx = 1 - 0.04 * k;
+      sy = 1 + 0.05 * k;
+      rot = -0.04 * p.facing;
+    }
+  } else if (p.landT > 0 && !p.crouching) {
+    const t = p.landT / LAND_T; // 1 → 0
+    const k = Math.sin(t * Math.PI * 0.5) * p.landK;
+    sx = 1 + 0.15 * k;
+    sy = 1 - 0.15 * k;
+  }
+  return { frame, sx, sy, rot };
+}
+
 export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
+  if (p.dust?.length) drawDust(ctx, p, camX);
   const blinkOff = p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0;
   if (blinkOff && !reduceFlash()) return;
   ctx.save();
@@ -272,14 +372,26 @@ function drawPlayerBody(ctx, p, camX) {
   const standH = p.standH || STAND_H;
   const crouchH = p.crouchH || CROUCH_H;
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
-  const moving = Math.abs(p.vx) > 0.12 * SCALE || !!p.walking;
+  const moving = (Math.abs(p.vx) > 0.12 * SCALE || !!p.walking) && p.onGround;
   const walkFrame = Math.floor(Math.abs(p.x) / (3 * SCALE)) % 8;
-  if (!p.canThrow) {
-    drawPitchfork(ctx, p.x - camX, drawY, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching);
+  const pose = jumpPose(p);
+  const bx = p.x - camX;
+  ctx.save();
+  if (pose.sx !== 1 || pose.sy !== 1 || pose.rot) {
+    // squash/stretch anchored at the feet so he never sinks into the ground
+    const fx = bx + p.w / 2;
+    const fy = drawY + standH;
+    ctx.translate(fx, fy);
+    if (pose.rot) ctx.rotate(pose.rot);
+    ctx.scale(pose.sx, pose.sy);
+    ctx.translate(-fx, -fy);
+  }
+  if (!p.canThrow && !p.forkAway) {
+    drawPitchfork(ctx, bx, drawY, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching);
   }
   drawJoseph(
     ctx,
-    p.x - camX,
+    bx,
     drawY,
     p.facing,
     moving ? walkFrame : p.anim,
@@ -288,8 +400,10 @@ function drawPlayerBody(ctx, p, camX) {
     p.crouching,
     moving,
     !!p.lookingUp,
-    !!p.young
+    !!p.young,
+    pose.frame
   );
+  ctx.restore();
 }
 
 function aabb(a, b) {

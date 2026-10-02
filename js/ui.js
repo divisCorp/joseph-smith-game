@@ -2,11 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=68';
-import { setAction } from './input.js?v=68';
-import { unlockAudio, syncMuteButton } from './audio.js?v=68';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord } from './save.js?v=68';
-import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=68';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=69';
+import { setAction } from './input.js?v=69';
+import { unlockAudio, syncMuteButton } from './audio.js?v=69';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=69';
+import { JOURNAL } from './journal.js?v=69';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=69';
+import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=69';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -16,6 +18,7 @@ const SCREENS = {
   [STATES.CLEAR]: 'ui-clear',
   [STATES.WIN]: 'ui-win',
   [STATES.LOSE]: 'ui-lose',
+  [STATES.JOURNAL]: 'ui-journal',
 };
 
 const PLAY_URL = 'https://palmyra-quest.netlify.app';
@@ -151,6 +154,12 @@ function bindCmdButtons() {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (el.dataset.uiCmd === 'fullscreen') {
+        // must run inside the tap itself (user activation) for the Fullscreen API
+        const r = toggleFullscreen();
+        if (r === 'help' && gameRef?.state === STATES.PLAYING) sendCmd('pause');
+        return;
+      }
       sendCmd(el.dataset.uiCmd);
     });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -160,6 +169,11 @@ function bindCmdButtons() {
 export function initOverlays(game) {
   gameRef = game;
   bindCmdButtons();
+  initFullscreen();
+  game.onFullscreen = () => {
+    const r = toggleFullscreen();
+    if (r === 'help' && game.state === STATES.PLAYING) sendCmd('pause');
+  };
   // Title: tapping the scene starts only when there is a single choice (no save yet)
   document.getElementById('ui-title')?.addEventListener('pointerdown', (e) => {
     if (e.button != null && e.button !== 0) return;
@@ -220,6 +234,7 @@ export function syncOverlays(game) {
   if (state === STATES.CHAPTERS) syncChapters(game);
   if (state === STATES.INTRO) syncIntro(game);
   if (state === STATES.PAUSED) syncPause(game);
+  if (state === STATES.JOURNAL) syncJournal(game);
 
   // Level-clear intermission
   if (state === STATES.CLEAR) {
@@ -361,6 +376,26 @@ function syncPause(game) {
   syncMuteButton();
 }
 
+let journalSig = '';
+function syncJournal(game) {
+  const n = game.journalN || game.levelNum || 1;
+  const sig = `${n}:${game.journalFrom}`;
+  if (sig === journalSig && game.stateT > 2) return;
+  journalSig = sig;
+  const e = JOURNAL[n];
+  const root = document.getElementById('ui-journal');
+  if (!root || !e) return;
+  root.querySelector('[data-ui-journal-kicker]').textContent = `Journal · Chapter ${n}`;
+  root.querySelector('[data-ui-journal-title]').textContent = e.title;
+  root.querySelector('[data-ui-journal-place]').textContent = e.place || '';
+  root.querySelector('[data-ui-journal-body]').textContent = e.body;
+  const tip = root.querySelector('[data-ui-journal-tip]');
+  tip.hidden = !e.tip;
+  tip.textContent = e.tip || '';
+  const btn = root.querySelector('[data-ui-cmd="journal-close"]');
+  if (btn) btn.textContent = game.journalFrom === 'chapters' ? 'Back to Chapters' : 'Continue';
+}
+
 let tipSig = '';
 function syncTip(game) {
   const el = document.getElementById('ui-tip');
@@ -427,6 +462,17 @@ function syncChapters(game) {
     el.querySelector('[data-ui-chapter-pages]').textContent = locked ? '' : `Pages ${pages}/3${rec.time ? ` · ${fmtTime(rec.time)}` : ''}`;
     el.setAttribute('aria-label', locked ? `Chapter ${i} locked` : `Chapter ${i} ${LEVEL_META[i]?.name}, best ${rec.stars} of 3 stars, ${pages} of 3 pages`);
   });
+  let anyJournal = false;
+  document.querySelectorAll('[data-ui-journal-btn]').forEach((el) => {
+    const i = Number(el.dataset.uiJournalBtn);
+    const open = journalUnlocked(i);
+    anyJournal = anyJournal || open;
+    el.disabled = !open;
+    el.title = open ? `${JOURNAL[i]?.title || ''}` : 'Find all 3 journal pages in this chapter';
+    el.setAttribute('aria-label', open ? `Read journal entry ${i}: ${JOURNAL[i]?.title || ''}` : `Journal entry ${i} locked`);
+  });
+  const hint = document.querySelector('[data-ui-journal-hint]');
+  if (hint) hint.hidden = anyJournal;
   const sum = document.querySelector('[data-ui-chapters-sum]');
   if (sum) sum.textContent = `${totalStars} / ${MAX_LEVEL * 3} stars · ${totalPages} / ${MAX_LEVEL * 3} journal pages`;
 }
