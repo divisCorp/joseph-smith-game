@@ -2,14 +2,15 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js';
-import { setAction } from './input.js';
-import { unlockAudio, syncMuteButton } from './audio.js';
-import { unlockedChapter, bestScore } from './save.js';
-import { titleOptions, PAUSE_OPTIONS } from './game.js';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=68';
+import { setAction } from './input.js?v=68';
+import { unlockAudio, syncMuteButton } from './audio.js?v=68';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord } from './save.js?v=68';
+import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=68';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
+  [STATES.CHAPTERS]: 'ui-chapters',
   [STATES.INTRO]: 'ui-intro',
   [STATES.PAUSED]: 'ui-pause',
   [STATES.CLEAR]: 'ui-clear',
@@ -164,7 +165,7 @@ export function initOverlays(game) {
     if (e.button != null && e.button !== 0) return;
     if (e.target?.closest?.('button, a')) return;
     unlockAudio();
-    if (titleOptions().length === 1) sendCmd('begin');
+    if (titleTapBegins()) sendCmd('begin');
   });
   document.getElementById('ui-intro')?.addEventListener('pointerdown', (e) => {
     if (e.button != null && e.button !== 0) return;
@@ -198,6 +199,7 @@ export function syncOverlays(game) {
     const showId = SCREENS[state];
     if (showId) setVisible(showId, true);
     lastState = state;
+    document.body.dataset.state = state; // CSS hides the touch pad outside of play
     if (state !== STATES.INTRO) introSig = '';
     if (state !== STATES.TITLE) titleSig = '';
     if (state === STATES.WIN) {
@@ -205,6 +207,7 @@ export function syncOverlays(game) {
       const roll = document.querySelector('[data-ui-credits-roll]');
       if (roll) {
         roll.classList.remove('is-rolling');
+        sizeCreditsRoll(roll);
         void roll.offsetWidth;
         roll.classList.add('is-rolling');
       }
@@ -212,7 +215,9 @@ export function syncOverlays(game) {
     if (state === STATES.PLAYING || state === STATES.PAUSED) releaseStart();
   }
 
+  syncOptionLabels();
   if (state === STATES.TITLE) syncTitle(game);
+  if (state === STATES.CHAPTERS) syncChapters(game);
   if (state === STATES.INTRO) syncIntro(game);
   if (state === STATES.PAUSED) syncPause(game);
 
@@ -234,6 +239,7 @@ export function syncOverlays(game) {
     root?.querySelectorAll('[data-ui-score]').forEach((n) => {
       n.textContent = `Score: ${game.score}`;
     });
+    syncResults(root, game);
   }
 
   if (state === STATES.WIN || state === STATES.LOSE) {
@@ -248,6 +254,10 @@ export function syncOverlays(game) {
     if (state === STATES.WIN) {
       root?.querySelectorAll('[data-ui-best-final]').forEach((n) => {
         n.textContent = `Best: ${bestScore()}`;
+      });
+      root?.querySelectorAll('[data-ui-final-stars]').forEach((n) => {
+        const r = game.result;
+        n.textContent = r ? `Carthage ${starText(r.stars)} · Pages ${r.pages}/3` : '';
       });
     }
     if (state === STATES.LOSE) {
@@ -363,4 +373,104 @@ function syncTip(game) {
   }
   const show = !!tip && tip.t < 290;
   el.classList.toggle('is-shown', show);
+}
+
+// ── Round 3: options, chapter select, results card ─────────
+function starText(n) {
+  return '★'.repeat(n) + '☆'.repeat(Math.max(0, 3 - n));
+}
+
+function fmtTime(frames) {
+  const sec = Math.max(0, Math.round(frames / 60));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+let optSig = '';
+function syncOptionLabels() {
+  const sig = `${isEasy()}:${reduceFlash()}`;
+  if (sig === optSig) return;
+  optSig = sig;
+  document.querySelectorAll('[data-ui-diff-label]').forEach((n) => {
+    n.textContent = `Difficulty: ${isEasy() ? 'Easy' : 'Normal'}`;
+    n.setAttribute('aria-label', `Difficulty ${isEasy() ? 'Easy' : 'Normal'}, tap to change`);
+    n.classList.toggle('is-on', isEasy());
+  });
+  document.querySelectorAll('[data-ui-flash-label]').forEach((n) => {
+    n.textContent = `Reduce flashing: ${reduceFlash() ? 'On' : 'Off'}`;
+    n.setAttribute('aria-pressed', reduceFlash() ? 'true' : 'false');
+    n.classList.toggle('is-on', reduceFlash());
+  });
+}
+
+let chapSig = '';
+function syncChapters(game) {
+  const n = unlockedChapter();
+  const recs = [];
+  for (let i = 1; i <= MAX_LEVEL; i++) recs.push(chapterRecord(i));
+  const sig = `${n}:${game.chapterSel}:${JSON.stringify(recs)}`;
+  if (sig === chapSig) return;
+  chapSig = sig;
+  let totalStars = 0;
+  let totalPages = 0;
+  document.querySelectorAll('[data-ui-chapter]').forEach((el) => {
+    const i = Number(el.dataset.uiChapter);
+    const rec = recs[i - 1];
+    const locked = i > n;
+    const pages = [0, 1, 2].filter((k) => rec.pages & (1 << k)).length;
+    totalStars += rec.stars;
+    totalPages += pages;
+    el.disabled = locked;
+    el.classList.toggle('is-locked', locked);
+    el.classList.toggle('is-selected', !locked && game.chapterSel === i - 1);
+    el.querySelector('[data-ui-chapter-name]').textContent = locked ? 'Locked' : LEVEL_META[i]?.name || '';
+    el.querySelector('[data-ui-chapter-stars]').textContent = locked ? '' : starText(rec.stars);
+    el.querySelector('[data-ui-chapter-pages]').textContent = locked ? '' : `Pages ${pages}/3${rec.time ? ` · ${fmtTime(rec.time)}` : ''}`;
+    el.setAttribute('aria-label', locked ? `Chapter ${i} locked` : `Chapter ${i} ${LEVEL_META[i]?.name}, best ${rec.stars} of 3 stars, ${pages} of 3 pages`);
+  });
+  const sum = document.querySelector('[data-ui-chapters-sum]');
+  if (sum) sum.textContent = `${totalStars} / ${MAX_LEVEL * 3} stars · ${totalPages} / ${MAX_LEVEL * 3} journal pages`;
+}
+
+function syncResults(root, game) {
+  const r = game.result;
+  if (!root || !r) return;
+  const stars = root.querySelectorAll('.ui-star');
+  stars.forEach((el, i) => {
+    el.classList.toggle('is-lit', i < r.shown);
+  });
+  const sig = `${r.chapter}:${r.time}:${r.pages}:${r.heartsLost}:${r.shown}`;
+  if (root.dataset.resSig === sig) return;
+  root.dataset.resSig = sig;
+  const ok = (b) => (b ? '✓' : '·');
+  const set = (k, text, good) => {
+    const li = root.querySelector(`[data-ui-res="${k}"]`);
+    if (!li) return;
+    li.textContent = `${ok(good)} ${text}`;
+    li.classList.toggle('is-met', !!good);
+  };
+  set('time', `Time ${fmtTime(r.time)} (par ${fmtTime(r.par * 60)})`, r.timeOk);
+  set('hearts', `Hearts lost ${r.heartsLost} (1 or fewer)`, r.heartsOk);
+  set('pages', `Journal pages ${r.pages}/3`, r.pagesOk);
+  const best = root.querySelector('[data-ui-res-best]');
+  if (best) best.textContent = r.improved ? '· New best stars!' : `· Best ${starText(r.bestStars)}`;
+  const st = root.querySelector('[data-ui-stars]');
+  if (st) st.setAttribute('aria-label', `${r.stars} of 3 stars${r.easy ? ' on Easy' : ''}`);
+}
+
+/**
+ * The roll starts below the view and stops with its last lines ("Thank you
+ * for playing") resting just above the middle, so nothing ends up hidden
+ * behind the score/Share footer on short screens. Speed stays ~34 px/s.
+ */
+function sizeCreditsRoll(roll) {
+  const view = roll.parentElement;
+  if (!view) return;
+  const vh = view.clientHeight || 240;
+  const rh = roll.scrollHeight || 800;
+  const from = Math.round(vh * 0.92);
+  const end = Math.round(Math.min(0, vh * 0.5 - rh));
+  const dur = Math.max(12, Math.min(60, (from - end) / 34));
+  roll.style.setProperty('--pq-roll-from', `${from}px`);
+  roll.style.setProperty('--pq-roll-end', `${end}px`);
+  roll.style.setProperty('--pq-roll-dur', `${dur.toFixed(1)}s`);
 }

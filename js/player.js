@@ -1,14 +1,15 @@
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js';
-import { drawJoseph, drawPitchfork } from './sprites.js';
-import { isDown, justPressed } from './input.js';
-import { sfx } from './audio.js';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=68';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=68';
+import { isDown, justPressed } from './input.js?v=68';
+import { sfx } from './audio.js?v=68';
+import { isEasy, reduceFlash } from './save.js?v=68';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js';
+} from './projectiles.js?v=68';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 export const CROUCH_H = 18 * SCALE;
@@ -138,7 +139,7 @@ export function updatePlayer(p, solids, dt) {
   if (p.attackCooldown > 0) p.attackCooldown -= dt;
   if (p.attackTimer > 0) p.attackTimer -= dt;
 
-  if (justPressed('attack') && p.attackCooldown <= 0) {
+  if (justPressed('attack') && p.attackCooldown <= 0 && !p.noAttack) {
     if (p.canThrow) {
       p.attackTimer = THROW_POSE;
       p.attackCooldown = PLATE_COOLDOWN;
@@ -246,7 +247,7 @@ function resolve(p, solids, horizontal) {
 
 export function hurtPlayer(p, dmg = 1) {
   if (p.invuln > 0 || !p.alive) return false;
-  p.hp -= dmg;
+  p.hp -= isEasy() ? Math.min(1, dmg) : dmg;
   p.invuln = 60;
   sfx('hurt');
   p.vy = -3 * SCALE;
@@ -259,7 +260,15 @@ export function hurtPlayer(p, dmg = 1) {
 
 export function drawPlayer(ctx, p, camX) {
   if (!p.alive) return;
-  if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) return;
+  const blinkOff = p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0;
+  if (blinkOff && !reduceFlash()) return;
+  ctx.save();
+  if (p.invuln > 0 && reduceFlash()) ctx.globalAlpha = 0.6; // steady see-through instead of blinking
+  drawPlayerBody(ctx, p, camX);
+  ctx.restore();
+}
+
+function drawPlayerBody(ctx, p, camX) {
   const standH = p.standH || STAND_H;
   const crouchH = p.crouchH || CROUCH_H;
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;

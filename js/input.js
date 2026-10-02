@@ -263,3 +263,69 @@ export function initVirtualControls() {
   target.addEventListener('touchmove', blockScroll, { passive: false });
   target.addEventListener('gesturestart', (e) => e.preventDefault());
 }
+
+// ── Gamepad (standard mapping) ─────────────────────────────
+// D-pad or left stick moves · A jumps · B or X attacks · Start pauses / confirms.
+// Pad presses go through setAction, so menus, latches and keyboard all agree.
+const PAD_DEAD = 0.45;
+const padHeld = Object.create(null);
+let padCount = 0;
+let padListener = null;
+
+export function onGamepadChange(fn) {
+  padListener = fn;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('gamepadconnected', (e) => {
+    padCount++;
+    padListener?.('connected', e.gamepad?.id || 'Gamepad');
+  });
+  window.addEventListener('gamepaddisconnected', () => {
+    padCount = Math.max(0, padCount - 1);
+    for (const a of Object.keys(padHeld)) if (padHeld[a]) setPad(a, false);
+    padListener?.('disconnected', '');
+  });
+}
+
+function setPad(action, down) {
+  if (!!padHeld[action] === !!down) return;
+  padHeld[action] = !!down;
+  setAction(action, !!down);
+}
+
+function btn(gp, i) {
+  const b = gp.buttons[i];
+  return !!b && (b.pressed || b.value > 0.5);
+}
+
+export function gamepadActive() {
+  return padCount > 0;
+}
+
+/** Read every connected pad once per frame and fold them into one action set. */
+export function pollGamepads() {
+  if (!padCount || typeof navigator === 'undefined' || !navigator.getGamepads) return;
+  let pads;
+  try {
+    pads = navigator.getGamepads();
+  } catch (_) {
+    return;
+  }
+  const want = { left: false, right: false, up: false, down: false, jump: false, attack: false, start: false, pause: false };
+  for (const gp of pads) {
+    if (!gp || !gp.connected) continue;
+    const ax = gp.axes[0] || 0;
+    const ay = gp.axes[1] || 0;
+    want.left ||= btn(gp, 14) || ax < -PAD_DEAD;
+    want.right ||= btn(gp, 15) || ax > PAD_DEAD;
+    want.up ||= btn(gp, 12) || ay < -PAD_DEAD - 0.15;
+    want.down ||= btn(gp, 13) || ay > PAD_DEAD + 0.15;
+    want.jump ||= btn(gp, 0);
+    want.attack ||= btn(gp, 1) || btn(gp, 2);
+    const start = btn(gp, 9);
+    want.start ||= start;
+    want.pause ||= start;
+  }
+  for (const a of Object.keys(want)) setPad(a, want[a]);
+}

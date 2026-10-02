@@ -1,5 +1,5 @@
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js';
-import { justPressed, clearAll, isDown as isDownHold } from './input.js';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=68';
+import { justPressed, clearAll, isDown as isDownHold } from './input.js?v=68';
 import {
   createPlayer,
   updatePlayer,
@@ -8,12 +8,12 @@ import {
   playerAttackBox,
   hurtPlayer,
   aabb,
-} from './player.js';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js';
-import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar } from './setpieces.js';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js';
+} from './player.js?v=68';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=68';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=68';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=68';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=68';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=68';
 import {
   drawHeart,
   drawText,
@@ -25,9 +25,24 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js';
-import { unlockChapter, unlockedChapter, recordScore, tipSeen, markTip } from './save.js';
+} from './sprites.js?v=68';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=68';
+import {
+  unlockChapter,
+  unlockedChapter,
+  recordScore,
+  tipSeen,
+  markTip,
+  isEasy,
+  setDifficulty,
+  reduceFlash,
+  setReduceFlash,
+  recordChapter,
+} from './save.js?v=68';
+
+const BANNER_T = 110;
+export const EASY_HP = 7;
+export const NORMAL_HP = 5;
 
 export function createGame() {
   return {
@@ -65,16 +80,43 @@ export function createGame() {
     checkpointIdx: -1,
     cpScore: 0,
     prayIdle: 999,
+    // chapter run stats (kept through checkpoint retries)
+    chapterT: 0,
+    heartsLost: 0,
+    lastHp: 0,
+    pagesGot: 0,
+    result: null,
+    chapterSel: 0,
+    bossBannerT: 0,
+    bossBarA: 0,
+    beatIdx: 0,
+    toast: null,
   };
 }
 
 /** Title choices: Continue only appears once a later chapter is unlocked. */
 export function titleOptions() {
   const n = unlockedChapter();
-  return n > 1 ? ['continue', 'begin'] : ['begin'];
+  const base = ['begin', 'chapters', 'difficulty', 'flash'];
+  return n > 1 ? ['continue', ...base] : base;
 }
 
-export const PAUSE_OPTIONS = ['resume', 'restart', 'sound', 'quit'];
+/** Tapping the bare title scene begins only for brand-new players. */
+export function titleTapBegins() {
+  return unlockedChapter() <= 1;
+}
+
+export const PAUSE_OPTIONS = ['resume', 'restart', 'difficulty', 'flash', 'sound', 'quit'];
+
+function applyDifficulty(game) {
+  const p = game.player;
+  if (!p) return;
+  const max = isEasy() ? EASY_HP : NORMAL_HP;
+  const delta = max - p.maxHp;
+  p.maxHp = max;
+  p.hp = Math.max(p.alive ? 1 : 0, Math.min(max, p.hp + Math.max(0, delta)));
+  game.lastHp = p.hp;
+}
 
 export function startCampaign(game, fromChapter = 1) {
   const num = Math.max(1, Math.min(MAX_LEVEL, fromChapter | 0 || 1));
@@ -94,6 +136,24 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
   if (!opts.checkpoint) game.chapterStartScore = game.score;
   game.hasPlates = num > 3;
   game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
+  game.player.maxHp = isEasy() ? EASY_HP : NORMAL_HP;
+  game.player.hp = game.player.maxHp;
+  game.player.noAttack = !!level.finale; // Carthage: no fighting
+  if (!opts.checkpoint) {
+    game.chapterT = 0;
+    game.heartsLost = 0;
+    game.pagesGot = 0;
+  }
+  for (const pg of level.pages || []) if (game.pagesGot & (1 << pg.i)) pg.taken = true;
+  game.lastHp = game.player.hp;
+  game.result = null;
+  game.bossBannerT = 0;
+  game.bossBarA = 0;
+  game.beatIdx = 0;
+  game.onFinaleDone = () => {
+    game.martyrEnding = true;
+    game.martyrFade = 0;
+  };
   game.camX = Math.max(0, game.player.x + game.player.w / 2 - W * 0.5);
   game.state = STATES.INTRO;
   game.introT = 0;
@@ -143,8 +203,10 @@ function placeAtCheckpoint(game) {
   player.x = cp.x + 2 * SCALE;
   player.y = cp.y - player.standH;
   player.hp = player.maxHp;
+  game.lastHp = player.hp;
   player.invuln = 60;
   game.score = game.cpScore;
+  if (level.beats) game.beatIdx = level.beats.filter((b) => b.col * TILE <= cp.x).length;
   game.camX = Math.max(0, Math.min(level.widthPx - W, player.x + player.w / 2 - W * 0.5));
   game.safe = { x: player.x, y: player.y };
   game.state = STATES.PLAYING;
@@ -200,6 +262,31 @@ function runCommand(game, cmd) {
     case 'continue':
       if (game.state === STATES.TITLE) startCampaign(game, unlockedChapter());
       break;
+    case 'chapters':
+      if (game.state === STATES.TITLE) {
+        game.chapterSel = Math.max(0, unlockedChapter() - 1);
+        setState(game, STATES.CHAPTERS);
+      }
+      break;
+    case 'back':
+      if (game.state === STATES.CHAPTERS) {
+        setState(game, STATES.TITLE);
+        game.titleSel = titleOptions().indexOf('chapters');
+      }
+      break;
+    case 'difficulty':
+      setDifficulty(isEasy() ? 'normal' : 'easy');
+      applyDifficulty(game);
+      sfx('select');
+      break;
+    case 'flash':
+      setReduceFlash(!reduceFlash());
+      if (reduceFlash()) game.shake = 0;
+      sfx('select');
+      break;
+    case 'next':
+      if (game.state === STATES.CLEAR && game.clearTimer > 20) advanceFromClear(game);
+      break;
     case 'pause':
       if (game.state === STATES.PLAYING) pauseGame(game);
       else if (game.state === STATES.PAUSED) setState(game, STATES.PLAYING);
@@ -227,8 +314,18 @@ function runCommand(game, cmd) {
       if (game.state === STATES.INTRO && game.introT > 20) endIntro(game);
       break;
     default:
+      if (cmd.startsWith('play:') && game.state === STATES.CHAPTERS) {
+        const n = parseInt(cmd.slice(5), 10);
+        if (n >= 1 && n <= unlockedChapter()) startCampaign(game, n);
+      }
       break;
   }
+}
+
+function advanceFromClear(game) {
+  const next = game.levelNum + 1;
+  if (next <= MAX_LEVEL) startLevel(game, next, false);
+  else goWin(game);
 }
 
 function endIntro(game) {
@@ -275,6 +372,17 @@ export function updateGame(game, dt) {
     return;
   }
 
+  if (game.state === STATES.CHAPTERS) {
+    const n = unlockedChapter();
+    const before = game.chapterSel;
+    if (justPressed('left') || justPressed('up')) game.chapterSel = (game.chapterSel + n - 1) % n;
+    if (justPressed('right') || justPressed('down')) game.chapterSel = (game.chapterSel + 1) % n;
+    if (before !== game.chapterSel) sfx('select');
+    if (confirmPressed() && game.stateT > 10) runCommand(game, `play:${game.chapterSel + 1}`);
+    else if (justPressed('pause') && game.stateT > 10) runCommand(game, 'back');
+    return;
+  }
+
   if (game.state === STATES.INTRO) {
     game.introT += dt;
     const skip = confirmPressed();
@@ -284,12 +392,12 @@ export function updateGame(game, dt) {
 
   if (game.state === STATES.CLEAR) {
     game.clearTimer += dt;
-    const go = confirmPressed() && game.clearTimer > 30;
-    if (game.clearTimer > 150 || go) {
-      const next = game.levelNum + 1;
-      if (next <= MAX_LEVEL) startLevel(game, next, false);
-      else goWin(game);
+    // Results card stays until the player continues (stars pop in first)
+    if (game.result && game.result.shown < game.result.stars && game.clearTimer > 24 + game.result.shown * 16) {
+      game.result.shown++;
+      sfx('star');
     }
+    if (confirmPressed() && game.clearTimer > 45) advanceFromClear(game);
     return;
   }
 
@@ -389,7 +497,37 @@ function tickTips(game, dt) {
   if (tip.t > 300) game.tip = null;
 }
 
+/** Stars: one for finishing, and each of three goals met counts (max 3). */
+function computeResult(game) {
+  const meta = LEVEL_META[game.levelNum] || {};
+  const par = Math.round((meta.par || 150) * (isEasy() ? 1.5 : 1));
+  const time = Math.max(1, Math.round(game.chapterT));
+  const pages = [0, 1, 2].filter((i) => game.pagesGot & (1 << i)).length;
+  const timeOk = time <= par * 60;
+  const heartsOk = game.heartsLost <= 1;
+  const pagesOk = pages >= 3;
+  const met = (timeOk ? 1 : 0) + (heartsOk ? 1 : 0) + (pagesOk ? 1 : 0);
+  const stars = Math.max(1, met);
+  const rec = recordChapter(game.levelNum, stars, game.pagesGot, time);
+  return {
+    chapter: game.levelNum,
+    stars,
+    shown: 0,
+    time,
+    par,
+    heartsLost: game.heartsLost,
+    pages,
+    timeOk,
+    heartsOk,
+    pagesOk,
+    bestStars: rec.next.stars,
+    improved: rec.improved,
+    easy: isEasy(),
+  };
+}
+
 function goClear(game) {
+  game.result = computeResult(game);
   game.state = STATES.CLEAR;
   game.clearTimer = 0;
   game.stateT = 0;
@@ -401,6 +539,7 @@ function goClear(game) {
 }
 
 function goWin(game) {
+  if (game.levelNum === MAX_LEVEL && !game.result) game.result = computeResult(game);
   game.state = STATES.WIN;
   game.stateT = 0;
   game.messageT = 0;
@@ -425,8 +564,12 @@ function hasFooting(p, solids) {
 
 function tickPlay(game, dt) {
   const { player, level } = game;
+  game.touchUi = isTouchUi();
   if (game.messageT > 0) game.messageT -= dt;
+  if (game.bossBannerT > 0) game.bossBannerT -= dt;
+  else if (game.bossIntro) game.bossBarA = Math.min(1, game.bossBarA + dt / 20);
   if (game.shake > 0) game.shake = Math.max(0, game.shake - dt);
+  if (!game.martyrEnding) game.chapterT += dt;
   if (game.introFade > 0) game.introFade -= dt;
 
   // Brief hit-stop: freeze simulation a few frames on solid hits
@@ -480,8 +623,34 @@ function tickPlay(game, dt) {
 
   if (!game.bossIntro && level.bossTitle && player.x >= level.bossZoneX) {
     game.bossIntro = true;
-    game.message = level.bossTitle || 'BOSS!';
-    game.messageT = 90;
+    // Entrance banner takes the top slot first; the health bar fades in after it
+    game.bossBannerT = BANNER_T;
+    game.bossBarA = 0;
+    sfx('tell');
+  }
+
+  // Story beats (Carthage): quiet lines as Joseph walks
+  if (level.beats && game.beatIdx < level.beats.length && player.x >= level.beats[game.beatIdx].col * TILE) {
+    game.message = level.beats[game.beatIdx].text;
+    game.messageT = 130;
+    game.beatIdx++;
+  }
+
+  // Hidden journal pages
+  if (player.alive) {
+    const pb = playerHitbox(player);
+    for (const pg of level.pages || []) {
+      if (pg.taken) continue;
+      if (aabb(pb, { x: pg.x - 4 * SCALE, y: pg.y - 6 * SCALE, w: pg.w + 8 * SCALE, h: pg.h + 12 * SCALE })) {
+        pg.taken = true;
+        game.pagesGot |= 1 << pg.i;
+        const got = [0, 1, 2].filter((i) => game.pagesGot & (1 << i)).length;
+        game.score += 250;
+        game.message = got >= 3 ? 'ALL JOURNAL PAGES FOUND!' : `JOURNAL PAGE ${got}/3`;
+        game.messageT = 70;
+        sfx('page');
+      }
+    }
   }
 
   // Faith pray vs cloud — kneel anywhere under/near the grove cloud
@@ -540,7 +709,7 @@ function tickPlay(game, dt) {
     hazards: level.hazards,
     enemies: level.enemies,
     solids: level.solids,
-    active: game.bossIntro,
+    active: game.bossIntro && game.bossBannerT <= 40, // bosses wait out most of their entrance
     onPhase: (e) => {
       game.message = PHASE_LINES[e.bossKind] || (e.type === 'cloud' ? 'The darkness presses closer!' : 'The foe grows desperate!');
       if (e.type === 'cloud') game.message = 'The darkness presses closer!';
@@ -664,25 +833,7 @@ function tickPlay(game, dt) {
     }
   }
 
-  // Martyr last stand (level 7)
-  if (level.goal === 'martyr' && player.alive && level.goalX != null) {
-    if (player.x >= level.goalX && game.martyrTimer <= 0) {
-      game.martyrTimer = 1;
-      game.message = 'LAST STAND';
-      game.messageT = 60;
-    }
-    if (game.martyrTimer > 0) {
-      game.martyrTimer += dt;
-      // Survive ~20s (assuming ~60fps dt≈1 → 180 frames ≈ 3s at dt=1; use 180 frames as spec)
-      // Spec: ~180 frames then fade. Also trigger if all mobs dead after reaching window.
-      const mobsAlive = level.enemies.some((e) => e.alive);
-      if (game.martyrTimer > 180 || (!mobsAlive && game.martyrTimer > 60)) {
-        game.martyrEnding = true;
-        game.martyrFade = 0;
-        return;
-      }
-    }
-  }
+  // Carthage finale is driven by setpieces.js (updateFinale → game.onFinaleDone)
 
   // Boss-defeat clear
   if (level.goal === 'boss' || !level.goal) {
@@ -699,15 +850,11 @@ function tickPlay(game, dt) {
     }
   }
 
+  // Hearts lost this chapter run (for the results card)
+  if (player.hp < game.lastHp) game.heartsLost += game.lastHp - player.hp;
+  game.lastHp = player.hp;
+
   if (!player.alive) {
-    // During martyr last stand / ending — memorial WIN instead of LOSE
-    if (game.martyrEnding || (level.goal === 'martyr' && game.martyrTimer > 0)) {
-      game.martyrEnding = true;
-      game.martyrFade = Math.max(game.martyrFade, 1);
-      player.alive = true; // keep drawing respectful fade, not corpse defeat
-      player.hp = 0;
-      return;
-    }
     if (recordScore(game.score)) game.newBest = true;
     game.tip = null;
     setState(game, STATES.LOSE);
@@ -730,7 +877,7 @@ export function drawGame(ctx, game) {
   if (!game.level || !game.player) return;
 
   ctx.save();
-  if (game.shake > 0) {
+  if (game.shake > 0 && !reduceFlash()) {
     const mag = Math.min(8, game.shake * 0.65);
     const decay = Math.min(1, game.shake / 16);
     ctx.translate(
@@ -749,6 +896,7 @@ export function drawGame(ctx, game) {
   drawSetPiecesBack(ctx, game);
   drawLevelTiles(ctx, game.camX, game.level);
   drawSetPiecesMid(ctx, game);
+  drawPages(ctx, game.level, game.camX, game.tick);
 
   // Plate chest
   if (game.level.pickup) {
@@ -776,14 +924,19 @@ export function drawGame(ctx, game) {
 
   drawHUD(ctx, game);
 
-  // Boss health bar (name + half-health phase tick)
+  // Boss entrance banner, then the health bar (name + half-health phase tick)
   const boss = game.level.enemies.find((e) => (e.type === 'boss' || e.type === 'cloud') && e.alive);
-  const cloudNear =
-    boss?.type === 'cloud' &&
-    (game.player.x >= game.level.bossZoneX - 8 * TILE || Math.abs(boss.x - game.camX - W * 0.5) < W * 0.6);
-  if (boss && (game.bossIntro || cloudNear) && game.state !== STATES.INTRO) {
-    const name = boss.type === 'cloud' ? 'THE DARK CLOUD' : boss.title || 'BOSS';
-    drawBossBar(ctx, boss, name, boss.bs?.phase || 1);
+  if (game.state !== STATES.INTRO) {
+    if (game.bossBannerT > 0 && game.level.bossTitle) {
+      drawBossBanner(ctx, game.level.bossTitle, game.bossBannerT, BANNER_T);
+    } else if (boss && game.bossIntro && game.bossBarA > 0) {
+      const name = boss.type === 'cloud' ? 'THE DARK CLOUD' : boss.title || 'BOSS';
+      drawBossBar(ctx, boss, name, boss.bs?.phase || 1, game.bossBarA);
+    }
+    const f = game.level.finale;
+    if (f && f.state === 'active') {
+      drawBossBar(ctx, { type: 'finale', hp: f.courage, maxHp: f.need || 1 }, 'HOLD THE DOOR', 1, 1);
+    }
   }
 
   if (game.messageT > 0) {

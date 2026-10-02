@@ -4,9 +4,9 @@
  * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
-import { STATES } from './constants.js';
-import { savedMuted, saveMuted } from './save.js';
-import * as S from './songs.js';
+import { STATES } from './constants.js?v=68';
+import { savedMuted, saveMuted } from './save.js?v=68';
+import * as S from './songs.js?v=68';
 
 let actx = null;
 let master = null;
@@ -334,6 +334,28 @@ export function sfx(name) {
       setTimeout(() => tone(784, 0.1, 'triangle', 0.3, d), 200);
       setTimeout(() => tone(1047, 0.22, 'triangle', 0.3, d), 300);
       break;
+    case 'creak':
+      // old wood groaning: a slow wobbling low saw
+      tone(150, 0.32, 'sawtooth', 0.12, d, 105);
+      setTimeout(() => tone(125, 0.26, 'sawtooth', 0.1, d, 95), 160);
+      noise(0.2, 0.08, d, 500);
+      break;
+    case 'knock':
+      tone(110, 0.09, 'triangle', 0.4, d, 60);
+      noise(0.08, 0.3, d, 320);
+      break;
+    case 'page':
+      tone(784, 0.07, 'triangle', 0.24, d);
+      setTimeout(() => tone(988, 0.07, 'triangle', 0.24, d), 70);
+      setTimeout(() => tone(1319, 0.16, 'triangle', 0.22, d), 140);
+      noise(0.1, 0.08, d, 3000);
+      break;
+    case 'star':
+      tone(880, 0.1, 'triangle', 0.26, d, 1320);
+      break;
+    case 'select':
+      tone(660, 0.05, 'square', 0.14, d);
+      break;
     default:
       break;
   }
@@ -452,7 +474,7 @@ export function stopMusic() {
 export function trackFor(game) {
   const st = game.state;
   if (st === STATES.WIN) return 'credits';
-  if (st === STATES.TITLE || st === STATES.CLEAR) return 'title';
+  if (st === STATES.TITLE || st === STATES.CLEAR || st === STATES.CHAPTERS) return 'title';
   if (st === STATES.LOSE) return null;
   const n = game.levelNum || 1;
   if (game.martyrEnding) return 'carthage';
@@ -467,7 +489,7 @@ export function syncAudio(game) {
   if (!unlocked) return;
   const st = game.state;
   if (st !== lastState) {
-    if ((st === STATES.INTRO || st === STATES.PLAYING) && lastState === STATES.TITLE) sfx('start');
+    if ((st === STATES.INTRO || st === STATES.PLAYING) && (lastState === STATES.TITLE || lastState === STATES.CHAPTERS)) sfx('start');
     if (st === STATES.CLEAR) sfx('clear');
     if (st === STATES.WIN) sfx('win');
     if (st === STATES.LOSE) sfx('die');

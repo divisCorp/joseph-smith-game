@@ -3,13 +3,13 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js';
-import { createGame, updateGame, drawGame, titleOptions } from './game.js';
-import { initVirtualControls, setAction } from './input.js';
-import { initOverlays, syncOverlays } from './ui.js';
-import { preloadSprites } from './sprites.js';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js';
-import { justPressed } from './input.js';
+import { STATES } from './constants.js?v=68';
+import { createGame, updateGame, drawGame, titleTapBegins } from './game.js?v=68';
+import { initVirtualControls, setAction } from './input.js?v=68';
+import { initOverlays, syncOverlays } from './ui.js?v=68';
+import { preloadSprites } from './sprites.js?v=68';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=68';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=68';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -88,7 +88,7 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
   if (game.state === STATES.TITLE) {
-    if (titleOptions().length === 1) game.cmd = 'begin';
+    if (titleTapBegins()) game.cmd = 'begin';
     return;
   }
   if (game.state !== STATES.WIN && game.state !== STATES.CLEAR) {
@@ -110,7 +110,25 @@ let last = performance.now();
 const STEP = 1000 / 60; // fixed-ish timestep ms
 let acc = 0;
 
+// Gamepad: a short toast confirms the pad and its buttons
+let toastTimer = 0;
+function showToast(text) {
+  const el = document.getElementById('ui-toast');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('is-shown');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-shown'), 3200);
+}
+onGamepadChange((kind) => {
+  if (kind === 'connected') {
+    unlockAudio();
+    showToast('Gamepad ready · A jump · B / X attack · Start pause');
+  } else showToast('Gamepad disconnected');
+});
+
 function frame(now) {
+  pollGamepads();
   if (justPressed('mute')) toggleMute();
   acc += now - last;
   last = now;

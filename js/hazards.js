@@ -3,8 +3,8 @@
  * Everything here is drawn procedurally on the canvas; sprite sheets are untouched.
  * A hazard with `warn > 0` is only a telegraph (shadow / marker) and cannot hurt yet.
  */
-import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js';
-import { drawKnife } from './sprites.js';
+import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js?v=68';
+import { drawKnife } from './sprites.js?v=68';
 
 const S = SCALE;
 

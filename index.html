@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=67" />
+  <link rel="stylesheet" href="css/style.css?v=68" />
   <script>
     (function () {
       var touch =
@@ -66,7 +66,7 @@
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=67" alt="" width="88" height="88" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=68" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -79,9 +79,34 @@
           <div class="ui-title-actions">
             <button type="button" class="ui-start-btn ui-continue-btn" data-ui-cmd="continue" hidden>Continue</button>
             <button type="button" class="ui-start-btn" data-ui-cmd="begin" aria-label="Begin a new game">Begin</button>
+            <button type="button" class="ui-start-btn ui-chapters-btn" data-ui-cmd="chapters" aria-label="Choose a chapter">Chapters</button>
+          </div>
+          <div class="ui-title-options" role="group" aria-label="Options">
+            <button type="button" class="ui-opt-btn" data-ui-cmd="difficulty" data-ui-diff-label aria-label="Difficulty">Difficulty: Normal</button>
+            <button type="button" class="ui-opt-btn" data-ui-cmd="flash" data-ui-flash-label aria-label="Reduce flashing">Reduce flashing: Off</button>
           </div>
           <p class="ui-best" data-ui-best hidden></p>
           <p class="ui-install" id="install-hint">iPhone: Share → Add to Home Screen for no toolbar</p>
+        </div>
+
+        <div id="ui-chapters" class="ui-screen ui-screen--dim" hidden>
+          <div class="ui-panel ui-chapters-panel" role="dialog" aria-label="Chapters">
+            <h2 class="ui-heading">Chapters</h2>
+            <p class="ui-muted" data-ui-chapters-sum></p>
+            <div class="ui-chapter-grid">
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:1" data-ui-chapter="1"><span class="ui-chapter-num">1</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:2" data-ui-chapter="2"><span class="ui-chapter-num">2</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:3" data-ui-chapter="3"><span class="ui-chapter-num">3</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:4" data-ui-chapter="4"><span class="ui-chapter-num">4</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:5" data-ui-chapter="5"><span class="ui-chapter-num">5</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:6" data-ui-chapter="6"><span class="ui-chapter-num">6</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+              <button type="button" class="ui-chapter-card" data-ui-cmd="play:7" data-ui-chapter="7"><span class="ui-chapter-num">7</span><span class="ui-chapter-name" data-ui-chapter-name></span><span class="ui-chapter-stars" data-ui-chapter-stars></span><span class="ui-chapter-pages" data-ui-chapter-pages></span></button>
+            </div>
+            <div class="ui-actions">
+              <button type="button" class="ui-share-btn" data-ui-cmd="back" aria-label="Back to title">Back</button>
+            </div>
+            <p class="ui-menu-hint">← → choose · Enter play · Esc back</p>
+          </div>
         </div>
 
         <div id="ui-intro" class="ui-screen" hidden>
@@ -102,6 +127,8 @@
             <div class="ui-menu">
               <button type="button" class="ui-menu-btn" data-ui-cmd="resume">Resume</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="restart">Restart Chapter</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="difficulty" data-ui-diff-label>Difficulty: Normal</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="flash" data-ui-flash-label>Reduce flashing: Off</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="sound" data-ui-sound-label>Sound: On</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="quit">Quit to Title</button>
             </div>
@@ -113,9 +140,15 @@
           <div class="ui-panel ui-panel--wide">
             <p class="ui-flourish">◆</p>
             <h2 class="ui-heading ui-heading--gold" data-ui-clear-title>Path Cleared</h2>
-            <p class="ui-body" data-ui-clear-next>Onward…</p>
-            <p class="ui-score" data-ui-score>Score: 0</p>
-            <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Continue to next level">Continue</button>
+            <div class="ui-stars" data-ui-stars aria-label="Stars"><span class="ui-star">★</span><span class="ui-star">★</span><span class="ui-star">★</span></div>
+            <ul class="ui-results" data-ui-results>
+              <li data-ui-res="time"></li>
+              <li data-ui-res="hearts"></li>
+              <li data-ui-res="pages"></li>
+            </ul>
+            <p class="ui-score"><span data-ui-score>Score: 0</span> <span class="ui-res-best" data-ui-res-best></span></p>
+            <p class="ui-body ui-clear-next" data-ui-clear-next>Onward…</p>
+            <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Continue to next chapter">Continue</button>
           </div>
         </div>
 
@@ -152,7 +185,7 @@
             </div>
           </div>
           <div class="ui-credits-foot">
-            <p class="ui-credits-score"><span data-ui-score>Score: 0</span> · <span data-ui-best-final>Best: 0</span></p>
+            <p class="ui-credits-score"><span data-ui-score>Score: 0</span> · <span data-ui-best-final>Best: 0</span> · <span data-ui-final-stars></span></p>
             <div class="ui-actions">
               <a class="ui-share-btn ui-share-btn--x" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
               <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-cmd="title" aria-label="Return to title">Title</button>
@@ -175,6 +208,7 @@
       </div>
 
       <div id="ui-tip" class="ui-tip" role="status" aria-live="polite"></div>
+      <div id="ui-toast" class="ui-toast" role="status" aria-live="polite"></div>
 
       <div id="touch-controls" aria-hidden="true">
       <div class="touch-bar">
@@ -203,8 +237,8 @@
       <p class="ui-muted">Palmyra Quest plays in landscape</p>
     </div>
 
-    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M</p>
+    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M · Gamepad supported</p>
   </div>
-  <script type="module" src="js/main.js?v=67"></script>
+  <script type="module" src="js/main.js?v=68"></script>
 </body>
 </html>

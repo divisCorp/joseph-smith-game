@@ -1,4 +1,4 @@
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=68';
 import {
   drawBrigand,
   drawWolf,
@@ -7,11 +7,12 @@ import {
   drawThug,
   drawWisp,
   drawCloudBoss,
-} from './sprites.js';
-import { aabb } from './player.js';
-import { createKnife, KNIFE_W } from './projectiles.js';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js';
-import { sfx } from './audio.js';
+} from './sprites.js?v=68';
+import { aabb } from './player.js?v=68';
+import { createKnife, KNIFE_W } from './projectiles.js?v=68';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=68';
+import { sfx } from './audio.js?v=68';
+import { isEasy, reduceFlash } from './save.js?v=68';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -138,6 +139,9 @@ export function enemyHitbox(e) {
 
 export function updateEnemy(e, solids, player, dt, world = null) {
   if (!e.alive) return;
+  // Easy: everything about foes runs at 75% (movement, timers, tells)
+  const pace = isEasy() ? 0.75 : 1;
+  dt *= pace;
 
   if (e.hurtFlash > 0) e.hurtFlash -= dt;
   if (e.attackCd > 0) e.attackCd -= dt;
@@ -167,7 +171,7 @@ export function updateEnemy(e, solids, player, dt, world = null) {
     if (e.vy > MAX_FALL) e.vy = MAX_FALL;
   }
 
-  e.x += e.vx;
+  e.x += e.vx * pace;
   if (!e.noGravity) resolveEnemy(e, solids, true);
   e.y += e.vy;
   e.onGround = false;
@@ -265,7 +269,7 @@ function beginTell(e, def) {
   bs.idx++;
   bs.mode = 'tell';
   bs.t = 0;
-  bs.tellT = def.tell[bs.phase - 1];
+  bs.tellT = def.tell[bs.phase - 1] * (isEasy() ? 1.25 : 1);
   sfx('tell');
 }
 
@@ -620,14 +624,16 @@ export function drawEnemy(ctx, e, camX) {
   else if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
   else if (e.type === 'cloud') {
     drawBossAura(ctx, e, dx, tickNow(e));
-    drawCloudBoss(ctx, dx, e.y, e.anim, flash || (e.telling && Math.floor((e.bs?.t || 0) / 4) % 2 === 0), e.hp / e.maxHp);
+    drawCloudBoss(ctx, dx, e.y, e.anim, flash || (!reduceFlash() && e.telling && Math.floor((e.bs?.t || 0) / 4) % 2 === 0), e.hp / e.maxHp);
     if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + 64, e.y, e.bs.t, '#d0a0ff');
   } else if (e.type === 'boss') {
     drawBossAura(ctx, e, dx, tickNow(e));
     ctx.save();
     if (e.ghost) ctx.globalAlpha = Math.max(0.12, e.ghostA ?? 0.3);
     const late = e.telling && e.bs?.mode === 'tell' && e.bs.t > e.bs.tellT - 12;
-    drawBoss(ctx, dx, e.y, e.facing, e.telling ? 0 : e.anim, flash || (late && Math.floor(e.bs.t / 3) % 2 === 0), e.bossKind);
+    // Reduce flashing: the last beat of the tell is a steady highlight instead of a strobe
+    const strobe = reduceFlash() ? late : late && Math.floor(e.bs.t / 3) % 2 === 0;
+    drawBoss(ctx, dx, e.y, e.facing, e.telling ? 0 : e.anim, flash || strobe, e.bossKind);
     ctx.restore();
     if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + e.w / 2, e.y, e.bs.t);
   }

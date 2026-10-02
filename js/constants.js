@@ -9,6 +9,7 @@ export const MAX_FALL = 8 * SCALE;
 
 export const STATES = {
   TITLE: 'title',
+  CHAPTERS: 'chapters',
   INTRO: 'intro',
   PLAYING: 'playing',
   PAUSED: 'paused',
@@ -22,6 +23,7 @@ export const LEVEL_META = [
   null,
   {
     num: 1,
+    par: 120, // seconds for the time star (Easy gets ×1.5)
     year: 'Spring 1820',
     place: 'Palmyra, New York',
     story: 'A farm boy with a question walks into the woods to pray.',
@@ -34,6 +36,7 @@ export const LEVEL_META = [
   },
   {
     num: 2,
+    par: 100, // seconds for the time star (Easy gets ×1.5)
     year: 'September 1823',
     place: 'Palmyra, New York',
     story: 'Three years later, a night of prayer brings a heavenly visitor.',
@@ -46,6 +49,7 @@ export const LEVEL_META = [
   },
   {
     num: 3,
+    par: 130, // seconds for the time star (Easy gets ×1.5)
     year: 'September 1827',
     place: 'Hill Cumorah',
     story: 'At last Joseph may climb the hill and receive the plates.',
@@ -58,6 +62,7 @@ export const LEVEL_META = [
   },
   {
     num: 4,
+    par: 160, // seconds for the time star (Easy gets ×1.5)
     year: 'Autumn 1838',
     place: 'Missouri',
     story: 'The Saints build homes in Missouri, but angry mobs gather.',
@@ -70,6 +75,7 @@ export const LEVEL_META = [
   },
   {
     num: 5,
+    par: 160, // seconds for the time star (Easy gets ×1.5)
     year: 'Winter 1838–39',
     place: 'Far West to Liberty Jail',
     story: 'Taken from Far West, Joseph is held through a long, cold winter.',
@@ -82,6 +88,7 @@ export const LEVEL_META = [
   },
   {
     num: 6,
+    par: 170, // seconds for the time star (Easy gets ×1.5)
     year: '1844',
     place: 'Nauvoo, Illinois',
     story: 'Nauvoo the Beautiful thrives, yet enemies plot in the shadows.',
@@ -94,6 +101,7 @@ export const LEVEL_META = [
   },
   {
     num: 7,
+    par: 110, // seconds for the time star (Easy gets ×1.5)
     year: 'June 1844',
     place: 'Carthage, Illinois',
     story: 'Joseph keeps his word and goes to Carthage, faithful to the end.',
@@ -101,7 +109,7 @@ export const LEVEL_META = [
     short: 'Martyr',
     blurb: 'Last stand. He sealed his testimony.',
     clearNext: '',
-    bossTitle: 'LAST STAND!',
+    bossTitle: '',
     clearTitle: 'Testimony Sealed',
   },
 ];

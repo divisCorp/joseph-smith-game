@@ -2,11 +2,12 @@
  * Level data — The Prophet's Path campaign (Levels 1–7)
  * Tile codes: 0 empty, 1 solid ground, 2 platform, 3 wall, 4 water (visual/hazard gap).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js';
-import { createEnemy } from './enemy.js';
-import { STAND_H } from './player.js';
-import { drawRect } from './sprites.js';
-import { initSetPieces, buildDock } from './setpieces.js';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=68';
+import { createEnemy } from './enemy.js?v=68';
+import { STAND_H } from './player.js?v=68';
+import { drawRect } from './sprites.js?v=68';
+import { initSetPieces, buildDock } from './setpieces.js?v=68';
+import { reduceFlash } from './save.js?v=68';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -493,7 +494,6 @@ export function createLevel7() {
   placePlatform(tiles, 32, 8, 4);
   placePlatform(tiles, 40, 10, 3);
   placePlatform(tiles, 46, 9, 4);
-  placePlatform(tiles, 54, 11, 3);
   // Stone wall segments (indoor cells)
   for (let r = 8; r < groundR; r++) {
     tiles[r][0] = 3;
@@ -504,13 +504,9 @@ export function createLevel7() {
   for (let c = 42; c < 48; c++) tiles[8][c] = 3;
   farWall(tiles, cols, groundR);
 
-  const enemies = [
-    createEnemy('thug', 10 * TILE, 11 * TILE, { patrolMin: 8 * TILE, patrolMax: 16 * TILE }),
-    createEnemy('brigand', 20 * TILE, 11 * TILE, { patrolMin: 18 * TILE, patrolMax: 26 * TILE }),
-    createEnemy('thug', 34 * TILE, 6 * TILE, { patrolMin: 32 * TILE, patrolMax: 40 * TILE }),
-    createEnemy('brigand', 48 * TILE, 11 * TILE, { patrolMin: 46 * TILE, patrolMax: 54 * TILE }),
-    createEnemy('thug', 56 * TILE, 11 * TILE, { patrolMin: 54 * TILE, patrolMax: 62 * TILE }),
-  ];
+  // Carthage is reverent: no foes inside the jail. Joseph walks with his friends,
+  // then holds the door in a gentle, non-violent finale (see setpieces.js).
+  const enemies = [];
 
   const decor = [];
   for (const c of [4, 14, 24, 36, 50]) {
@@ -518,14 +514,23 @@ export function createLevel7() {
   }
   decor.push({ type: 'pillar', x: 8 * TILE, y: (groundR - 4) * TILE });
   decor.push({ type: 'pillar', x: 28 * TILE, y: (groundR - 4) * TILE });
-  decor.push({ type: 'pillar', x: 50 * TILE, y: (groundR - 4) * TILE });
-  // Window marker near far end
-  decor.push({ type: 'shrine', x: 58 * TILE, y: (groundR - 5) * TILE });
 
-  const goalX = 58 * TILE;
+  const goalX = 57 * TILE;
   return wrapLevel(7, 'jail', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 50 * TILE, {
     goal: 'martyr',
     goalX,
+    finale: {
+      zoneX0: 59 * TILE,
+      zoneX1: 63 * TILE,
+      doorX: 65 * TILE,
+      friendsX: [51.5 * TILE, 54 * TILE, 56.5 * TILE],
+    },
+    beats: [
+      { col: 8, text: 'June 27, 1844 · Carthage Jail' },
+      { col: 22, text: 'Joseph waits with Hyrum and his friends.' },
+      { col: 38, text: 'They sing to lift one another.' },
+      { col: 50, text: 'Footsteps gather on the stairs…' },
+    ],
   });
 }
 
@@ -560,6 +565,7 @@ export function createLevel(num) {
     lit: false,
   }));
   initSetPieces(level);
+  placePages(level);
   if (level.num === 6) {
     buildDock(level, 84, 100, [87, 88, 92, 93, 94, 98]);
     level.scaffolds = [
@@ -569,7 +575,106 @@ export function createLevel(num) {
     ];
   }
   if (level.num === 5) level.theme = 'river';
+  if (level.finale) {
+    // the jail door is solid: Joseph stands before it, never past it
+    level.solids.push({ x: level.finale.doorX, y: 8 * TILE, w: TILE, h: 5 * TILE, kind: 'wall' });
+  }
   return level;
+}
+
+/**
+ * Three hidden journal pages per chapter. Each sits over the highest platform
+ * in its third of the chapter that a jump chain can actually reach (rise ≤ 3
+ * tiles, gap ≤ 5 tiles), so pages reward exploring without being impossible.
+ */
+function placePages(level) {
+  const { tiles } = level;
+  const rows = tiles.length;
+  const cols = tiles[0].length;
+  const groundR = 13;
+  const endCol = Math.min(cols - 4, Math.floor((level.num === 7 ? 49 * TILE : level.bossZoneX - 2 * TILE) / TILE));
+  // Surfaces: runs of platform tiles + ground columns
+  const surfaces = [];
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      if (tiles[r][c] === 2 && (r === 0 || tiles[r - 1][c] === 0)) {
+        const c0 = c;
+        while (c < cols && tiles[r][c] === 2) c++;
+        surfaces.push({ r, c0, c1: c - 1, plat: true });
+      } else c++;
+    }
+  }
+  for (let c = 0; c < cols; c++) {
+    if (tiles[groundR][c] === 1) surfaces.push({ r: groundR, c0: c, c1: c, plat: false, reach: true });
+  }
+  // Grow the reachable set from the ground
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const s of surfaces) {
+      if (s.reach) continue;
+      for (const o of surfaces) {
+        if (!o.reach) continue;
+        const rise = o.r - s.r; // positive = s is higher
+        const gap = Math.max(0, s.c0 - o.c1 - 1, o.c0 - s.c1 - 1);
+        if (rise <= 3 && gap <= (rise > 0 ? 3 : 5)) {
+          s.reach = true;
+          grew = true;
+          break;
+        }
+      }
+    }
+  }
+  const startCol = 6;
+  const span = (endCol - startCol) / 3;
+  level.pages = [];
+  for (let i = 0; i < 3; i++) {
+    const a = startCol + span * i;
+    const b = a + span;
+    const cands = surfaces.filter((s) => s.plat && s.reach && (s.c0 + s.c1) / 2 >= a && (s.c0 + s.c1) / 2 < b);
+    cands.sort((p, q) => p.r - q.r || (q.c1 - q.c0) - (p.c1 - p.c0));
+    let x;
+    let y;
+    if (cands.length) {
+      const s = cands[0];
+      x = ((s.c0 + s.c1 + 1) / 2) * TILE - 8 * SCALE;
+      y = s.r * TILE - 30 * SCALE;
+    } else {
+      // No platform here: float the page a full jump above solid ground
+      let c = Math.floor((a + b) / 2);
+      while (c < b && tiles[groundR][c] !== 1) c++;
+      x = c * TILE + 8 * SCALE;
+      y = groundR * TILE - 2.6 * TILE;
+    }
+    level.pages.push({ i, x, y, w: 16 * SCALE, h: 20 * SCALE, taken: false });
+  }
+}
+
+export function drawPages(ctx, level, camX, t) {
+  for (const pg of level.pages || []) {
+    if (pg.taken) continue;
+    const x = pg.x - camX;
+    if (x < -40 || x > W + 40) continue;
+    const bob = Math.sin(t * 0.06 + pg.i * 2) * 3 * SCALE;
+    const y = pg.y + bob;
+    ctx.save();
+    const g = ctx.createRadialGradient(x + pg.w / 2, y + pg.h / 2, 2, x + pg.w / 2, y + pg.h / 2, 22 * SCALE);
+    g.addColorStop(0, 'rgba(255,236,170,0.55)');
+    g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 20 * SCALE, y - 20 * SCALE, pg.w + 40 * SCALE, pg.h + 40 * SCALE);
+    // parchment page with a folded corner and ruled lines
+    ctx.fillStyle = '#5a3c1c';
+    ctx.fillRect(x - 1, y - 1, pg.w + 2, pg.h + 2);
+    ctx.fillStyle = '#f2e2b8';
+    ctx.fillRect(x, y, pg.w, pg.h);
+    ctx.fillStyle = '#d8c290';
+    ctx.fillRect(x + pg.w - 5 * SCALE, y, 5 * SCALE, 5 * SCALE);
+    ctx.fillStyle = '#9a8058';
+    for (let k = 0; k < 4; k++) ctx.fillRect(x + 3 * SCALE, y + (6 + k * 3.4) * SCALE, pg.w - 6 * SCALE, 1 * SCALE);
+    ctx.restore();
+  }
 }
 
 // ── Drawing (HD illustrated environments @ 2×) ────────────
@@ -912,7 +1017,7 @@ function drawBgStorm(ctx, camX, level) {
     ctx.fill();
   }
   const flash = Math.floor(camX / 80 + (level.num || 5) * 3) % 17 === 0;
-  if (flash) drawRect(ctx, 0, 0, W, 220, 'rgba(200,220,255,0.14)');
+  if (flash && !reduceFlash()) drawRect(ctx, 0, 0, W, 220, 'rgba(200,220,255,0.14)');
   // solid storm ridge wall + separate peaks (no self-intersecting path)
   drawHillBand(ctx, camX, 0.14, 340, 50, '#2e343c', 7, W + 100);
   ctx.fillStyle = '#2e343c';
