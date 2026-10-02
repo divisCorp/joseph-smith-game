@@ -200,8 +200,8 @@ export function updatePlayer(p, solids, dt) {
   }
 
   if (p.y > H + 80 * SCALE) {
-    p.hp = 0;
-    p.alive = false;
+    // Game decides: respawn at last footing (costs a heart) or fall for good
+    p.fellOut = true;
   }
 }
 

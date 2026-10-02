@@ -4,7 +4,7 @@
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
 import { STATES } from './constants.js';
-import { createGame, updateGame, drawGame } from './game.js';
+import { createGame, updateGame, drawGame, titleOptions } from './game.js';
 import { initVirtualControls, setAction } from './input.js';
 import { initOverlays, syncOverlays } from './ui.js';
 import { preloadSprites } from './sprites.js';
@@ -16,7 +16,6 @@ const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = true;
 
 initVirtualControls();
-initOverlays();
 bindMuteButton();
 
 function isStandalone() {
@@ -64,6 +63,9 @@ window.addEventListener('pointerdown', armAudio, { once: false });
 window.addEventListener('keydown', armAudio, { once: false });
 
 const game = createGame();
+initOverlays(game);
+// QA hook: ?debug exposes the game object for automated tests
+if (new URLSearchParams(location.search).has('debug')) window.__pq = game;
 
 /** Tap/click canvas to start / return to title when menus are up (phones + desktop). */
 let canvasStartHeld = false;
@@ -74,12 +76,15 @@ function releaseCanvasStart() {
 }
 canvas.addEventListener('pointerdown', (e) => {
   if (e.button != null && e.button !== 0) return;
-  if (
-    game.state !== STATES.TITLE &&
-    game.state !== STATES.WIN &&
-    game.state !== STATES.LOSE &&
-    game.state !== STATES.CLEAR
-  ) {
+  if (game.state === STATES.INTRO) {
+    game.cmd = 'skip';
+    return;
+  }
+  if (game.state === STATES.TITLE) {
+    if (titleOptions().length === 1) game.cmd = 'begin';
+    return;
+  }
+  if (game.state !== STATES.WIN && game.state !== STATES.CLEAR) {
     return;
   }
   canvasStartHeld = true;

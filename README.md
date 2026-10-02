@@ -1,94 +1,85 @@
 # Joseph Smith — Palmyra Quest
 
-Family-friendly NES-style side-scroller. Play as Joseph Smith on a frontier campaign near Palmyra—run, jump, and defend the road through five themed levels, then face the Storm Overseer on Temple Hill.
+A family-friendly, 7-chapter side-scroller about the life of Joseph Smith, from the Sacred Grove to Carthage. Vanilla HTML5 canvas + ES modules; no build step, no backend.
 
-Inspired by classic NES action/platformers (e.g. *Teenage Mutant Ninja Turtles*, 1989). Respectful historical-fantasy arcade tone—not parody.
+Play: https://palmyra-quest.netlify.app/
 
-## Play
-
-Serve the folder over HTTP (ES modules require a local server):
+## Run locally
 
 ```bash
-# Option A
-npx --yes serve .
-
-# Option B
-python3 -m http.server 8080
+python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
-Then open the URL shown (often `http://localhost:3000` or `http://localhost:8080`).
-
-Or open GitHub Pages: https://diviscorp.github.io/joseph-smith-game/
+Add `?debug` to the URL to expose the game object as `window.__pq` for automated tests.
 
 ## Controls
 
-| Action | Keys | Touch (phones) |
-|--------|------|----------------|
-| Move | ← → / A D | **Virtual stick** left / right |
-| Duck / crouch (hold) | ↓ / S | **Virtual stick** down |
-| Jump | ↑ / W (release duck first) | **Virtual stick** up · or **A** |
-| Fling gold plates | Space / Z | **B** button |
-| Start / confirm | Enter (or Z on title) | **START** |
-| Pause | P | START (resume) |
+| Action | Keyboard | Touch |
+|--------|----------|-------|
+| Walk | ← → / A D | Stick left / right |
+| Kneel & pray (heals; defeats the Dark Cloud) | Hold ↓ / S | Stick down |
+| Look up | ↑ / W | Stick up |
+| Jump | X / K | **A** |
+| Pitchfork / throw plates | Space / Z | **B** |
+| Pause menu | Esc / P | **II** (top right) |
+| Menus | ↑ ↓ + Enter | Tap |
+| Mute | M | **MUTE** |
 
-### Mobile notes
+## Campaign
 
-- On-screen controls appear whenever the device has touch (`maxTouchPoints` / `ontouchstart`) or a coarse/narrow viewport—including iPhone Safari desktop-site mode; keyboard still works.
-- **Virtual D-pad / stick (left thumb):** circular base + movable knob. Drag maps to left / right / up (jump) / down (crouch) with a small dead zone; diagonals can hold two directions. Holding keeps the action down; release clears directions.
-- Separate ◀ ▶ and ↓ duck buttons were removed; **A** remains a secondary jump for muscle memory; **B** stays gold-plate attack.
-- Canvas scales to fit the viewport (portrait or landscape); landscape leaves more play area.
-- Touch scrolling and pinch-zoom are blocked on the game area (`touch-action: none` + `preventDefault`).
-- Thumb-sized semi-transparent controls sit under the canvas so they don’t cover the HUD.
-- Relative asset paths keep GitHub Pages (`/joseph-smith-game/`) working.
+| # | Chapter | Year | Goal |
+|---|---------|------|------|
+| 1 | Sacred Grove | 1820 | Young Joseph; wolves; kneel to break the Dark Cloud |
+| 2 | A Messenger | 1823 | Reach Moroni |
+| 3 | Hill Cumorah | 1827 | Receive the plates (unlocks plate-throwing) |
+| 4 | Missouri Night | 1838 | Mobs + Mob Captain |
+| 5 | Far West Road | 1838–39 | Road mobs + Jailer Warden |
+| 6 | Nauvoo | 1844 | Streets + Conspiracy Ringleader |
+| 7 | Carthage Jail | 1844 | Last stand; respectful ending |
 
-## Campaign (Levels 1–5)
+Each chapter opens with a short title card (chapter, story line, place and year).
 
-Start from the title screen (**Enter**, **Z**, or **START**). Defeat each level’s boss to advance; after Level 5 you get the win screen.
+## Saving
 
-| Level | Name | Theme | Boss |
-|-------|------|-------|------|
-| 1 | **Palmyra Woods** (Woods Path) | Dawn forest path, gaps & platforms | Frontier Ringleader |
-| 2 | **Sacred Grove** (Hill Path) | Night woods, denser trees, scouts & wolves | Grove Sentinel |
-| 3 | **Palmyra Streets** (Village) | Buildings, rooftop platforms, thugs | Street Captain |
-| 4 | **River Crossing** (Bridges) | Water hazards, bridge jumps | River Warden |
-| 5 | **Temple Hill** (Final Trial) | Stormy ascent, hardest foes | Storm Overseer |
+Progress lives in `localStorage` (`palmyraQuest.save.v1`): furthest chapter unlocked, best score, mute preference, and which first-run tips have been shown. Values are validated on load, so a missing, corrupt or out-of-range save simply falls back to defaults. The title shows **Continue (Chapter N)** next to **Begin** once a later chapter is unlocked. Starting at chapter 4 or later grants the plates.
 
-**Progression:** clear a boss (levels 1–4) → brief “path cleared” overlay → Continue / auto-advance to the next level (score carries). Clear Level 5 → **Quest Complete!** Lose / win → return to title and start again from Level 1.
+Falling into a gap costs one heart and returns Joseph to his last solid footing. On the last heart it ends the run. After a loss you can **Retry Chapter** (score resets to its value at the start of that chapter) or go back to the title.
+
+## Music
+
+All melodies are public-domain hymn tunes. The chiptune arrangements (square/triangle voicing and the generated bass lines) are original to this game. Melody data lives in `js/songs.js` and was transcribed from public-domain scores on hymnary.org; the sequencer is in `js/audio.js`.
+
+| Where | Tune | Known as | Source / date |
+|-------|------|----------|---------------|
+| Title, chapter clear, ending | JESUS LOVES ME | "Jesus Loves Me" | William B. Bradbury, 1862 |
+| Ch 1 Sacred Grove (and a slower, lower version while praying at the cloud) | NEW BRITAIN | "Amazing Grace" | American folk melody, first printed 1829 |
+| Ch 2 A Messenger | OLD HUNDREDTH | "Praise God from Whom All Blessings Flow" | Genevan Psalter, 1551 (Louis Bourgeois) |
+| Ch 3 Hill Cumorah | FOUNDATION | "How Firm a Foundation" | American folk hymn, Funk's *Genuine Church Music*, 1832 |
+| Ch 4 Missouri Night | ALL IS WELL | "Come, Come, Ye Saints" | English/American folk hymn; *Revival Melodies* 1842, *Sacred Harp* 1844 |
+| Ch 5 Far West Road | ST. GERTRUDE | "Onward, Christian Soldiers" | Arthur Sullivan, 1871 |
+| Ch 6 Nauvoo | AUSTRIAN HYMN | "Glorious Things of Thee Are Spoken" | Joseph Haydn, 1797 |
+| Ch 7 Carthage | BETHANY | "Nearer, My God, to Thee" | Lowell Mason, 1856 |
+| Boss fights (ch 4–6) | BATTLE HYMN | "Battle Hymn of the Republic" | American camp-meeting tune, c. 1856 |
 
 ## Project layout
 
 ```
-index.html          Entry page (512×480 canvas, CSS-scaled)
-css/style.css       Pixel scaling + page chrome + touch UI
-js/
-  main.js           Loop bootstrap + virtual controls init
-  game.js           State machine, campaign progression, HUD
-  player.js         Joseph movement, crouch, jump, gold-plate attack, health
-  projectiles.js    Gold-plate projectiles (flight, despawn)
-  enemy.js          Brigands, scouts, thugs, wolves, bosses
-  level.js          Levels 1–5 maps, themes, decor
-  input.js          Keyboard + virtual stick / touch mapping
-  sprites.js        User sheet blit + procedural fallbacks (poses, UI)
-  constants.js      Resolution, states, level metadata
-  ui.js             HTML overlay menus (title / clear / win / lose)
-assets/             User Joseph sheet slices + derived foe/boss/wolf PNGs (joseph, foes, wolf, bosses, portraits)
+index.html        Page, HUD and HTML overlays (title, intro card, pause, clear, win, lose)
+css/style.css     Layout, touch UI and overlay styling
+js/main.js        Bootstrap + main loop
+js/game.js        State machine, campaign, pause menu, tips, drawing
+js/save.js        localStorage progress (validated)
+js/audio.js       Web Audio SFX + look-ahead chiptune sequencer
+js/songs.js       Public-domain melody data + bass roots
+js/player.js      Joseph movement, kneel/pray, pitchfork, plates
+js/enemy.js       Wolves, mobs, bosses, Dark Cloud
+js/level.js       Chapter maps and backgrounds
+js/input.js       Keyboard + virtual stick / buttons
+js/sprites.js     Sprite-sheet drawing + pixel font
+js/ui.js          HTML overlay sync
+assets/           Sprite sheets and portraits
 ```
-
-## Tech
-
-Vanilla HTML / CSS / JS (ES modules). No build step, no backend. Fixed internal resolution **512×480** (NES-like), scaled up with `image-rendering: auto (painterly)`.
-
-## Art
-
-Visuals use hand-drawn-style **pixel sprites** (canvas-drawn pixel maps): Joseph with walk/jump/crouch/throw poses, engraved **gold-plate** projectiles, brigand/scout/thug/wolf and themed boss palettes, grass/dirt/water tiles, themed parallax backgrounds (woods, grove night, village, river mist, storm), cabin/buildings/fence accents, and clearer HUD hearts. Assets stay compact for phones.
-
-## Changelog notes
-
-- **Soft-lock fix (Palmyra Woods):** The boss-arena entrance used a full-height solid timber column (“the pole”) that was taller than Joseph’s jump, blocking progress. Entrance posts are decorative/non-solid now; the far arena wall remains.
-- **Campaign (v8):** Levels 2–5 added with unique layouts, enemy mixes, bosses, level-clear transitions, and win screen after Temple Hill.
-- **Crouch (v10):** Hold ↓ / S (or touch **↓**) on the ground to duck — shorter hurtbox, slow crawl, release duck to jump; crouch sprite pose.
-- **Virtual stick (v11):** Mobile direction uses a circular D-pad / virtual stick (L/R/U/D); stick-up jumps, stick-down crouches; **A** kept as secondary jump; **B** attack unchanged.
 
 ## License / credit
 
-Fan arcade tribute. Historical figure depicted respectfully as an arcade hero. Not affiliated with Nintendo or Konami.
+Fan tribute. The historical figure is depicted respectfully. Not affiliated with The Church of Jesus Christ of Latter-day Saints.

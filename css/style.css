@@ -1142,3 +1142,247 @@ html.needs-install .ui-install {
   top: auto;
   bottom: auto;
 }
+
+/* —— Round 1: save/continue, pause menu, chapter cards, tips —— */
+#ui-title .ui-title-actions {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  justify-content: center;
+  pointer-events: none;
+}
+#ui-title .ui-title-actions .ui-start-btn {
+  position: static;
+  transform: none;
+  left: auto;
+  bottom: auto;
+  margin: 0;
+  min-width: 160px;
+  pointer-events: auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+#ui-title .ui-title-actions .ui-start-btn[hidden] { display: none; }
+#ui-title .ui-title-actions .ui-start-btn:active,
+#ui-title .ui-title-actions .ui-start-btn.is-active { transform: translateY(2px); }
+.ui-start-btn small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-weight: 700;
+  opacity: 0.85;
+}
+/* Secondary look for Begin when Continue is offered */
+#ui-title .ui-continue-btn:not([hidden]) + .ui-start-btn {
+  color: #f0e6d0;
+  background: rgba(20, 16, 12, 0.88);
+  border-color: rgba(212, 168, 75, 0.8);
+  box-shadow: 0 4px 0 #3a2a14, 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+.ui-start-btn.is-selected,
+.ui-menu-btn.is-selected {
+  outline: 3px solid #fff4c8;
+  outline-offset: 3px;
+}
+.ui-best {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  top: max(10px, env(safe-area-inset-top));
+  margin: 0;
+  font: 700 13px/1 Cinzel, "Palatino Linotype", Palatino, serif;
+  letter-spacing: 0.08em;
+  color: #f0d078;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+}
+.ui-best[hidden] { display: none; }
+
+/* HUD: mute + pause side by side under the score */
+.hud-btns { display: flex; gap: 6px; pointer-events: auto; }
+.pause-btn {
+  pointer-events: auto;
+  min-width: 40px;
+  height: 36px;
+  padding: 0 10px;
+  border: 2px solid #d4a84b;
+  background: rgba(12, 10, 8, 0.82);
+  color: #f0e6c8;
+  font: 800 13px/1 system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pause-btn:active { transform: translateY(1px); }
+#hud[hidden] .pause-btn,
+#hud.is-paused .pause-btn { visibility: hidden; }
+
+/* Pause menu */
+#ui-pause:not([hidden]) { pointer-events: auto; }
+.ui-pause-panel { pointer-events: auto; width: min(88%, 320px); }
+.ui-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 0.5em;
+}
+.ui-menu-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: auto;
+  min-height: 42px;
+  padding: 0.4em 1em;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f0e6d0;
+  background: rgba(30, 22, 14, 0.95);
+  border: 2px solid rgba(212, 168, 75, 0.7);
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-menu-btn:first-child {
+  color: #1a1208;
+  background: linear-gradient(180deg, #f0d078 0%, #d4a84b 55%, #b88830 100%);
+  border-color: #fff0c0;
+}
+.ui-menu-btn:active,
+.ui-menu-btn.is-active { transform: translateY(2px); }
+.ui-menu-hint {
+  margin-top: 0.4em;
+  font-size: 11px;
+  color: #b8a888;
+  letter-spacing: 0.04em;
+}
+html.touch-ui .ui-menu-hint,
+body.touch-ui .ui-menu-hint { display: none; }
+
+/* Chapter intro card */
+#ui-intro {
+  justify-content: center;
+  pointer-events: auto;
+  background: radial-gradient(ellipse at center, rgba(8, 6, 4, 0.62) 0%, rgba(8, 6, 4, 0.9) 75%);
+  cursor: pointer;
+}
+.ui-intro-card {
+  max-width: min(90%, 560px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  pointer-events: none;
+}
+.ui-intro-num {
+  margin: 0;
+  font: 700 13px/1.2 "Source Sans 3", system-ui, sans-serif;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #d4a84b;
+}
+.ui-intro-title {
+  margin: 0.1em 0 0;
+  font-family: Cinzel, "Palatino Linotype", Palatino, serif;
+  font-size: clamp(26px, 6.5vw, 46px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff4d8;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+.ui-intro-story {
+  margin: 0.2em 0 0;
+  font-size: clamp(14px, 3.4vw, 19px);
+  line-height: 1.4;
+  color: #f0e6d0;
+  text-shadow: 0 1px 4px #000;
+}
+.ui-intro-year {
+  margin: 0.35em 0 0;
+  font: italic 600 clamp(12px, 2.8vw, 15px)/1.2 Cinzel, "Palatino Linotype", Palatino, serif;
+  letter-spacing: 0.1em;
+  color: #f0d078;
+}
+.ui-intro-skip {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(240, 230, 208, 0.55);
+  pointer-events: none;
+}
+#ui-intro.is-anim .ui-intro-num { animation: pq-rise 0.7s ease-out both; }
+#ui-intro.is-anim .ui-intro-title { animation: pq-rise 0.8s 0.15s ease-out both; }
+#ui-intro.is-anim .ui-rule { animation: pq-fade 0.8s 0.35s ease-out both; }
+#ui-intro.is-anim .ui-intro-story { animation: pq-rise 0.8s 0.45s ease-out both; }
+#ui-intro.is-anim .ui-intro-year { animation: pq-rise 0.8s 0.7s ease-out both; }
+#ui-intro.is-anim .ui-intro-skip { animation: pq-fade 0.6s 1.2s ease-out both; }
+@keyframes pq-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pq-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ui-intro.is-anim * { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+}
+
+/* One-line first-run tips */
+.ui-tip {
+  position: absolute;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 6px);
+  z-index: 5;
+  max-width: min(86%, 520px);
+  padding: 6px 14px;
+  font: 700 14px/1.25 "Source Sans 3", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: #fff4d8;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(12, 8, 6, 0.78);
+  border: 1px solid rgba(212, 168, 75, 0.55);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.ui-tip.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .ui-tip { font-size: 12px; max-width: min(52%, 460px); white-space: normal; }
+  .ui-intro-story { font-size: 14px; }
+  .ui-menu { gap: 6px; }
+  .ui-menu-btn { min-height: 36px; font-size: 13px; }
+  #ui-title .ui-title-actions .ui-start-btn { min-width: 140px; min-height: 44px; }
+}
+
+/* Muted state reads as a word, not a glyph */
+.mute-btn.is-muted { text-decoration: none; color: #b8a888; }

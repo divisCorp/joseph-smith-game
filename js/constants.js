@@ -9,6 +9,7 @@ export const MAX_FALL = 8 * SCALE;
 
 export const STATES = {
   TITLE: 'title',
+  INTRO: 'intro',
   PLAYING: 'playing',
   PAUSED: 'paused',
   CLEAR: 'clear',
@@ -21,6 +22,9 @@ export const LEVEL_META = [
   null,
   {
     num: 1,
+    year: 'Spring 1820',
+    place: 'Palmyra, New York',
+    story: 'A farm boy with a question walks into the woods to pray.',
     name: 'Sacred Grove',
     short: 'The Grove',
     blurb: 'Young Joseph. Pitchfork the wolves. Kneel and pray to pierce the darkness.',
@@ -30,6 +34,9 @@ export const LEVEL_META = [
   },
   {
     num: 2,
+    year: 'September 1823',
+    place: 'Palmyra, New York',
+    story: 'Three years later, a night of prayer brings a heavenly visitor.',
     name: 'A Messenger',
     short: 'Meet Moroni',
     blurb: 'Night grove. Reach the glowing messenger.',
@@ -39,6 +46,9 @@ export const LEVEL_META = [
   },
   {
     num: 3,
+    year: 'September 1827',
+    place: 'Hill Cumorah',
+    story: 'At last Joseph may climb the hill and receive the plates.',
     name: 'Hill Cumorah',
     short: 'Find the plates',
     blurb: 'Climb the hill. Claim the gold plates.',
@@ -48,6 +58,9 @@ export const LEVEL_META = [
   },
   {
     num: 4,
+    year: 'Autumn 1838',
+    place: 'Missouri',
+    story: 'The Saints build homes in Missouri, but angry mobs gather.',
     name: 'Missouri Night',
     short: 'Mobs',
     blurb: 'Stand firm against the night mobs.',
@@ -57,6 +70,9 @@ export const LEVEL_META = [
   },
   {
     num: 5,
+    year: 'Winter 1838–39',
+    place: 'Far West to Liberty Jail',
+    story: 'Taken from Far West, Joseph is held through a long, cold winter.',
     name: 'Far West Road',
     short: 'Liberty road',
     blurb: 'Mobs on the road. Face the jailer.',
@@ -66,6 +82,9 @@ export const LEVEL_META = [
   },
   {
     num: 6,
+    year: '1844',
+    place: 'Nauvoo, Illinois',
+    story: 'Nauvoo the Beautiful thrives, yet enemies plot in the shadows.',
     name: 'Nauvoo',
     short: 'Streets',
     blurb: 'City streets and conspiracy. Face the ringleader.',
@@ -75,6 +94,9 @@ export const LEVEL_META = [
   },
   {
     num: 7,
+    year: 'June 1844',
+    place: 'Carthage, Illinois',
+    story: 'Joseph keeps his word and goes to Carthage, faithful to the end.',
     name: 'Carthage Jail',
     short: 'Martyr',
     blurb: 'Last stand. He sealed his testimony.',

@@ -4,10 +4,13 @@
  */
 import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js';
 import { setAction } from './input.js';
-import { unlockAudio } from './audio.js';
+import { unlockAudio, syncMuteButton } from './audio.js';
+import { unlockedChapter, bestScore } from './save.js';
+import { titleOptions, PAUSE_OPTIONS } from './game.js';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
+  [STATES.INTRO]: 'ui-intro',
   [STATES.PAUSED]: 'ui-pause',
   [STATES.CLEAR]: 'ui-clear',
   [STATES.WIN]: 'ui-win',
@@ -125,14 +128,59 @@ function bindShareLinks() {
   });
 }
 
-export function initOverlays() {
-  bindStartTarget(document.getElementById('ui-title'));
+let gameRef = null;
+
+function sendCmd(cmd) {
+  if (gameRef) gameRef.cmd = cmd;
+}
+
+/** Buttons with data-ui-cmd run one game command per tap / click. */
+function bindCmdButtons() {
+  document.querySelectorAll('[data-ui-cmd]').forEach((el) => {
+    // Keep the press from reaching whole-screen "tap to start" handlers
+    el.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      unlockAudio();
+      el.classList.add('is-active');
+    });
+    const off = () => el.classList.remove('is-active');
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointercancel', off);
+    el.addEventListener('pointerleave', off);
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      sendCmd(el.dataset.uiCmd);
+    });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+}
+
+export function initOverlays(game) {
+  gameRef = game;
+  bindCmdButtons();
+  // Title: tapping the scene starts only when there is a single choice (no save yet)
+  document.getElementById('ui-title')?.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (e.target?.closest?.('button, a')) return;
+    unlockAudio();
+    if (titleOptions().length === 1) sendCmd('begin');
+  });
+  document.getElementById('ui-intro')?.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    unlockAudio();
+    sendCmd('skip');
+  });
   document.querySelectorAll('[data-ui-start]').forEach(bindStartTarget);
-  // Whole-screen dismiss for win/lose/clear (START keys + touch START still work via input map)
+  // Whole-screen dismiss for win/clear (START keys + touch START still work via input map)
   bindStartTarget(document.getElementById('ui-win'));
-  bindStartTarget(document.getElementById('ui-lose'));
   bindStartTarget(document.getElementById('ui-clear'));
   bindShareLinks();
+  // Leaving the tab / app mid-chapter pauses instead of letting enemies act
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) sendCmd('autopause');
+  });
+  window.addEventListener('blur', () => sendCmd('autopause'));
 }
 
 function setVisible(id, show) {
@@ -151,25 +199,14 @@ export function syncOverlays(game) {
     const showId = SCREENS[state];
     if (showId) setVisible(showId, true);
     lastState = state;
+    if (state !== STATES.INTRO) introSig = '';
+    if (state !== STATES.TITLE) titleSig = '';
     if (state === STATES.PLAYING || state === STATES.PAUSED) releaseStart();
   }
 
-  // Title: campaign blurb
-  if (state === STATES.TITLE) {
-    const title = document.getElementById('ui-title');
-    const levelLine = title?.querySelector('.ui-level');
-    if (levelLine) {
-      levelLine.textContent = `The Prophet's Path`;
-    }
-    const card = title?.querySelector('.ui-card');
-    if (card) {
-      card.innerHTML = `
-        <p>From a boy in the grove to Carthage.</p>
-        <p>Seven chapters. One testimony.</p>
-        <p class="ui-muted">A family-friendly arcade campaign.</p>
-      `;
-    }
-  }
+  if (state === STATES.TITLE) syncTitle(game);
+  if (state === STATES.INTRO) syncIntro(game);
+  if (state === STATES.PAUSED) syncPause(game);
 
   // Level-clear intermission
   if (state === STATES.CLEAR) {
@@ -194,7 +231,7 @@ export function syncOverlays(game) {
   if (state === STATES.WIN || state === STATES.LOSE) {
     const root = document.getElementById(SCREENS[state]);
     root?.querySelectorAll('[data-ui-score]').forEach((n) => {
-      n.textContent = `Score: ${game.score}`;
+      n.textContent = `Score: ${game.score}${game.newBest ? ' · New best!' : ''}`;
     });
     const intent = shareIntentUrl(game);
     root?.querySelectorAll('[data-ui-share]').forEach((n) => {
@@ -211,6 +248,7 @@ export function syncOverlays(game) {
   }
 
   syncHud(game);
+  syncTip(game);
 
   const blink = Math.floor(game.titleBlink / 30) % 2 === 0;
   const activeId = SCREENS[state];
@@ -225,6 +263,7 @@ function syncHud(game) {
   const hud = document.getElementById('hud');
   if (!hud) return;
   const play = game.state === STATES.PLAYING || game.state === STATES.PAUSED;
+  hud.classList.toggle('is-paused', game.state === STATES.PAUSED);
   hud.hidden = !play || !game.player;
   if (!play || !game.player) return;
   const hearts = hud.querySelector('[data-hud-hearts]');
@@ -244,4 +283,72 @@ function syncHud(game) {
   if (chap) chap.textContent = `${game.levelNum}/${MAX_LEVEL}`;
   const score = hud.querySelector('[data-hud-score]');
   if (score) score.textContent = String(game.score).padStart(6, '0');
+}
+
+let titleSig = '';
+function syncTitle(game) {
+  const opts = titleOptions();
+  const n = unlockedChapter();
+  const best = bestScore();
+  const sig = `${opts.join(',')}:${n}:${best}:${game.titleSel}`;
+  if (sig === titleSig) return;
+  titleSig = sig;
+  const cont = document.querySelector('[data-ui-cmd="continue"]');
+  if (cont) {
+    cont.hidden = opts.length < 2;
+    const name = LEVEL_META[n]?.name || '';
+    cont.innerHTML = `Continue <small>Chapter ${n}${name ? ` · ${name}` : ''}</small>`;
+    cont.setAttribute('aria-label', `Continue from chapter ${n}`);
+  }
+  const sel = opts[game.titleSel] || opts[0];
+  document.querySelectorAll('#ui-title [data-ui-cmd]').forEach((el) => {
+    el.classList.toggle('is-selected', el.dataset.uiCmd === sel && opts.length > 1);
+  });
+  const bestEl = document.querySelector('[data-ui-best]');
+  if (bestEl) {
+    bestEl.hidden = best <= 0;
+    bestEl.textContent = `Best score ${best}`;
+  }
+}
+
+let introSig = '';
+function syncIntro(game) {
+  const n = game.levelNum;
+  if (introSig === `${n}`) return;
+  introSig = `${n}`;
+  const meta = LEVEL_META[n] || {};
+  const root = document.getElementById('ui-intro');
+  if (!root) return;
+  root.querySelector('[data-ui-intro-num]').textContent = `Chapter ${n} of ${MAX_LEVEL}`;
+  root.querySelector('[data-ui-intro-title]').textContent = meta.name || '';
+  root.querySelector('[data-ui-intro-story]').textContent = meta.story || meta.blurb || '';
+  root.querySelector('[data-ui-intro-year]').textContent = [meta.place, meta.year].filter(Boolean).join(' · ');
+  // Restart the CSS fade each time a card appears
+  root.classList.remove('is-anim');
+  void root.offsetWidth;
+  root.classList.add('is-anim');
+}
+
+function syncPause(game) {
+  const sel = PAUSE_OPTIONS[game.pauseSel] || PAUSE_OPTIONS[0];
+  document.querySelectorAll('#ui-pause [data-ui-cmd]').forEach((el) => {
+    el.classList.toggle('is-selected', el.dataset.uiCmd === sel);
+  });
+  const ch = document.querySelector('[data-ui-pause-chapter]');
+  if (ch) ch.textContent = `Chapter ${game.levelNum} · ${LEVEL_META[game.levelNum]?.name || ''}`;
+  syncMuteButton();
+}
+
+let tipSig = '';
+function syncTip(game) {
+  const el = document.getElementById('ui-tip');
+  if (!el) return;
+  const tip = game.state === STATES.PLAYING ? game.tip : null;
+  const sig = tip ? tip.id : '';
+  if (sig !== tipSig) {
+    tipSig = sig;
+    if (tip) el.textContent = tip.text;
+  }
+  const show = !!tip && tip.t < 290;
+  el.classList.toggle('is-shown', show);
 }

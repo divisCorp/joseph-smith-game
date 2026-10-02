@@ -16,13 +16,18 @@ const map = {
   KeyK: 'jump',
   Enter: 'start',
   KeyP: 'pause',
+  Escape: 'pause',
   KeyM: 'mute',
 };
+
+/** Presses that happened between frames (a tap shorter than one frame still counts). */
+const tapped = Object.create(null);
 
 window.addEventListener('keydown', (e) => {
   const a = map[e.code];
   if (!a) return;
   e.preventDefault();
+  if (!keys[a] && !e.repeat) tapped[a] = true;
   keys[a] = true;
 });
 
@@ -40,6 +45,11 @@ export function isDown(action) {
 /** One-shot press: true once until released */
 const pressed = Object.create(null);
 export function justPressed(action) {
+  if (tapped[action]) {
+    tapped[action] = false;
+    pressed[action] = !!keys[action];
+    return true;
+  }
   if (keys[action] && !pressed[action]) {
     pressed[action] = true;
     return true;
@@ -51,10 +61,12 @@ export function justPressed(action) {
 export function clearAll() {
   for (const k of Object.keys(keys)) keys[k] = false;
   for (const k of Object.keys(pressed)) pressed[k] = false;
+  for (const k of Object.keys(tapped)) tapped[k] = false;
 }
 
 /** Shared path for keyboard and virtual controls */
 export function setAction(action, down) {
+  if (down && !keys[action]) tapped[action] = true;
   keys[action] = !!down;
   if (!down) pressed[action] = false;
 }

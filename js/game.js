@@ -1,4 +1,4 @@
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, LEVEL_META } from './constants.js';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js';
 import { justPressed, clearAll, isDown as isDownHold } from './input.js';
 import {
   createPlayer,
@@ -24,7 +24,8 @@ import {
   drawPlateChest,
   measureText,
 } from './sprites.js';
-import { sfx, syncAudio, tickMusic } from './audio.js';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js';
+import { unlockChapter, unlockedChapter, recordScore, tipSeen, markTip } from './save.js';
 
 export function createGame() {
   return {
@@ -34,12 +35,14 @@ export function createGame() {
     player: null,
     camX: 0,
     score: 0,
+    chapterStartScore: 0,
     message: '',
     messageT: 0,
     bossIntro: false,
     titleBlink: 0,
     tick: 0,
     clearTimer: 0,
+    stateT: 0,
     martyrTimer: 0,
     martyrEnding: false,
     martyrFade: 0,
@@ -48,24 +51,47 @@ export function createGame() {
     shake: 0,
     hitStop: 0,
     introFade: 0,
+    introT: 0,
     titleLevel: null,
+    titleSel: 0,
+    pauseSel: 0,
+    cmd: null,
+    newBest: false,
+    tip: null,
+    tipQueue: [],
+    safe: null,
   };
 }
 
-export function startCampaign(game) {
+/** Title choices: Continue only appears once a later chapter is unlocked. */
+export function titleOptions() {
+  const n = unlockedChapter();
+  return n > 1 ? ['continue', 'begin'] : ['begin'];
+}
+
+export const PAUSE_OPTIONS = ['resume', 'restart', 'sound', 'quit'];
+
+export function startCampaign(game, fromChapter = 1) {
+  const num = Math.max(1, Math.min(MAX_LEVEL, fromChapter | 0 || 1));
   game.score = 0;
-  game.hasPlates = false;
-  startLevel(game, 1, true);
+  game.newBest = false;
+  // The plates are received in chapter 3; later chapters start with them.
+  game.hasPlates = num > 3;
+  startLevel(game, num, true);
 }
 
 export function startLevel(game, num, resetScore = false) {
   const level = createLevel(num);
   game.level = level;
   game.levelNum = num;
+  if (resetScore) game.score = 0;
+  game.chapterStartScore = game.score;
+  game.hasPlates = num > 3;
   game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
   game.camX = Math.max(0, game.player.x + game.player.w / 2 - W * 0.5);
-  if (resetScore) game.score = 0;
-  game.state = STATES.PLAYING;
+  game.state = STATES.INTRO;
+  game.introT = 0;
+  game.stateT = 0;
   game.bossIntro = false;
   game.message = '';
   game.messageT = 0;
@@ -76,73 +102,263 @@ export function startLevel(game, num, resetScore = false) {
   game.cloudDefeated = false;
   game.shake = 0;
   game.hitStop = 0;
-  game.introFade = 36;
-  const meta = LEVEL_META[num];
-  if (meta?.name) {
-    game.message = meta.name.toUpperCase();
-    game.messageT = 80;
-  }
+  game.introFade = 0;
+  game.pauseSel = 0;
+  game.tip = null;
+  game.tipQueue = [];
+  game.safe = { x: game.player.x, y: game.player.y };
+  unlockChapter(num);
   clearAll();
+}
+
+function restartChapter(game) {
+  game.score = game.chapterStartScore || 0;
+  startLevel(game, game.levelNum, false);
+}
+
+function quitToTitle(game) {
+  if (recordScore(game.score)) game.newBest = true;
+  game.state = STATES.TITLE;
+  game.titleSel = 0;
+  game.stateT = 0;
+  game.tip = null;
+  clearAll();
+}
+
+function setState(game, st) {
+  game.state = st;
+  game.stateT = 0;
+  clearAll();
+}
+
+function pauseGame(game) {
+  if (game.state !== STATES.PLAYING || game.martyrEnding) return;
+  game.pauseSel = 0;
+  setState(game, STATES.PAUSED);
+}
+
+/** Commands from HTML buttons (touch / mouse) and the visibility watcher. */
+function runCommand(game, cmd) {
+  switch (cmd) {
+    case 'begin':
+      if (game.state === STATES.TITLE) startCampaign(game, 1);
+      break;
+    case 'continue':
+      if (game.state === STATES.TITLE) startCampaign(game, unlockedChapter());
+      break;
+    case 'pause':
+      if (game.state === STATES.PLAYING) pauseGame(game);
+      else if (game.state === STATES.PAUSED) setState(game, STATES.PLAYING);
+      break;
+    case 'autopause':
+      pauseGame(game);
+      break;
+    case 'resume':
+      if (game.state === STATES.PAUSED) setState(game, STATES.PLAYING);
+      break;
+    case 'restart':
+      if (game.state === STATES.PAUSED || game.state === STATES.LOSE) restartChapter(game);
+      break;
+    case 'retry':
+      if (game.state === STATES.LOSE) restartChapter(game);
+      break;
+    case 'sound':
+      toggleMute();
+      break;
+    case 'quit':
+    case 'title':
+      quitToTitle(game);
+      break;
+    case 'skip':
+      if (game.state === STATES.INTRO && game.introT > 20) endIntro(game);
+      break;
+    default:
+      break;
+  }
+}
+
+function endIntro(game) {
+  game.state = STATES.PLAYING;
+  game.stateT = 0;
+  game.introFade = 24;
+  clearAll();
+  queueChapterTips(game);
+}
+
+function menuNav(sel, count) {
+  if (justPressed('up') || justPressed('left')) return (sel + count - 1) % count;
+  if (justPressed('down') || justPressed('right')) return (sel + 1) % count;
+  return sel;
+}
+
+function confirmPressed() {
+  // Evaluate all so each one-shot latch updates
+  const a = justPressed('start');
+  const b = justPressed('jump');
+  const c = justPressed('attack');
+  return a || b || c;
 }
 
 export function updateGame(game, dt) {
   game.tick += dt;
   game.titleBlink += dt;
+  game.stateT += dt;
   syncAudio(game);
   tickMusic(dt);
 
+  if (game.cmd) {
+    const cmd = game.cmd;
+    game.cmd = null;
+    runCommand(game, cmd);
+    return;
+  }
+
   if (game.state === STATES.TITLE) {
-    if (justPressed('start') || justPressed('attack')) {
-      startCampaign(game);
-    }
+    const opts = titleOptions();
+    if (game.titleSel >= opts.length) game.titleSel = 0;
+    game.titleSel = menuNav(game.titleSel, opts.length);
+    if (confirmPressed() && game.stateT > 10) runCommand(game, opts[game.titleSel]);
+    return;
+  }
+
+  if (game.state === STATES.INTRO) {
+    game.introT += dt;
+    const skip = confirmPressed();
+    if (game.introT > 210 || (skip && game.introT > 20)) endIntro(game);
     return;
   }
 
   if (game.state === STATES.CLEAR) {
     game.clearTimer += dt;
-    if (game.clearTimer > 120 || justPressed('start') || justPressed('attack')) {
+    const go = confirmPressed() && game.clearTimer > 30;
+    if (game.clearTimer > 150 || go) {
       const next = game.levelNum + 1;
       if (next <= MAX_LEVEL) startLevel(game, next, false);
-      else {
-        game.state = STATES.WIN;
-        clearAll();
-      }
+      else goWin(game);
     }
     return;
   }
 
-  if (game.state === STATES.WIN || game.state === STATES.LOSE) {
-    if (justPressed('start') || justPressed('attack')) {
-      game.state = STATES.TITLE;
-      clearAll();
+  if (game.state === STATES.WIN) {
+    if (confirmPressed() && game.stateT > 60) quitToTitle(game);
+    return;
+  }
+
+  if (game.state === STATES.LOSE) {
+    if (game.stateT > 40) {
+      if (justPressed('start') || justPressed('jump')) restartChapter(game);
+      else if (justPressed('pause')) quitToTitle(game);
     }
     return;
   }
 
   if (game.state === STATES.PLAYING) {
     if (justPressed('pause') && !game.martyrEnding) {
-      game.state = STATES.PAUSED;
+      pauseGame(game);
       return;
     }
     tickPlay(game, dt);
+    tickTips(game, dt);
   } else if (game.state === STATES.PAUSED) {
-    if (justPressed('pause') || justPressed('start')) {
-      game.state = STATES.PLAYING;
+    if (justPressed('pause')) {
+      setState(game, STATES.PLAYING);
+      return;
     }
+    game.pauseSel = menuNav(game.pauseSel, PAUSE_OPTIONS.length);
+    if (confirmPressed()) runCommand(game, PAUSE_OPTIONS[game.pauseSel]);
   }
+}
+
+// ── First-run tips (chapter 1 only, each shown once ever) ─────────────────
+const TIP_TEXT = {
+  move: { touch: 'Drag the stick ◀ ▶ to walk', keys: 'Walk with ← → or A / D' },
+  jump: { touch: 'Tap A to jump', keys: 'Press X (or K) to jump' },
+  attack: { touch: 'Tap B to swing the pitchfork', keys: 'Space or Z swings the pitchfork' },
+  kneel: { touch: 'Hurt? Hold the stick ▼ to kneel and pray — it heals', keys: 'Hurt? Hold ↓ to kneel and pray — it heals' },
+  cloud: { touch: 'Stay kneeling until the PRAY bar fills', keys: 'Stay kneeling until the PRAY bar fills' },
+};
+
+function isTouchUi() {
+  return typeof document !== 'undefined' && document.body?.classList.contains('touch-ui');
+}
+
+function queueChapterTips(game) {
+  game.tipQueue = [];
+  game.tip = null;
+  if (game.levelNum !== 1) return;
+  for (const id of ['move', 'jump']) if (!tipSeen(id)) game.tipQueue.push(id);
+}
+
+function showTip(game, id) {
+  if (tipSeen(id) || game.tip?.id === id) return;
+  const t = TIP_TEXT[id];
+  game.tip = { id, text: isTouchUi() ? t.touch : t.keys, t: 0, done: false };
+  markTip(id);
+}
+
+function tickTips(game, dt) {
+  if (game.levelNum !== 1 || !game.player) {
+    game.tip = null;
+    return;
+  }
+  const p = game.player;
+  const level = game.level;
+  // Context-triggered tips can pre-empt the intro queue once the current one has been read
+  const free = !game.tip || game.tip.t > 150;
+  if (!free) {
+    /* let the current tip finish */
+  } else if (!tipSeen('cloud') && game.bossIntro) showTip(game, 'cloud');
+  else if (!tipSeen('kneel') && p.hp < p.maxHp && p.alive) showTip(game, 'kneel');
+  else if (!tipSeen('attack')) {
+    const near = level.enemies.some(
+      (e) => e.alive && e.type === 'wolf' && Math.abs(e.x - p.x) < 9 * TILE
+    );
+    if (near) showTip(game, 'attack');
+  }
+  if (!game.tip && game.tipQueue.length) {
+    const id = game.tipQueue.shift();
+    if (!tipSeen(id)) showTip(game, id);
+  }
+  const tip = game.tip;
+  if (!tip) return;
+  tip.t += dt;
+  // Finish early once the player has clearly got it
+  if (!tip.done && tip.t > 60) {
+    if (tip.id === 'move' && Math.abs(p.x - level.spawn.x) > 3 * TILE) tip.done = true;
+    if (tip.id === 'jump' && !p.onGround) tip.done = true;
+    if (tip.id === 'attack' && p.attackTimer > 0) tip.done = true;
+    if (tip.id === 'kneel' && p.hp >= p.maxHp) tip.done = true;
+    if (tip.id === 'cloud' && p.crouching) tip.done = true;
+    if (tip.done) tip.t = Math.max(tip.t, 300 - 20);
+  }
+  if (tip.t > 300) game.tip = null;
 }
 
 function goClear(game) {
   game.state = STATES.CLEAR;
   game.clearTimer = 0;
+  game.stateT = 0;
   game.messageT = 0;
+  game.tip = null;
+  unlockChapter(Math.min(MAX_LEVEL, game.levelNum + 1));
+  if (recordScore(game.score)) game.newBest = true;
   clearAll();
 }
 
 function goWin(game) {
   game.state = STATES.WIN;
+  game.stateT = 0;
   game.messageT = 0;
+  game.tip = null;
+  if (recordScore(game.score)) game.newBest = true;
   clearAll();
+}
+
+function hasFooting(p, solids) {
+  const feet = p.y + p.h;
+  const probe = (x) =>
+    solids.some((s) => x >= s.x && x <= s.x + s.w && Math.abs(feet - s.y) <= 4);
+  return probe(p.x + 2 * SCALE) && probe(p.x + p.w - 2 * SCALE);
 }
 
 function tickPlay(game, dt) {
@@ -167,6 +383,31 @@ function tickPlay(game, dt) {
   }
 
   updatePlayer(player, level.solids, dt);
+
+  // Remember solid footing; a fall into a gap costs one heart, not the whole run.
+  if (player.alive && player.onGround && hasFooting(player, level.solids)) {
+    game.safe = { x: player.x, y: player.y + player.h - player.standH };
+  }
+  if (player.fellOut) {
+    player.fellOut = false;
+    if (player.hp > 1 && game.safe) {
+      player.hp -= 1;
+      player.x = game.safe.x;
+      player.y = game.safe.y;
+      player.vx = 0;
+      player.vy = 0;
+      player.invuln = 90;
+      if (player.crouching) {
+        player.crouching = false;
+        player.h = player.standH;
+      }
+      sfx('hurt');
+      game.shake = Math.max(game.shake, 10);
+    } else {
+      player.hp = 0;
+      player.alive = false;
+    }
+  }
 
   const target = player.x + player.w / 2 - W * 0.5;
   game.camX += (target - game.camX) * 0.15;
@@ -202,7 +443,7 @@ function tickPlay(game, dt) {
         return;
       }
     } else if (inGrove || nearX) {
-      game.message = 'Kneel (↓) and pray';
+      game.message = isTouchUi() ? 'Hold ▼ to kneel and pray' : 'Hold ↓ to kneel and pray';
       game.messageT = 20;
     }
   }
@@ -348,8 +589,9 @@ function tickPlay(game, dt) {
       player.hp = 0;
       return;
     }
-    game.state = STATES.LOSE;
-    clearAll();
+    if (recordScore(game.score)) game.newBest = true;
+    game.tip = null;
+    setState(game, STATES.LOSE);
   }
 }
 

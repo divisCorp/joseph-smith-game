@@ -1,66 +1,93 @@
 /**
  * 8-bit SFX + chiptune BGM (Web Audio).
- * Title/level theme is Bradbury's 1862 "Jesus Loves Me" — public domain.
+ * Every melody is a public-domain hymn tune (see js/songs.js + README "Music").
+ * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
 import { STATES } from './constants.js';
+import { savedMuted, saveMuted } from './save.js';
+import * as S from './songs.js';
 
 let actx = null;
 let master = null;
 let musicGain = null;
 let sfxGain = null;
-let musicTimer = 0;
-let musicStep = 0;
-let currentSong = null;
-let muted = false;
+let muted = savedMuted();
 let unlocked = false;
 let lastState = '';
-let lastLevel = 0;
 let htmlKick = null;
-
-const NOTE = {
-  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.0, A3: 220.0, B3: 246.94,
-  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440.0, B4: 493.88,
-  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
-};
-
-function n(name, beats) {
-  return { f: name ? NOTE[name] : 0, b: beats };
-}
-
-/** Bradbury 1862, C major. Incipit 53323 55661 66555 (Hymnary). */
-const JESUS_LOVES_ME = {
-  bpm: 108,
-  lead: [
-    n('G4', 1), n('E4', 1), n('E4', 1), n('D4', 1), n('E4', 1), n('G4', 1), n('G4', 2),
-    n('A4', 1), n('A4', 1), n('C5', 1), n('A4', 1), n('A4', 1), n('G4', 1), n('G4', 2),
-    n('G4', 1), n('E4', 1), n('E4', 1), n('D4', 1), n('E4', 1), n('G4', 1), n('G4', 2),
-    n('A4', 1), n('A4', 1), n('C5', 1), n('A4', 1), n('A4', 1), n('G4', 1), n('G4', 2),
-    n('G4', 1), n('G4', 1), n('A4', 1), n('G4', 1), n('E4', 2), n('G4', 1), n('G4', 1),
-    n('A4', 1), n('G4', 1), n('E4', 2), n('G4', 1), n('G4', 1),
-    n('A4', 1), n('G4', 1), n('E4', 2), n('D4', 1), n('E4', 1), n('D4', 1), n('C4', 3),
-    n(null, 2),
-  ],
-  bass: [
-    n('C3', 2), n('G3', 2), n('C3', 2), n('G3', 2),
-    n('F3', 2), n('C3', 2), n('G3', 2), n('C3', 2),
-    n('C3', 2), n('G3', 2), n('C3', 2), n('G3', 2),
-    n('F3', 2), n('C3', 2), n('G3', 2), n('C3', 2),
-    n('C3', 2), n('G3', 2), n('C3', 2), n('E3', 2),
-    n('C3', 2), n('G3', 2), n('F3', 2), n('C3', 2),
-    n('G3', 2), n('G3', 2), n('C3', 4),
-    n(null, 2),
-  ],
-};
-
-const GROVE_HYMN = {
-  bpm: 96,
-  lead: JESUS_LOVES_ME.lead.map((x) => ({ f: x.f ? x.f * (3 / 4) : 0, b: x.b })),
-  bass: JESUS_LOVES_ME.bass.map((x) => ({ f: x.f ? x.f * (3 / 4) : 0, b: x.b })),
-};
 
 const SILENT_WAV =
   'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+/** Build a bass line from chord roots in one of a few chiptune styles. */
+function bassLine(chords, style) {
+  const out = [];
+  for (const [root, beats] of chords) {
+    if (style === 'hold') {
+      out.push([root, beats, 0.95]);
+      continue;
+    }
+    const step = style === 'pulse' ? 0.5 : 1;
+    let left = beats;
+    let k = 0;
+    while (left > 1e-6) {
+      const b = Math.min(step, left);
+      let m = root;
+      if (style === 'pulse') m = k % 2 ? root + 12 : root;
+      else if (style === 'root5') m = k % 2 ? root + 7 : root;
+      else if (style === 'march') m = k % 2 ? root + 7 : root;
+      out.push([m, b, style === 'march' || style === 'pulse' ? 0.55 : 0.9]);
+      left -= b;
+      k++;
+    }
+  }
+  return out;
+}
+
+function track(song, o) {
+  return {
+    id: o.id,
+    bpm: o.bpm,
+    lead: song.lead.map(([m, b]) => [m ? m + (o.transpose || 0) : 0, b, o.leadGate ?? 0.9]),
+    bass: bassLine(song.chords, o.bassStyle || 'root5').map(([m, b, g]) => [m + (o.bassTranspose || 0), b, g]),
+    leadWave: o.leadWave || 'square',
+    leadVol: o.leadVol ?? 0.2,
+    bassWave: o.bassWave || 'triangle',
+    bassVol: o.bassVol ?? 0.24,
+  };
+}
+
+/**
+ * One tune per chapter / mood. Reverent pieces use soft triangle leads;
+ * boss fights use the brisk camp-meeting tune with a pulsing bass.
+ */
+export const TRACKS = {
+  // Bradbury, 1862 — title, chapter-clear and ending screens
+  title: track(S.JESUS_LOVES_ME, { id: 'title', bpm: 108, leadVol: 0.18, bassStyle: 'root5' }),
+  // NEW BRITAIN (American folk, pub. 1829) — "Amazing Grace"
+  grove: track(S.NEW_BRITAIN, { id: 'grove', bpm: 78, leadWave: 'triangle', leadVol: 0.34, bassStyle: 'hold', bassVol: 0.2 }),
+  // Same tune, lower and slower, while kneeling against the Dark Cloud
+  prayer: track(S.NEW_BRITAIN, { id: 'prayer', bpm: 62, transpose: -5, leadWave: 'triangle', leadVol: 0.36, bassStyle: 'hold', bassVol: 0.22 }),
+  // OLD HUNDREDTH (Genevan Psalter, 1551)
+  moroni: track(S.OLD_100TH, { id: 'moroni', bpm: 84, leadWave: 'triangle', leadVol: 0.34, bassStyle: 'hold', bassVol: 0.2 }),
+  // FOUNDATION (Funk's Genuine Church Music, 1832) — "How Firm a Foundation"
+  cumorah: track(S.FOUNDATION, { id: 'cumorah', bpm: 132, leadVol: 0.16, bassStyle: 'root5' }),
+  // ALL IS WELL (Sacred Harp, 1844 / Revival Melodies, 1842) — "Come, Come, Ye Saints"
+  missouri: track(S.ALL_IS_WELL, { id: 'missouri', bpm: 92, leadVol: 0.17, bassStyle: 'root5' }),
+  // ST. GERTRUDE (Sullivan, 1871) — "Onward, Christian Soldiers"
+  road: track(S.ST_GERTRUDE, { id: 'road', bpm: 116, leadVol: 0.16, bassStyle: 'march', leadGate: 0.8 }),
+  // AUSTRIAN HYMN (Haydn, 1797) — "Glorious Things of Thee Are Spoken"
+  nauvoo: track(S.AUSTRIAN, { id: 'nauvoo', bpm: 100, leadVol: 0.17, bassStyle: 'root5' }),
+  // BETHANY (Lowell Mason, 1856) — "Nearer, My God, to Thee"
+  carthage: track(S.BETHANY, { id: 'carthage', bpm: 70, leadWave: 'triangle', leadVol: 0.36, bassStyle: 'hold', bassVol: 0.2 }),
+  // Camp-meeting tune (c. 1856) later used for the "Battle Hymn of the Republic"
+  boss: track(S.BATTLE_HYMN, { id: 'boss', bpm: 138, leadVol: 0.19, bassStyle: 'pulse', bassVol: 0.26, leadGate: 0.8 }),
+};
+
+const CHAPTER_TRACK = [null, 'grove', 'moroni', 'cumorah', 'missouri', 'road', 'nauvoo', 'carthage'];
 
 function buildGraph() {
   if (actx) return actx;
@@ -85,6 +112,7 @@ function kickSilent() {
       htmlKick = new Audio(SILENT_WAV);
       htmlKick.loop = true;
       htmlKick.volume = 0.01;
+      htmlKick.muted = muted;
     }
     htmlKick.play().catch(() => {});
   } catch (_) {
@@ -105,12 +133,15 @@ function kickSilent() {
 export function unlockAudio() {
   const c = buildGraph();
   if (!c) return;
+  if (unlocked && c.state === 'running') return;
   kickSilent();
   const finish = () => {
+    const first = !unlocked;
     unlocked = true;
-    if (!currentSong) setMusic(JESUS_LOVES_ME);
-    tone(392, 0.07, 'square', 0.28, sfxGain);
-    tone(523, 0.09, 'square', 0.26, sfxGain);
+    if (first) {
+      tone(392, 0.07, 'square', 0.28, sfxGain);
+      tone(523, 0.09, 'square', 0.26, sfxGain);
+    }
   };
   if (c.state === 'suspended') {
     c.resume().then(finish).catch(finish);
@@ -123,6 +154,8 @@ export function toggleMute() {
   muted = !muted;
   if (master) master.gain.value = muted ? 0 : 0.75;
   if (htmlKick) htmlKick.muted = muted;
+  if (muted) silenceMusic();
+  saveMuted(muted);
   syncMuteButton();
   return muted;
 }
@@ -133,11 +166,15 @@ export function isMuted() {
 
 export function syncMuteButton() {
   const btn = document.getElementById('mute-btn');
-  if (!btn) return;
-  btn.classList.toggle('is-muted', muted);
-  btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
-  btn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
-  btn.textContent = muted ? '♪' : 'MUTE';
+  if (btn) {
+    btn.classList.toggle('is-muted', muted);
+    btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    btn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+    btn.textContent = muted ? 'UNMUTE' : 'MUTE';
+  }
+  document.querySelectorAll('[data-ui-sound-label]').forEach((n) => {
+    n.textContent = muted ? 'Sound: Off' : 'Sound: On';
+  });
 }
 
 export function bindMuteButton() {
@@ -147,8 +184,7 @@ export function bindMuteButton() {
     e.preventDefault();
     e.stopPropagation();
     if (!unlocked) unlockAudio();
-    else toggleMute();
-    syncMuteButton();
+    toggleMute();
   };
   btn.addEventListener('pointerdown', go);
   btn.addEventListener('click', (e) => {
@@ -260,74 +296,147 @@ export function sfx(name) {
   }
 }
 
-function playSongNote(track, dest, vol, type) {
-  if (!currentSong) return;
-  const notes = currentSong[track];
-  if (!notes || !notes.length) return;
-  let acc = 0;
-  const step = musicStep;
-  for (const note of notes) {
-    if (step === acc) {
-      if (note.f) tone(note.f, (note.b * 60) / currentSong.bpm * 0.92, type, vol, dest);
-      return;
+
+// ── Music sequencer (look-ahead scheduling on the audio clock) ─────────────
+let seq = null; // { trk, voices: [{ part, i, t }] }
+let musicPaused = false;
+const liveNodes = new Set();
+
+function silenceMusic() {
+  for (const o of liveNodes) {
+    try {
+      o.stop();
+    } catch (_) {
+      /* already stopped */
     }
-    acc += note.b;
-    if (acc > step) return;
+  }
+  liveNodes.clear();
+}
+
+function playNote(freq, when, dur, type, vol) {
+  const o = actx.createOscillator();
+  const g = actx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, when);
+  const a = 0.008;
+  const end = when + Math.max(0.05, dur);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(vol, when + a);
+  g.gain.exponentialRampToValueAtTime(vol * 0.6, when + a + Math.min(0.12, dur * 0.4));
+  g.gain.setValueAtTime(vol * 0.6, Math.max(when + a + 0.01, end - 0.04));
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+  o.connect(g);
+  g.connect(musicGain);
+  o.start(when);
+  o.stop(end + 0.02);
+  liveNodes.add(o);
+  o.onended = () => liveNodes.delete(o);
+}
+
+function startTrack(trk) {
+  silenceMusic();
+  const t0 = actx ? actx.currentTime + 0.06 : 0;
+  seq = {
+    trk,
+    voices: [
+      { part: 'lead', i: 0, t: t0 },
+      { part: 'bass', i: 0, t: t0 },
+    ],
+  };
+}
+
+function scheduleMusic() {
+  if (!seq || !actx) return;
+  const now = actx.currentTime;
+  const trk = seq.trk;
+  const spb = 60 / trk.bpm;
+  // After a pause / hidden tab / mute, slide the timeline forward instead of bursting
+  const lag = now + 0.05 - Math.min(seq.voices[0].t, seq.voices[1].t);
+  if (lag > 0.3) for (const v of seq.voices) v.t += lag;
+  const ahead = now + 0.25;
+  for (const v of seq.voices) {
+    const notes = trk[v.part];
+    if (!notes.length) continue;
+    let guard = 0;
+    while (v.t < ahead && guard++ < 64) {
+      const [m, b, gate] = notes[v.i];
+      const dur = b * spb;
+      if (m) {
+        const lead = v.part === 'lead';
+        playNote(
+          mtof(m),
+          v.t,
+          dur * gate,
+          lead ? trk.leadWave : trk.bassWave,
+          lead ? trk.leadVol : trk.bassVol
+        );
+      }
+      v.t += dur;
+      v.i = (v.i + 1) % notes.length;
+    }
   }
 }
 
-function songLength(song) {
-  return song.lead.reduce((s, n) => s + n.b, 0);
+export function tickMusic() {
+  if (!unlocked || !actx || muted || musicPaused || !seq) return;
+  if (actx.state !== 'running') return;
+  scheduleMusic();
 }
 
-export function tickMusic(dtFrames) {
-  if (!unlocked || !actx || muted || !currentSong) return;
-  const beat = 60 / currentSong.bpm;
-  musicTimer += dtFrames / 60;
-  if (musicTimer >= beat) {
-    musicTimer -= beat;
-    playSongNote('lead', musicGain, 0.32, 'square');
-    playSongNote('bass', musicGain, 0.2, 'triangle');
-    musicStep += 1;
-    if (musicStep >= songLength(currentSong)) musicStep = 0;
+export function setMusic(id) {
+  const trk = TRACKS[id] || null;
+  musicPaused = false;
+  if (!trk) {
+    stopMusic();
+    return;
   }
+  if (seq && seq.trk === trk) return;
+  startTrack(trk);
 }
 
-export function setMusic(song) {
-  if (currentSong === song) return;
-  currentSong = song;
-  musicStep = 0;
-  musicTimer = 0;
+export function pauseMusic() {
+  if (musicPaused) return;
+  musicPaused = true;
+  silenceMusic();
 }
 
 export function stopMusic() {
-  currentSong = null;
+  silenceMusic();
+  seq = null;
+}
+
+/** Which track fits the current moment of play. */
+export function trackFor(game) {
+  const st = game.state;
+  if (st === STATES.TITLE || st === STATES.WIN || st === STATES.CLEAR) return 'title';
+  if (st === STATES.LOSE) return null;
+  const n = game.levelNum || 1;
+  if (game.martyrEnding) return 'carthage';
+  if (game.bossIntro && st !== STATES.INTRO) {
+    if (n === 1) return 'prayer';
+    if (n >= 4 && n <= 6) return 'boss';
+  }
+  return CHAPTER_TRACK[n] || 'title';
 }
 
 export function syncAudio(game) {
   if (!unlocked) return;
   const st = game.state;
   if (st !== lastState) {
-    if (st === STATES.PLAYING && lastState === STATES.TITLE) sfx('start');
+    if ((st === STATES.INTRO || st === STATES.PLAYING) && lastState === STATES.TITLE) sfx('start');
     if (st === STATES.CLEAR) sfx('clear');
     if (st === STATES.WIN) sfx('win');
     if (st === STATES.LOSE) sfx('die');
     lastState = st;
-    lastLevel = game.levelNum;
-  } else if (!lastState) {
-    lastState = st;
   }
-  if (st === STATES.PAUSED || st === STATES.LOSE) {
+  if (st === STATES.PAUSED) {
+    pauseMusic();
+    return;
+  }
+  const id = trackFor(game);
+  if (!id) {
     stopMusic();
     return;
   }
-  if (st === STATES.TITLE || st === STATES.WIN || st === STATES.CLEAR) {
-    setMusic(JESUS_LOVES_ME);
-    return;
-  }
-  if (st === STATES.PLAYING) {
-    setMusic(game.levelNum >= 3 ? GROVE_HYMN : JESUS_LOVES_ME);
-  }
+  setMusic(id);
 }
-
-export { JESUS_LOVES_ME };

@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=65" />
+  <link rel="stylesheet" href="css/style.css?v=66" />
   <script>
     (function () {
       var touch =
@@ -55,7 +55,10 @@
         <div class="hud-chapter" data-hud-chapter>1/7</div>
         <div class="hud-end">
           <div class="hud-score" data-hud-score>000000</div>
-          <button type="button" id="mute-btn" class="mute-btn" data-ui-mute aria-label="Mute sound" aria-pressed="false">MUTE</button>
+          <div class="hud-btns">
+            <button type="button" id="mute-btn" class="mute-btn" data-ui-mute aria-label="Mute sound" aria-pressed="false">MUTE</button>
+            <button type="button" class="pause-btn" data-ui-cmd="pause" aria-label="Pause">II</button>
+          </div>
         </div>
       </div>
 
@@ -63,7 +66,7 @@
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=65" alt="" width="88" height="88" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=66" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -73,14 +76,36 @@
               <p>Seven chapters. One testimony.</p>
             </div>
           </div>
-          <button type="button" class="ui-start-btn" data-ui-start aria-label="Start game">Begin</button>
+          <div class="ui-title-actions">
+            <button type="button" class="ui-start-btn ui-continue-btn" data-ui-cmd="continue" hidden>Continue</button>
+            <button type="button" class="ui-start-btn" data-ui-cmd="begin" aria-label="Begin a new game">Begin</button>
+          </div>
+          <p class="ui-best" data-ui-best hidden></p>
           <p class="ui-install" id="install-hint">iPhone: Share → Add to Home Screen for no toolbar</p>
         </div>
 
+        <div id="ui-intro" class="ui-screen" hidden>
+          <div class="ui-intro-card">
+            <p class="ui-intro-num" data-ui-intro-num>Chapter 1 of 7</p>
+            <h2 class="ui-intro-title" data-ui-intro-title>Sacred Grove</h2>
+            <p class="ui-rule" aria-hidden="true"></p>
+            <p class="ui-intro-story" data-ui-intro-story></p>
+            <p class="ui-intro-year" data-ui-intro-year></p>
+          </div>
+          <p class="ui-intro-skip">Tap or press Enter to begin</p>
+        </div>
+
         <div id="ui-pause" class="ui-screen ui-screen--dim" hidden>
-          <div class="ui-panel">
+          <div class="ui-panel ui-pause-panel" role="dialog" aria-label="Paused">
             <h2 class="ui-heading">Paused</h2>
-            <p class="ui-body">Take a breath. The path waits.</p>
+            <p class="ui-muted" data-ui-pause-chapter></p>
+            <div class="ui-menu">
+              <button type="button" class="ui-menu-btn" data-ui-cmd="resume">Resume</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="restart">Restart Chapter</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="sound" data-ui-sound-label>Sound: On</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="quit">Quit to Title</button>
+            </div>
+            <p class="ui-menu-hint">Esc / P to resume · ↑ ↓ + Enter to choose</p>
           </div>
         </div>
 
@@ -114,12 +139,15 @@
             <p class="ui-body">Rise again, Joseph.</p>
             <p class="ui-score" data-ui-score>Score: 0</p>
             <div class="ui-actions">
-              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-start aria-label="Return to title">Try Again</button>
+              <button type="button" class="ui-start-btn ui-start-btn--compact" data-ui-cmd="retry" aria-label="Retry this chapter">Retry Chapter</button>
+              <button type="button" class="ui-share-btn" data-ui-cmd="title" aria-label="Return to title">Title</button>
               <a class="ui-share-btn" data-ui-share href="#" target="_blank" rel="noopener noreferrer">Share</a>
             </div>
           </div>
         </div>
       </div>
+
+      <div id="ui-tip" class="ui-tip" role="status" aria-live="polite"></div>
 
       <div id="touch-controls" aria-hidden="true">
       <div class="touch-bar">
@@ -148,8 +176,8 @@
       <p class="ui-muted">Palmyra Quest plays in landscape</p>
     </div>
 
-    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Mute M</p>
+    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M</p>
   </div>
-  <script type="module" src="js/main.js?v=65"></script>
+  <script type="module" src="js/main.js?v=66"></script>
 </body>
 </html>
