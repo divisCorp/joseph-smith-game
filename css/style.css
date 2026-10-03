@@ -1847,3 +1847,48 @@ html.is-standalone .ui-menu-btn--fs { display: none !important; }
   .ui-journal-btn { height: 26px; min-width: 30px; }
   .ui-journal-hint { display: none; }
 }
+
+/* ── Controls screen (round 6) ─────────────────────────── */
+#ui-controls { padding: 1.5% 2%; }
+#ui-controls:not([hidden]) { pointer-events: auto; }
+.ui-controls-panel { pointer-events: auto; width: min(96%, 660px); max-height: 100%; overflow-y: auto; gap: 0.2em; padding: 0.6em 1em 0.7em; }
+.ui-controls-panel .ui-heading { font-size: clamp(18px, 3.2vw, 26px); margin: 0; }
+.ui-ctl-table { width: 100%; border-collapse: separate; border-spacing: 0 3px; font: 600 13px/1.2 system-ui, -apple-system, sans-serif; color: #f0e6d0; }
+.ui-ctl-table thead th { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #c8b088; text-align: left; padding: 0 6px; }
+.ui-ctl-table tbody th { text-align: left; font-weight: 800; padding: 0 6px; white-space: nowrap; }
+.ui-ctl-table td { padding: 0 4px; }
+.ui-ctl-pad, .ui-ctl-touch { font-size: 12px; color: #d8c8a8; white-space: nowrap; }
+.ui-key-btn {
+  appearance: none; -webkit-appearance: none; pointer-events: auto;
+  min-width: 84px; height: 28px; padding: 0 10px;
+  font: 800 14px/1 system-ui, -apple-system, sans-serif; color: #2e1c0a;
+  background: linear-gradient(180deg, #f3e3b8, #dcc48c); border: 1px solid #7a5a2a; border-radius: 6px;
+  box-shadow: 0 2px 0 #5a3e18; cursor: pointer; touch-action: manipulation;
+}
+.ui-key-btn.is-arrow { font-size: 20px; line-height: 0.9; }
+.ui-key-btn.is-empty { color: #8a7458; background: rgba(243, 227, 184, 0.35); font-weight: 600; }
+.ui-key-btn.is-listening { color: #1a1208; font-size: 13px; background: linear-gradient(180deg, #fff0b0, #f0c850); animation: ui-key-pulse 0.8s ease-in-out infinite alternate; }
+.ui-key-btn.is-selected { outline: 3px solid #fff4c8; outline-offset: 2px; }
+.ui-key-btn.is-flash { background: linear-gradient(180deg, #d8f0c0, #a8d888); }
+@keyframes ui-key-pulse { from { box-shadow: 0 0 0 0 rgba(255, 220, 120, 0.8); } to { box-shadow: 0 0 0 5px rgba(255, 220, 120, 0); } }
+@media (prefers-reduced-motion: reduce) { .ui-key-btn.is-listening { animation: none; } }
+.ui-ctl-msg { margin: 0.1em 0; font-size: 12px; color: #f0d078; text-align: center; min-height: 1.2em; }
+.ui-ctl-actions { display: flex; gap: 10px; width: 100%; justify-content: center; }
+.ui-ctl-actions .ui-menu-btn { min-height: 32px; font-size: 13px; flex: 0 1 200px; padding: 0.2em 0.8em; }
+.ui-ctl-actions .ui-ctl-back { color: #1a1208; background: linear-gradient(180deg, #f0d078 0%, #d4a84b 55%, #b88830 100%); border-color: #fff0c0; }
+.ui-ctl-actions .ui-ctl-reset { color: #f0e6d0; background: rgba(30, 22, 14, 0.95); border-color: rgba(212, 168, 75, 0.7); }
+@media (max-height: 520px) {
+  .ui-controls-panel { padding: 0.35em 0.8em 0.45em; gap: 0.1em; }
+  .ui-controls-panel .ui-heading { font-size: 16px; }
+  .ui-ctl-table { border-spacing: 0 2px; font-size: 12px; }
+  .ui-ctl-table thead th { font-size: 9px; }
+  .ui-key-btn { height: 23px; min-width: 66px; font-size: 13px; }
+  .ui-key-btn.is-arrow { font-size: 17px; }
+  .ui-ctl-msg { font-size: 11px; margin: 0; }
+  .ui-ctl-actions .ui-menu-btn { min-height: 26px; font-size: 12px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .ui-pause-panel .ui-menu { gap: 5px; }
+  .ui-pause-panel .ui-menu-btn { min-height: 30px; font-size: 12px; padding: 0.2em 0.8em; }
+}
+body[data-state="controls"] .mute-btn { visibility: hidden; }

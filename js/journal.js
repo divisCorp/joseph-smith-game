@@ -14,7 +14,7 @@ export const JOURNAL = {
     place: 'Manchester, New York · 1823',
     body:
       'On the night of September 21, 1823, Joseph prayed to know his standing before God. The angel Moroni appeared at his bedside and returned three times before dawn. Worn out the next day, Joseph collapsed while crossing a field, and Moroni came again. Prayer gave him strength to go on.',
-    tip: 'In the game: when you are hurt, stand still and hold ▼ (Down) to kneel and pray. Each quiet moment of prayer restores a heart.',
+    tip: 'In the game: when you are hurt, stand still and hold Down (▼ on the stick, ↓ or S on a keyboard) to kneel and pray. Each quiet moment of prayer restores a heart.',
   },
   3: {
     title: 'The Plates and the Translation',

@@ -1,16 +1,16 @@
-import { landOnSlopes } from './hill.js?v=70';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=70';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=70';
-import { isDown, justPressed } from './input.js?v=70';
-import { sfx } from './audio.js?v=70';
-import { isEasy, reduceFlash } from './save.js?v=70';
+import { landOnSlopes } from './hill.js?v=71';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=71';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=71';
+import { isDown, justPressed } from './input.js?v=71';
+import { sfx } from './audio.js?v=71';
+import { isEasy, reduceFlash } from './save.js?v=71';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=70';
+} from './projectiles.js?v=71';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 export const CROUCH_H = 18 * SCALE;
@@ -41,6 +41,10 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     hp: 5,
     maxHp: 5,
     invuln: 0,
+    kbT: 0,
+    coyote: 0,
+    jumpBuf: 0,
+    jumpHeld: false,
     attackTimer: 0,
     attackCooldown: 0,
     alive: true,
@@ -58,6 +62,22 @@ export function createPlayer(spawnX, spawnY, opts = {}) {
     canThrow: !!opts.canThrow,
     forkHits: new Set(),
   };
+}
+
+/** I-frames after a hit (frames @ 60fps ≈ 1.2 s). */
+export const HURT_IFRAMES = 72;
+const COYOTE = 6; // ≈100 ms: jump still allowed just after running off a ledge
+const JUMP_BUFFER = 7; // ≈120 ms: a jump pressed just before landing still fires
+const JUMP_CUT = 0.45; // releasing jump early caps upward speed → short hops
+
+/**
+ * Forgiving hurtbox for enemy / hazard / projectile hits: narrower than the sprite
+ * (hair, coat tails and the pitchfork don't count) so near-misses feel fair.
+ */
+export function playerHurtbox(p) {
+  const insetX = 6 * SCALE;
+  const top = (p.crouching ? 2 : 7) * SCALE;
+  return { x: p.x + insetX, y: p.y + top, w: p.w - insetX * 2, h: p.h - top - 2 * SCALE };
 }
 
 export function playerHitbox(p) {
@@ -123,25 +143,47 @@ export function updatePlayer(p, solids, dt) {
 
   const speed = p.crouching ? CROUCH_SPEED : STAND_SPEED;
 
-  if (isDown('left')) {
-    p.vx = -speed;
-    p.facing = -1;
-  } else if (isDown('right')) {
-    p.vx = speed;
-    p.facing = 1;
+  // Responsive run: full speed in ~3 frames, quick stop on the ground, a little
+  // drift in the air. During a knockback the hit decides the direction briefly.
+  if (p.kbT > 0) {
+    p.kbT -= dt;
+    p.vx *= 0.9;
   } else {
-    p.vx *= FRICTION;
-    if (Math.abs(p.vx) < 0.05 * SCALE) p.vx = 0;
+    const dir = isDown('left') ? -1 : isDown('right') ? 1 : 0;
+    const accel = speed * (p.onGround ? 0.4 : 0.22);
+    if (dir) {
+      p.facing = dir;
+      const turning = Math.sign(p.vx) === -dir;
+      p.vx += dir * accel * (turning && p.onGround ? 1.6 : 1);
+      if (Math.abs(p.vx) > speed) p.vx = dir * speed;
+    } else {
+      p.vx *= p.onGround ? FRICTION * 0.8 : 0.9;
+      if (Math.abs(p.vx) < 0.05 * SCALE) p.vx = 0;
+    }
   }
 
-  if (justPressed('jump') && p.onGround && !p.crouching) {
+  // Coyote time + jump buffer
+  if (p.onGround) p.coyote = COYOTE;
+  else if (p.coyote > 0) p.coyote -= dt;
+  if (justPressed('jump')) p.jumpBuf = JUMP_BUFFER;
+  else if (p.jumpBuf > 0) p.jumpBuf -= dt;
+  if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && !p.crouching && p.vy >= -0.5) {
     p.vy = JUMP_V;
     p.onGround = false;
+    p.coyote = 0;
+    p.jumpBuf = 0;
+    p.jumpHeld = true;
     p.jumpT = 0;
     p.landT = 0;
     puff(p, 3, 0.6);
     sfx('jump');
   }
+  // Variable height: let go early and the rise is cut short
+  if (p.jumpHeld && !isDown('jump')) {
+    p.jumpHeld = false;
+    if (p.vy < JUMP_V * JUMP_CUT) p.vy = JUMP_V * JUMP_CUT;
+  }
+  if (p.vy >= 0) p.jumpHeld = false;
   if (p.jumpT < 99) p.jumpT += dt;
   p.lookingUp = isDown('up') && p.onGround && !p.crouching && !isDown('left') && !isDown('right');
 
@@ -273,12 +315,23 @@ function resolve(p, solids, horizontal) {
   }
 }
 
-export function hurtPlayer(p, dmg = 1) {
+/**
+ * One hit = one heart (two for heavy boss blows on Normal), then HURT_IFRAMES of
+ * invulnerability, so overlapping foes / hazards can never drain several hearts.
+ * `fromX` (attacker centre) knocks Joseph a short way back from the attacker.
+ */
+export function hurtPlayer(p, dmg = 1, fromX = null) {
   if (p.invuln > 0 || !p.alive) return false;
   p.hp -= isEasy() ? Math.min(1, dmg) : dmg;
-  p.invuln = 60;
+  p.invuln = HURT_IFRAMES;
   sfx('hurt');
   p.vy = -3 * SCALE;
+  if (fromX != null) {
+    const away = p.x + p.w / 2 < fromX ? -1 : 1;
+    p.vx = away * 2.6 * SCALE;
+    p.kbT = 12;
+  }
+  p.jumpHeld = false;
   if (p.hp <= 0) {
     p.hp = 0;
     p.alive = false;

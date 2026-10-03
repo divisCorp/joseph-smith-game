@@ -4,10 +4,11 @@
  * walks into the trees and kneels to pray. The chapter closes with a gentle light
  * fade (no depiction of Deity), then the results card.
  */
-import { TILE, SCALE, W, H } from './constants.js?v=70';
-import { drawPreacher, drawPortrait } from './sprites.js?v=70';
-import { sfx } from './audio.js?v=70';
-import { reduceFlash } from './save.js?v=70';
+import { bindText } from './input.js?v=71';
+import { TILE, SCALE, W, H } from './constants.js?v=71';
+import { drawPreacher, drawPortrait } from './sprites.js?v=71';
+import { sfx } from './audio.js?v=71';
+import { reduceFlash } from './save.js?v=71';
 
 const S = SCALE;
 const GROUND_Y = 13 * TILE;
@@ -416,7 +417,7 @@ export function drawGroveUi(ctx, game) {
   }
   if (camp.state === 'kneel') {
     const touch = typeof document !== 'undefined' && document.body?.classList.contains('touch-ui');
-    const msg = touch ? 'Hold ▼ on the stick to kneel and pray' : 'Hold ↓ (or S) to kneel and pray';
+    const msg = touch ? 'Hold ▼ on the stick to kneel and pray' : `Hold ${bindText('down', ' or ')} to kneel and pray`;
     ctx.save();
     ctx.font = '600 20px Georgia, serif';
     const w = ctx.measureText(msg).width + 40;

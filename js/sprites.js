@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=70';
+import { COLORS, W, SCALE } from './constants.js?v=71';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;

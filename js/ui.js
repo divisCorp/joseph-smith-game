@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=70';
-import { setAction } from './input.js?v=70';
-import { unlockAudio, syncMuteButton } from './audio.js?v=70';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=70';
-import { JOURNAL } from './journal.js?v=70';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=70';
-import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=70';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=71';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=71';
+import { unlockAudio, syncMuteButton } from './audio.js?v=71';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=71';
+import { JOURNAL } from './journal.js?v=71';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=71';
+import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=71';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -19,6 +19,7 @@ const SCREENS = {
   [STATES.WIN]: 'ui-win',
   [STATES.LOSE]: 'ui-lose',
   [STATES.JOURNAL]: 'ui-journal',
+  [STATES.CONTROLS]: 'ui-controls',
 };
 
 const PLAY_URL = 'https://palmyra-quest.netlify.app';
@@ -169,6 +170,21 @@ function bindCmdButtons() {
 export function initOverlays(game) {
   gameRef = game;
   bindCmdButtons();
+  document.querySelectorAll('[data-ui-bind]').forEach((el) => {
+    el.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      unlockAudio();
+    });
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.blur();
+      sendCmd(`bind:${el.dataset.uiBind}`);
+    });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+  syncKeyHints();
+  onBindingsChange(syncKeyHints);
   initFullscreen();
   game.onFullscreen = () => {
     const r = toggleFullscreen();
@@ -235,6 +251,7 @@ export function syncOverlays(game) {
   if (state === STATES.INTRO) syncIntro(game);
   if (state === STATES.PAUSED) syncPause(game);
   if (state === STATES.JOURNAL) syncJournal(game);
+  if (state === STATES.CONTROLS) syncControls(game);
 
   // Level-clear intermission
   if (state === STATES.CLEAR) {
@@ -374,6 +391,53 @@ function syncPause(game) {
   const ch = document.querySelector('[data-ui-pause-chapter]');
   if (ch) ch.textContent = `Chapter ${game.levelNum} · ${LEVEL_META[game.levelNum]?.name || ''}`;
   syncMuteButton();
+}
+
+const PAD_TEXT = { jump: 'A', attack: 'B or X', left: 'D-pad ◀ / stick', right: 'D-pad ▶ / stick', up: 'D-pad ▲', down: 'D-pad ▼', pause: 'Start' };
+const TOUCH_TEXT = { jump: 'A button', attack: 'B button', left: 'Stick ◀', right: 'Stick ▶', up: 'Stick ▲', down: 'Stick ▼', pause: 'II button' };
+let ctlSig = '';
+function syncControls(game) {
+  const b = getBindings();
+  const sig = JSON.stringify([b, game.ctlSel, game.ctlListen, game.ctlMsg, game.ctlFlashT > 0 ? game.ctlFlash : '']);
+  if (sig === ctlSig) return;
+  ctlSig = sig;
+  const root = document.getElementById('ui-controls');
+  if (!root) return;
+  ACTIONS.forEach((a, r) => {
+    const row = root.querySelector(`[data-ui-ctl-row="${a}"]`);
+    if (!row) return;
+    row.querySelector('[data-ui-ctl-name]').textContent = ACTION_LABELS[a];
+    row.querySelector('[data-ui-ctl-pad]').textContent = PAD_TEXT[a];
+    row.querySelector('[data-ui-ctl-touch]').textContent = TOUCH_TEXT[a];
+    for (let i = 0; i < 2; i++) {
+      const btn = row.querySelector(`[data-ui-bind="${a}:${i}"]`);
+      const code = b[a][i];
+      const listening = game.ctlListen === `${a}:${i}`;
+      btn.textContent = listening ? 'Press a key…' : code ? keyName(code) : '+ add';
+      btn.classList.toggle('is-empty', !code && !listening);
+      btn.classList.toggle('is-arrow', !listening && /^Arrow/.test(code || ''));
+      btn.classList.toggle('is-listening', listening);
+      btn.classList.toggle('is-selected', game.ctlSel === r * 2 + i);
+      btn.classList.toggle('is-flash', game.ctlFlashT > 0 && game.ctlFlash === `${a}:${i}`);
+      btn.setAttribute('aria-label', `${ACTION_LABELS[a]} ${i ? 'alternate' : 'main'} key: ${code ? keyName(code) : 'none'}. Activate to change.`);
+    }
+  });
+  const n = ACTIONS.length * 2;
+  root.querySelector('.ui-ctl-reset')?.classList.toggle('is-selected', game.ctlSel === n);
+  root.querySelector('.ui-ctl-back')?.classList.toggle('is-selected', game.ctlSel === n + 1);
+  const msg = root.querySelector('[data-ui-ctl-msg]');
+  if (msg) msg.textContent = game.ctlMsg || 'Click a key to change it · Enter confirms menus · M mutes';
+}
+
+/** Key hints elsewhere follow the current bindings. */
+function syncKeyHints() {
+  const hint = document.querySelector('[data-ui-key-hint]');
+  if (hint) {
+    hint.textContent = `Move ${bindText('left')} · ${bindText('right')} · Jump ${bindText('jump')} · Attack ${bindText('attack')} · Kneel ${bindText('down')} · Look up ${bindText('up')} · Pause ${bindText('pause')} · Mute M · Gamepad: A jump, B / X attack`;
+  }
+  const ph = document.querySelector('[data-ui-pause-hint]');
+  if (ph) ph.textContent = `${bindText('pause')} to resume · ↑ ↓ + Enter to choose`;
+  ctlSig = '';
 }
 
 let journalSig = '';

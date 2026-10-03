@@ -4,9 +4,9 @@
  * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
-import { STATES } from './constants.js?v=70';
-import { savedMuted, saveMuted } from './save.js?v=70';
-import * as S from './songs.js?v=70';
+import { STATES } from './constants.js?v=71';
+import { savedMuted, saveMuted } from './save.js?v=71';
+import * as S from './songs.js?v=71';
 
 let actx = null;
 let master = null;

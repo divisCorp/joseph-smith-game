@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=70" />
+  <link rel="stylesheet" href="css/style.css?v=71" />
   <script>
     (function () {
       var touch =
@@ -67,7 +67,7 @@
         <div id="ui-title" class="ui-screen" hidden>
           <div class="ui-title-inner">
             <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=70" alt="" width="88" height="88" />
+            <img class="ui-portrait" src="assets/joseph-portrait.png?v=71" alt="" width="88" height="88" />
             <h1 class="ui-title-name">Joseph Smith</h1>
             <h2 class="ui-title-sub">Palmyra Quest</h2>
             <p class="ui-rule" aria-hidden="true"></p>
@@ -85,6 +85,7 @@
           <div class="ui-title-options" role="group" aria-label="Options">
             <button type="button" class="ui-opt-btn" data-ui-cmd="difficulty" data-ui-diff-label aria-label="Difficulty">Difficulty: Normal</button>
             <button type="button" class="ui-opt-btn" data-ui-cmd="flash" data-ui-flash-label aria-label="Reduce flashing">Reduce flashing: Off</button>
+            <button type="button" class="ui-opt-btn" data-ui-cmd="controls" aria-label="Controls">Controls</button>
           </div>
           <p class="ui-best" data-ui-best hidden></p>
           <button type="button" class="ui-fs-title-btn" data-ui-cmd="fullscreen" data-ui-fs-label aria-label="Play full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-ui-fs-text>Full screen</span></button>
@@ -150,13 +151,80 @@
             <div class="ui-menu">
               <button type="button" class="ui-menu-btn" data-ui-cmd="resume">Resume</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="restart">Restart Chapter</button>
+              <button type="button" class="ui-menu-btn" data-ui-cmd="controls">Controls</button>
               <button type="button" class="ui-menu-btn ui-menu-btn--fs" data-ui-cmd="fullscreen" data-ui-fs-label>Full screen</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="difficulty" data-ui-diff-label>Difficulty: Normal</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="flash" data-ui-flash-label>Reduce flashing: Off</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="sound" data-ui-sound-label>Sound: On</button>
               <button type="button" class="ui-menu-btn" data-ui-cmd="quit">Quit to Title</button>
             </div>
-            <p class="ui-menu-hint">Esc / P to resume · ↑ ↓ + Enter to choose</p>
+            <p class="ui-menu-hint" data-ui-pause-hint>Esc / P to resume · ↑ ↓ + Enter to choose</p>
+          </div>
+        </div>
+
+
+        <div id="ui-controls" class="ui-screen ui-screen--dim" hidden>
+          <div class="ui-panel ui-controls-panel" role="dialog" aria-labelledby="ui-controls-title">
+            <h2 class="ui-heading" id="ui-controls-title">Controls</h2>
+            <table class="ui-ctl-table">
+              <thead><tr><th scope="col">Action</th><th scope="col">Key</th><th scope="col">Alt key</th><th scope="col">Gamepad</th><th scope="col">Touch</th></tr></thead>
+              <tbody>
+              <tr data-ui-ctl-row="jump">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="jump:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="jump:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="attack">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="attack:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="attack:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="left">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="left:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="left:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="right">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="right:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="right:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="up">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="up:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="up:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="down">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="down:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="down:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              <tr data-ui-ctl-row="pause">
+                <th scope="row" data-ui-ctl-name></th>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="pause:0"></button></td>
+                <td><button type="button" class="ui-key-btn" data-ui-bind="pause:1"></button></td>
+                <td class="ui-ctl-pad" data-ui-ctl-pad></td>
+                <td class="ui-ctl-touch" data-ui-ctl-touch></td>
+              </tr>
+              </tbody>
+            </table>
+            <p class="ui-ctl-msg" data-ui-ctl-msg aria-live="polite">Click a key to change it · Enter confirms menus · M mutes</p>
+            <div class="ui-ctl-actions">
+              <button type="button" class="ui-menu-btn ui-ctl-reset" data-ui-cmd="controls-reset">Reset to defaults</button>
+              <button type="button" class="ui-menu-btn ui-ctl-back" data-ui-cmd="controls-back">Back</button>
+            </div>
           </div>
         </div>
 
@@ -241,7 +309,7 @@
               <li class="ui-fs-arrow" aria-hidden="true">→</li>
               <li><span class="ui-fs-ico ui-fs-ico--menu"><span class="ui-fs-menu-row">Add to Home Screen <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="8" fill="none" stroke="#222" stroke-width="3.4"/><path d="M24 15v18M15 24h18" stroke="#222" stroke-width="3.4" stroke-linecap="round"/></svg></span></span><span class="ui-fs-cap"><b>2</b> Choose <b>Add to Home Screen</b></span></li>
               <li class="ui-fs-arrow" aria-hidden="true">→</li>
-              <li><span class="ui-fs-ico ui-fs-ico--app"><img src="assets/apple-touch-icon.png?v=70" alt="" width="44" height="44" /></span><span class="ui-fs-cap"><b>3</b> Open <b>Palmyra Quest</b> from your Home Screen</span></li>
+              <li><span class="ui-fs-ico ui-fs-ico--app"><img src="assets/apple-touch-icon.png?v=71" alt="" width="44" height="44" /></span><span class="ui-fs-cap"><b>3</b> Open <b>Palmyra Quest</b> from your Home Screen</span></li>
             </ol>
             <p class="ui-fs-note">On newer iPhones, Share may be inside the <b>•••</b> menu.</p>
           </div>
@@ -282,8 +350,8 @@
       <p class="ui-muted">Palmyra Quest plays in landscape</p>
     </div>
 
-    <p id="hint">Move with arrows or WASD · Look up · Jump X / A · Kneel ↓ · Attack Space / Z / B · Pause Esc / P · Mute M · Gamepad supported</p>
+    <p id="hint" data-ui-key-hint>Move ← → / A D · Jump Space / Z · Attack X / J · Kneel ↓ / S · Look up ↑ / W · Pause Esc / P · Mute M · Gamepad: A jump, B / X attack</p>
   </div>
-  <script type="module" src="js/main.js?v=70"></script>
+  <script type="module" src="js/main.js?v=71"></script>
 </body>
 </html>

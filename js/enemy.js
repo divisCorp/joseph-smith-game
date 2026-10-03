@@ -1,5 +1,5 @@
-import { landOnSlopes } from './hill.js?v=70';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=70';
+import { landOnSlopes } from './hill.js?v=71';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=71';
 import {
   drawBrigand,
   drawWolf,
@@ -7,12 +7,12 @@ import {
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=70';
-import { aabb } from './player.js?v=70';
-import { createKnife, KNIFE_W } from './projectiles.js?v=70';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=70';
-import { sfx } from './audio.js?v=70';
-import { isEasy, reduceFlash } from './save.js?v=70';
+} from './sprites.js?v=71';
+import { aabb } from './player.js?v=71';
+import { createKnife, KNIFE_W } from './projectiles.js?v=71';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=71';
+import { sfx } from './audio.js?v=71';
+import { isEasy, reduceFlash } from './save.js?v=71';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -37,6 +37,9 @@ export function createEnemy(type, x, y, opts = {}) {
     h: 56 * SCALE,
     onGround: false,
     attackCd: 0,
+    hitCd: 0, // per-foe cooldown after it lands a hit on Joseph
+    melee: 'none', // none → wind (telegraph) → lunge (only this phase hurts)
+    meleeT: 0,
     aiPhase: 0,
     aiTimer: 0,
     bossKind: opts.bossKind || 'ringleader',
@@ -122,6 +125,79 @@ export function enemyHitbox(e) {
   return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
 }
 
+// Melee timing (frames @ 60fps; Easy runs foes at 75% so everything is slower there)
+export const MELEE_WIND = 18; // ≈0.3 s readable wind-up before a lunge
+const MELEE_LUNGE = 14;
+const MELEE_RECOVER = 36; // pause after a lunge, hit or miss
+export const FOE_HIT_CD = 90; // the same foe can't hurt Joseph again for 1.5 s
+
+/**
+ * Close-range attack for walking foes: stop and wind up (lean back + gold "!"),
+ * then lunge. Contact only hurts during the lunge (see `foeCanHurt`), so brushing
+ * past an idle foe is safe and every melee hit is telegraphed.
+ * Returns true while the melee routine owns the foe's movement.
+ */
+function updateMelee(e, player, dt) {
+  const ex = e.x + e.w / 2;
+  const px = player.x + player.w / 2;
+  if (e.melee === 'wind') {
+    e.vx = 0;
+    e.facing = px > ex ? 1 : -1;
+    e.meleeT -= dt;
+    if (e.meleeT <= 0) {
+      e.melee = 'lunge';
+      e.meleeT = MELEE_LUNGE;
+      e.vx = e.facing * Math.max(e.speed * 3, 2.2 * SCALE);
+    }
+    return true;
+  }
+  if (e.melee === 'lunge') {
+    e.meleeT -= dt;
+    e.vx = e.facing * Math.max(e.speed * 3, 2.2 * SCALE);
+    if (e.meleeT <= 0) {
+      e.melee = 'recover';
+      e.meleeT = MELEE_RECOVER;
+    }
+    return true;
+  }
+  if (e.melee === 'recover') {
+    e.meleeT -= dt;
+    e.vx = -e.facing * e.speed * 0.6; // step back
+    if (e.meleeT <= 0) e.melee = 'none';
+    return true;
+  }
+  if (e.hitCd > 0) {
+    // just landed a hit: back off and keep distance until the cooldown ends
+    e.facing = px > ex ? 1 : -1;
+    e.vx = e.hitCd > FOE_HIT_CD - 40 ? -e.facing * e.speed : 0;
+    return true;
+  }
+  const reach = e.w / 2 + player.w / 2 + (e.type === 'wolf' ? 26 : 18) * SCALE;
+  const level = Math.abs(player.y + player.h - (e.y + e.h)) < 30 * SCALE;
+  if (player.alive && e.damage > 0 && level && Math.abs(px - ex) < reach && e.onGround) {
+    e.melee = 'wind';
+    e.meleeT = MELEE_WIND;
+    e.vx = 0;
+    e.facing = px > ex ? 1 : -1;
+    return true;
+  }
+  return false;
+}
+
+/** Can this foe hurt Joseph by touch right now? */
+export function foeCanHurt(e) {
+  if (!e.alive || !(e.damage > 0) || e.hitCd > 0) return false;
+  if (e.type === 'boss' || e.type === 'wisp') return true; // bosses telegraph their own attacks
+  return e.melee === 'lunge';
+}
+
+/** Called when a foe's touch landed: start its personal cooldown. */
+export function foeLandedHit(e) {
+  e.hitCd = FOE_HIT_CD;
+  e.melee = 'none';
+  e.meleeT = 0;
+}
+
 export function updateEnemy(e, solids, player, dt, world = null) {
   if (!e.alive) return;
   // Easy: everything about foes runs at 75% (movement, timers, tells)
@@ -130,11 +206,14 @@ export function updateEnemy(e, solids, player, dt, world = null) {
 
   if (e.hurtFlash > 0) e.hurtFlash -= dt;
   if (e.attackCd > 0) e.attackCd -= dt;
+  if (e.hitCd > 0) e.hitCd -= dt;
 
   if (e.type === 'boss') {
     updateBossAI(e, player, dt, world || {});
   } else if (e.type === 'wisp') {
     updateWispAI(e, player, dt);
+  } else if (updateMelee(e, player, dt)) {
+    // winding up / lunging / backing off after a hit
   } else {
     const dx = player.x - e.x;
     const near = Math.abs(dx) < 100 * SCALE && Math.abs(player.y - e.y) < 48 * SCALE;
@@ -515,6 +594,11 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
   if (e.invuln) return false;
   e.hp -= dmg;
   e.hurtFlash = 16;
+  if (e.melee === 'wind' || e.melee === 'lunge') {
+    // a hit during the wind-up staggers the foe (rewarding reading the tell)
+    e.melee = 'recover';
+    e.meleeT = MELEE_RECOVER;
+  }
   if (!e.noGravity) e.vx = 0;
   if (e.hp <= 0) {
     e.hp = 0;
@@ -527,7 +611,20 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
 export function drawEnemy(ctx, e, camX) {
   if (!e.alive) return;
   const flash = e.hurtFlash > 0;
-  const dx = e.x - camX;
+  let dx = e.x - camX;
+  const winding = e.melee === 'wind';
+  if (winding) {
+    // telegraph: gold glow, lean back, "!" over the head
+    const k = 1 - e.meleeT / MELEE_WIND;
+    ctx.save();
+    ctx.globalAlpha = 0.25 + 0.3 * k;
+    ctx.fillStyle = '#ffd060';
+    ctx.beginPath();
+    ctx.ellipse(dx + e.w / 2, e.y + e.h * 0.55, e.w * 0.75, e.h * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    dx -= e.facing * 3 * SCALE * k;
+  }
   if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'scout') drawScout(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
@@ -544,6 +641,7 @@ export function drawEnemy(ctx, e, camX) {
     ctx.restore();
     if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + e.w / 2, e.y, e.bs.t);
   }
+  if (winding) drawAlert(ctx, dx + e.w / 2 + e.facing * 3 * SCALE, e.y, MELEE_WIND - e.meleeT);
 }
 
 function tickNow(e) {

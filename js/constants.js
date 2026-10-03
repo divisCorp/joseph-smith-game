@@ -17,6 +17,7 @@ export const STATES = {
   WIN: 'win',
   LOSE: 'lose',
   JOURNAL: 'journal',
+  CONTROLS: 'controls',
 };
 
 /** Campaign metadata (1-indexed levels) — The Prophet's Path */

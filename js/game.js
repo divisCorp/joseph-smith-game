@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=70';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=70';
-import { justPressed, clearAll } from './input.js?v=70';
+import { slopeFloor } from './hill.js?v=71';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=71';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=71';
 import {
   createPlayer,
   updatePlayer,
@@ -8,13 +8,14 @@ import {
   playerHitbox,
   playerAttackBox,
   hurtPlayer,
+  playerHurtbox,
   aabb,
-} from './player.js?v=70';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=70';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=70';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=70';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=70';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=70';
+} from './player.js?v=71';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit } from './enemy.js?v=71';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=71';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=71';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=71';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=71';
 import {
   drawHeart,
   drawText,
@@ -26,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=70';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=70';
+} from './sprites.js?v=71';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=71';
 import {
   unlockChapter,
   unlockedChapter,
@@ -41,8 +42,8 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=70';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=70';
+} from './save.js?v=71';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=71';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -107,7 +108,7 @@ export function setFullscreenOffered(on) {
 /** Title choices: Continue only appears once a later chapter is unlocked. */
 export function titleOptions() {
   const n = unlockedChapter();
-  const base = ['begin', 'chapters', 'difficulty', 'flash'];
+  const base = ['begin', 'chapters', 'difficulty', 'flash', 'controls'];
   if (fsOffered) base.push('fullscreen');
   return n > 1 ? ['continue', ...base] : base;
 }
@@ -117,7 +118,7 @@ export function titleTapBegins() {
   return unlockedChapter() <= 1;
 }
 
-export const PAUSE_OPTIONS = ['resume', 'restart', 'fullscreen', 'difficulty', 'flash', 'sound', 'quit'];
+export const PAUSE_OPTIONS = ['resume', 'restart', 'controls', 'fullscreen', 'difficulty', 'flash', 'sound', 'quit'];
 
 function applyDifficulty(game) {
   const p = game.player;
@@ -166,6 +167,9 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
     game.martyrFade = 0;
   };
   game.camX = Math.max(0, game.player.x + game.player.w / 2 - W * 0.5);
+  game.camLook = 0;
+  // a short grace before anyone throws: let the player get their bearings
+  for (const e of level.enemies) e.attackCd = Math.max(e.attackCd || 0, 90);
   game.state = STATES.INTRO;
   game.introT = 0;
   game.stateT = 0;
@@ -212,6 +216,8 @@ function placeAtCheckpoint(game) {
   if (!cp) return;
   for (let i = 0; i <= game.checkpointIdx; i++) level.checkpoints[i].lit = true;
   level.enemies = level.enemies.filter((e) => e.type === 'boss' || e.x > cp.x + 4 * TILE);
+  clearSafeZone(level, cp.spawnX ?? cp.x);
+  for (const e of level.enemies) e.attackCd = Math.max(e.attackCd || 0, 90);
   if (level.pickup && level.pickup.x < cp.x) level.pickup.taken = true;
   player.x = cp.spawnX ?? cp.x + 2 * SCALE;
   player.y = (cp.spawnY ?? cp.y) - player.standH;
@@ -221,6 +227,7 @@ function placeAtCheckpoint(game) {
   game.score = game.cpScore;
   if (level.beats) game.beatIdx = level.beats.filter((b) => b.col * TILE <= cp.x).length;
   game.camX = Math.max(0, Math.min(level.widthPx - W, player.x + player.w / 2 - W * 0.5));
+  game.camLook = 0;
   game.safe = { x: player.x, y: player.y };
   game.state = STATES.PLAYING;
   game.stateT = 0;
@@ -330,6 +337,21 @@ function runCommand(game, cmd) {
     case 'skip':
       if (game.state === STATES.INTRO && game.introT > 20) endIntro(game);
       break;
+    case 'controls':
+      if (game.state === STATES.TITLE || game.state === STATES.PAUSED) openControls(game);
+      break;
+    case 'controls-back':
+      if (game.state === STATES.CONTROLS) closeControls(game);
+      break;
+    case 'controls-reset':
+      if (game.state === STATES.CONTROLS) {
+        cancelCapture();
+        game.ctlListen = null;
+        resetBindings();
+        game.ctlMsg = 'Controls reset to defaults';
+        sfx('select');
+      }
+      break;
     case 'journal-close':
       if (game.state === STATES.JOURNAL) closeJournal(game);
       break;
@@ -337,11 +359,90 @@ function runCommand(game, cmd) {
       if (cmd.startsWith('play:') && game.state === STATES.CHAPTERS) {
         const n = parseInt(cmd.slice(5), 10);
         if (n >= 1 && n <= unlockedChapter()) startCampaign(game, n);
+      } else if (cmd.startsWith('bind:') && game.state === STATES.CONTROLS) {
+        const [, a, i] = cmd.split(':');
+        startRebind(game, a, i === '1' ? 1 : 0);
       } else if (cmd.startsWith('journal:') && game.state === STATES.CHAPTERS) {
         const n = parseInt(cmd.slice(8), 10);
         if (journalUnlocked(n)) openJournal(game, n, 'chapters');
       }
       break;
+  }
+}
+
+// ── Controls screen: view and rebind keys (title or pause) ──────────────
+const CTL_COUNT = ACTIONS.length * 2 + 2; // key slots + Reset + Back
+function openControls(game) {
+  game.controlsFrom = game.state;
+  game.ctlSel = 0;
+  game.ctlListen = null;
+  game.ctlMsg = '';
+  setState(game, STATES.CONTROLS);
+}
+
+function closeControls(game) {
+  cancelCapture();
+  game.ctlListen = null;
+  if (game.controlsFrom === STATES.PAUSED) {
+    setState(game, STATES.PAUSED);
+    game.pauseSel = PAUSE_OPTIONS.indexOf('controls');
+  } else {
+    setState(game, STATES.TITLE);
+    game.titleSel = Math.max(0, titleOptions().indexOf('controls'));
+  }
+}
+
+/** Listen for the next key for one action slot; Esc cancels, Backspace clears an alt key. */
+export function startRebind(game, action, slot) {
+  if (!ACTIONS.includes(action)) return;
+  game.ctlListen = `${action}:${slot}`;
+  game.ctlSel = ACTIONS.indexOf(action) * 2 + slot;
+  game.ctlMsg = slot === 1 ? 'Press a key · Esc cancels · Backspace clears the alt key' : 'Press a key · Esc cancels';
+  const take = (code) => {
+    if (game.state !== STATES.CONTROLS) return;
+    if (code == null) {
+      game.ctlListen = null;
+      game.ctlMsg = 'Cancelled';
+      return;
+    }
+    if (code === 'Backspace' || code === 'Delete') {
+      if (slot === 1) clearBinding(action, 1);
+      game.ctlListen = null;
+      game.ctlMsg = slot === 1 ? 'Alt key cleared' : 'The main key can\'t be cleared';
+      return;
+    }
+    const r = setBinding(action, slot, code);
+    if (!r.ok) {
+      game.ctlMsg = `${r.msg} · press another key`;
+      captureNextKey(take);
+      return;
+    }
+    game.ctlListen = null;
+    game.ctlMsg = r.msg;
+    game.ctlFlash = `${action}:${slot}`;
+    game.ctlFlashT = 40;
+    sfx('select');
+  };
+  captureNextKey(take);
+}
+
+function updateControls(game) {
+  if (game.ctlFlashT > 0) game.ctlFlashT--;
+  if (isCapturing()) return;
+  const n = ACTIONS.length * 2;
+  let i = game.ctlSel || 0;
+  if (justPressed('down')) i = i < n - 2 ? i + 2 : i < n ? n : i;
+  if (justPressed('up')) i = i >= n ? n - 2 : i >= 2 ? i - 2 : i;
+  if (justPressed('left') || justPressed('right')) i = i < n ? i ^ 1 : i === n ? n + 1 : n;
+  if (i !== game.ctlSel) sfx('select');
+  game.ctlSel = Math.max(0, Math.min(CTL_COUNT - 1, i));
+  if (justPressed('pause') && game.stateT > 10) {
+    closeControls(game);
+    return;
+  }
+  if (confirmPressed() && game.stateT > 10) {
+    if (game.ctlSel < n) startRebind(game, ACTIONS[game.ctlSel >> 1], game.ctlSel & 1);
+    else runCommand(game, game.ctlSel === n ? 'controls-reset' : 'controls-back');
   }
 }
 
@@ -437,6 +538,11 @@ export function updateGame(game, dt) {
     return;
   }
 
+  if (game.state === STATES.CONTROLS) {
+    updateControls(game);
+    return;
+  }
+
   if (game.state === STATES.JOURNAL) {
     const close = confirmPressed() || justPressed('pause');
     if (close && game.stateT > 30) closeJournal(game);
@@ -476,11 +582,12 @@ export function updateGame(game, dt) {
 
 // ── First-run tips (each shown once ever): move/jump/attack in chapter 1,
 // prayer-to-heal in chapter 2 (its journal entry explains it in full) ─────
+// Keyboard wording follows the player's current bindings (Controls screen).
 const TIP_TEXT = {
-  move: { touch: 'Drag the stick ◀ ▶ to walk', keys: 'Walk with ← → or A / D' },
-  jump: { touch: 'Tap A to jump', keys: 'Press X (or K) to jump' },
-  attack: { touch: 'Tap B to swing the pitchfork', keys: 'Space or Z swings the pitchfork' },
-  kneel: { touch: 'Hurt? Stand still and hold the stick ▼ to kneel and pray. It heals.', keys: 'Hurt? Stand still and hold ↓ to kneel and pray. It heals.' },
+  move: { touch: 'Drag the stick ◀ ▶ to walk', keys: () => `Walk with ${bindText('left', ' or ')} / ${bindText('right', ' or ')}` },
+  jump: { touch: 'Tap A to jump · hold it to jump higher', keys: () => `Press ${bindText('jump', ' or ')} to jump · hold it to jump higher` },
+  attack: { touch: 'Tap B to swing the pitchfork', keys: () => `${bindText('attack', ' or ')} swings the pitchfork` },
+  kneel: { touch: 'Hurt? Stand still and hold the stick ▼ to kneel and pray. It heals.', keys: () => `Hurt? Stand still and hold ${bindText('down', ' or ')} to kneel and pray. It heals.` },
 };
 
 function isTouchUi() {
@@ -497,7 +604,7 @@ function queueChapterTips(game) {
 function showTip(game, id) {
   if (tipSeen(id) || game.tip?.id === id) return;
   const t = TIP_TEXT[id];
-  game.tip = { id, text: isTouchUi() ? t.touch : t.keys, t: 0, done: false };
+  game.tip = { id, text: isTouchUi() ? t.touch : t.keys(), t: 0, done: false };
   markTip(id);
 }
 
@@ -596,6 +703,8 @@ const PHASE_LINES = {
   ringleader: 'The ringleader grows desperate!',
 };
 
+const LOOK_AHEAD = 120; // px of extra view in front of Joseph
+
 function hasFooting(p, solids, slopes = solids.slopes) {
   const feet = p.y + p.h;
   const sf = slopeFloor(slopes, p.x + p.w / 2);
@@ -663,7 +772,12 @@ function tickPlay(game, dt) {
     }
   }
 
-  const target = player.x + player.w / 2 - W * 0.5;
+  // Camera look-ahead: lead the view in the direction Joseph runs so foes, gaps and
+  // landings ahead show up sooner (eases in, holds while he stands still).
+  const runDir = Math.abs(player.vx) > 0.4 * SCALE ? Math.sign(player.vx) : 0;
+  const lookGoal = runDir ? runDir * LOOK_AHEAD : game.camLook || 0;
+  game.camLook = (game.camLook || 0) + (lookGoal - (game.camLook || 0)) * 0.035;
+  const target = player.x + player.w / 2 - W * 0.5 + game.camLook;
   game.camX += (target - game.camX) * 0.15;
   if (game.camX < 0) game.camX = 0;
   const maxCam = level.widthPx - W;
@@ -748,9 +862,10 @@ function tickPlay(game, dt) {
     if (!e.alive) continue;
     updateEnemy(e, level.solids, player, dt, world);
 
-    if (player.alive && aabb(playerHitbox(player), enemyHitbox(e))) {
-      if (hurtPlayer(player, e.damage)) {
-        player.vx = (player.x < e.x ? -1 : 1) * 2.5 * SCALE;
+    // Touch damage only from a telegraphed lunge (or a boss / wisp), never twice in a row
+    if (player.alive && foeCanHurt(e) && aabb(playerHurtbox(player), enemyHitbox(e))) {
+      if (hurtPlayer(player, e.damage, e.x + e.w / 2)) {
+        foeLandedHit(e);
         game.hitStop = Math.max(game.hitStop, 6);
         game.shake = Math.max(game.shake, 16);
       }
@@ -758,7 +873,7 @@ function tickPlay(game, dt) {
   }
 
   updateHazards(level.hazards, level.solids, dt, level.widthPx);
-  const pbox = playerHitbox(player);
+  const pbox = playerHurtbox(player);
   for (const h of level.hazards) {
     if (!hazardActive(h)) continue;
     // Pitchfork and plates can smash barrels
@@ -780,8 +895,7 @@ function tickPlay(game, dt) {
       }
     }
     if (player.alive && aabb(pbox, hazardHitbox(h))) {
-      if (hurtPlayer(player, h.damage)) {
-        player.vx = (h.vx > 0 ? 1 : h.vx < 0 ? -1 : player.x < h.x ? -1 : 1) * 2.4 * SCALE;
+      if (hurtPlayer(player, h.damage, h.vx > 0 ? -1e9 : h.vx < 0 ? 1e9 : h.x + (h.w || 0) / 2)) {
         game.hitStop = Math.max(game.hitStop, 5);
         game.shake = Math.max(game.shake, 14);
         if (h.kind === 'barrel' || h.kind === 'knife' || h.kind === 'drop' || h.kind === 'brick' || h.kind === 'torch') {
@@ -797,10 +911,11 @@ function tickPlay(game, dt) {
     if (!player.alive) continue;
     for (const k of e.knives) {
       if (!k.alive) continue;
-      if (aabb(playerHitbox(player), knifeHitbox(k))) {
+      if (aabb(playerHurtbox(player), knifeHitbox(k))) {
+        // knives pass harmlessly through Joseph while he is still blinking from a hit
+        if (player.invuln > 0) continue;
         k.alive = false;
-        if (hurtPlayer(player, k.damage)) {
-          player.vx = k.facing * 2.2 * SCALE;
+        if (hurtPlayer(player, k.damage, k.facing > 0 ? -1e9 : 1e9)) {
           game.hitStop = Math.max(game.hitStop, 6);
           game.shake = Math.max(game.shake, 16);
         }

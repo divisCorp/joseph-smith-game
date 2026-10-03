@@ -3,15 +3,15 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=70';
-import { createEnemy } from './enemy.js?v=70';
-import { STAND_H } from './player.js?v=70';
-import { drawRect } from './sprites.js?v=70';
-import { initSetPieces, buildDock } from './setpieces.js?v=70';
-import { reduceFlash } from './save.js?v=70';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=70';
-import { initGrove } from './grove.js?v=70';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=70';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=71';
+import { createEnemy } from './enemy.js?v=71';
+import { STAND_H } from './player.js?v=71';
+import { drawRect } from './sprites.js?v=71';
+import { initSetPieces, buildDock } from './setpieces.js?v=71';
+import { reduceFlash } from './save.js?v=71';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=71';
+import { initGrove } from './grove.js?v=71';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=71';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -581,7 +581,7 @@ export function createLevel7() {
 
 const CHECKPOINT_COLS = {
   1: [50, 85],
-  2: [62],
+  2: [62, 93],
   3: [60, 104],
   4: [64, 108],
   5: [62, 112],
@@ -611,6 +611,7 @@ export function createLevel(num) {
   // Spawn on clear ground just right of the on-screen D-pad, never inside a pile
   const sp = findStand(level, Math.round(W * 0.28), { minX: Math.round(6.5 * TILE), maxX: 12 * TILE });
   level.spawn = { x: sp.x, y: sp.y - STAND_H };
+  clearSafeZone(level, level.spawn.x);
   level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => {
     const st = findStand(level, c * TILE + 2 * SCALE, { minX: (c - 3) * TILE, maxX: (c + 3) * TILE, rStart: 12 });
     return {
@@ -643,6 +644,35 @@ export function createLevel(num) {
     level.solids.push({ x: level.finale.doorX, y: 8 * TILE, w: TILE, h: 5 * TILE, kind: 'wall' });
   }
   return level;
+}
+
+/**
+ * No cheap hits on arrival: walking foes that start within SAFE_ZONE ahead of a
+ * spawn / respawn point are moved to its edge (outside chase and knife range),
+ * onto solid ground, keeping their patrol beyond it.
+ */
+export const SAFE_ZONE = 9 * TILE;
+export function clearSafeZone(level, x0) {
+  const edge = x0 + SAFE_ZONE;
+  for (const e of level.enemies) {
+    if (!e.alive || e.type === 'boss' || e.noGravity) continue;
+    if (e.x + e.w < x0 - 2 * TILE || e.x >= edge) continue;
+    let c = Math.ceil(edge / TILE);
+    while (c < level.cols - 2 && level.tiles[13][c] !== 1 && level.tiles[13][c] !== STACK) c++;
+    const shift = c * TILE - e.x;
+    e.x += shift;
+    e.patrolMin = Math.max(e.x, (e.patrolMin ?? e.x) + shift);
+    e.patrolMax = Math.max(e.x + 3 * TILE, (e.patrolMax ?? e.x) + shift);
+    e.y = 0; // drop onto whatever is there (settled below)
+    for (let k = 0; k < 30; k++) {
+      const hit = level.solids.find((s) => s.kind !== 'plat' && e.x + 4 < s.x + s.w && e.x + e.w - 4 > s.x && e.y < s.y + s.h && e.y + e.h > s.y);
+      if (hit) {
+        e.y = hit.y - e.h - 1;
+        break;
+      }
+      e.y += 16;
+    }
+  }
 }
 
 /** Foes authored at old platform heights: lift any that start inside a pile. */

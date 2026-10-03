@@ -19,11 +19,13 @@ For automated tests, `window.__pq` is exposed only when the URL has `?debug` **a
 | Walk | ← → / A D | Stick left / right | D-pad / left stick |
 | Kneel & pray (heals; ends chapter 1 in the grove) | Hold ↓ / S | Stick down | Down |
 | Look up | ↑ / W | Stick up | Up |
-| Jump | X / K | **A** | **A** |
-| Pitchfork / throw plates | Space / Z | **B** | **B** or **X** |
+| Jump (hold for higher) | Space / Z | **A** | **A** |
+| Pitchfork / throw plates | X / J | **B** | **B** or **X** |
 | Pause menu | Esc / P | **II** (top right) | **Start** |
 | Menus | ↑ ↓ + Enter | Tap | D-pad + A / Start |
 | Mute | M | **MUTE** | — |
+
+All keyboard bindings can be changed on the **Controls** screen (title → Controls, or Pause → Controls): click a key (or select it and press Enter), then press the new key. A key already used by another action moves to the new action (the screen says so); Esc cancels; **Reset to defaults** restores the table above. Bindings are saved in `localStorage` (`palmyraQuest.keys.v1`). Enter (confirm) and M (mute) are fixed. Gamepad and touch layouts are shown on the same screen for reference.
 
 Gamepads use the browser Gamepad API (standard mapping); a toast confirms when one connects.
 
@@ -72,12 +74,21 @@ Each chapter opens with a short title card (chapter, story line, place and year)
 - **Safe spawns** — every chapter start, checkpoint respawn and Continue now uses `findStand()` (`js/level.js`): Joseph's whole box must be clear of solids, both feet on firm ground and room to walk right, just right of the on-screen D-pad. Start-area stacks in ch3/4/6/7 were moved clear; ch1/ch4 checkpoints moved to open ground. `qa/tools/qa_r5.mjs` asserts this for all 7 chapters and every checkpoint on desktop and iPhone layouts.
 - **Hill Cumorah** — chapter 3 ends on a large natural hill (`js/hill.js`): a smooth walkable height field (player and foes snap to it, no snagging) painted with earth strata, buried rocks, grass, wildflowers and trees, with the plates at the foot of a great stone under a big tree near the top, and a distant drumlin silhouette that comes into view as Joseph approaches.
 
+## Round 6 (controls, hit fairness, game feel)
+
+- **Standard platformer keys** — Space/Z jump, X/J attack, arrows/WASD move, ↓/S kneel, Esc/P pause, Enter confirm. X no longer jumps. Every tip, the pause hint and the title hint are built from the live bindings.
+- **Controls screen** with click-to-rebind, conflict handling, Reset to defaults and saved bindings (`js/input.js`, `#ui-controls`).
+- **Hit cooldowns** — 1.2 s of invulnerability after a hit (blink, or steady see-through with Reduce flashing) and a short knockback away from the attacker. Walking foes now telegraph melee (gold glow, lean back, "!") for 0.3 s, then lunge; only the lunge hurts. Each foe then waits 1.5 s before it can hit again. Thrown knives pass through Joseph during i-frames.
+- **Game feel** — coyote time (~100 ms), jump buffering (~120 ms), variable jump height (release early for a short hop), acceleration/deceleration, a forgiving hurtbox (smaller than the sprite) and camera lookahead toward the direction of travel.
+- **No cheap arrivals** — foes are moved out of a 9-tile safe zone ahead of every chapter start and checkpoint, and throwers wait 1.5 s after you arrive. Chapter 2 gained a second checkpoint.
+- Full audit: `qa/round6/design-audit.md` (in the QA workspace). Tests: `qa/tools/qa_r6.mjs`.
+
 ## Cache busting
 
 Every asset reference carries one version number: `index.html` (`?v=` on CSS, portrait, `main.js`) and **every relative ES module import** in `js/*.js`. All modules must import a file with the same specifier, or the browser loads two copies. To bump:
 
 ```
-node scripts/bump-version.mjs 69
+node scripts/bump-version.mjs 71
 ```
 
 ## Saving

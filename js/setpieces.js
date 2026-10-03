@@ -4,11 +4,12 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { W, H, TILE, SCALE } from './constants.js?v=70';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=70';
-import { drawText, measureText, drawRect } from './sprites.js?v=70';
-import { sfx } from './audio.js?v=70';
-import { isEasy, reduceFlash } from './save.js?v=70';
+import { bindText } from './input.js?v=71';
+import { W, H, TILE, SCALE } from './constants.js?v=71';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=71';
+import { drawText, measureText, drawRect } from './sprites.js?v=71';
+import { sfx } from './audio.js?v=71';
+import { isEasy, reduceFlash } from './save.js?v=71';
 
 const S = SCALE;
 
@@ -254,7 +255,7 @@ function updateFinale(game, dt) {
       f.t = 0;
       if (!f.toldHold) {
         f.toldHold = true;
-        game.message = game.touchUi ? 'Hold ▶ to brace the door' : 'Hold → to brace the door';
+        game.message = game.touchUi ? 'Hold ▶ to brace the door' : `Hold ${bindText('right', ' or ')} to brace the door`;
         game.messageT = 90;
       }
     }
