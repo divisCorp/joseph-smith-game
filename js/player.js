@@ -1,15 +1,16 @@
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=69';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=69';
-import { isDown, justPressed } from './input.js?v=69';
-import { sfx } from './audio.js?v=69';
-import { isEasy, reduceFlash } from './save.js?v=69';
+import { landOnSlopes } from './hill.js?v=70';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=70';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=70';
+import { isDown, justPressed } from './input.js?v=70';
+import { sfx } from './audio.js?v=70';
+import { isEasy, reduceFlash } from './save.js?v=70';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=69';
+} from './projectiles.js?v=70';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 export const CROUCH_H = 18 * SCALE;
@@ -178,6 +179,7 @@ export function updatePlayer(p, solids, dt) {
   p.y += p.vy;
   p.onGround = false;
   resolve(p, solids, false);
+  if (solids.slopes) landOnSlopes(p, solids.slopes, p.wasOnGround);
   if (p.onGround && !p.wasOnGround) {
     sfx('land');
     // landing squash + a small dust puff, scaled by how hard we came down

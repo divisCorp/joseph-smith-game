@@ -1,4 +1,5 @@
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=69';
+import { landOnSlopes } from './hill.js?v=70';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=70';
 import {
   drawBrigand,
   drawWolf,
@@ -6,12 +7,12 @@ import {
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=69';
-import { aabb } from './player.js?v=69';
-import { createKnife, KNIFE_W } from './projectiles.js?v=69';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=69';
-import { sfx } from './audio.js?v=69';
-import { isEasy, reduceFlash } from './save.js?v=69';
+} from './sprites.js?v=70';
+import { aabb } from './player.js?v=70';
+import { createKnife, KNIFE_W } from './projectiles.js?v=70';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=70';
+import { sfx } from './audio.js?v=70';
+import { isEasy, reduceFlash } from './save.js?v=70';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -156,8 +157,10 @@ export function updateEnemy(e, solids, player, dt, world = null) {
   e.x += e.vx * pace;
   if (!e.noGravity) resolveEnemy(e, solids, true);
   e.y += e.vy;
+  const wasOn = e.onGround;
   e.onGround = false;
   if (!e.noGravity) resolveEnemy(e, solids, false);
+  if (!e.noGravity && solids.slopes) landOnSlopes(e, solids.slopes, wasOn);
 
 
   // Humanoids / bosses throw knives when Joseph is in sight (not wisp/npc)

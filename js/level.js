@@ -3,14 +3,15 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=69';
-import { createEnemy } from './enemy.js?v=69';
-import { STAND_H } from './player.js?v=69';
-import { drawRect } from './sprites.js?v=69';
-import { initSetPieces, buildDock } from './setpieces.js?v=69';
-import { reduceFlash } from './save.js?v=69';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=69';
-import { initGrove } from './grove.js?v=69';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=70';
+import { createEnemy } from './enemy.js?v=70';
+import { STAND_H } from './player.js?v=70';
+import { drawRect } from './sprites.js?v=70';
+import { initSetPieces, buildDock } from './setpieces.js?v=70';
+import { reduceFlash } from './save.js?v=70';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=70';
+import { initGrove } from './grove.js?v=70';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=70';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -81,6 +82,43 @@ function floorYAt(tiles, x) {
     if (tiles[r][c] === 1 || tiles[r][c] === 3 || tiles[r][c] === STACK) return r * TILE;
   }
   return 13 * TILE;
+}
+
+/** First walkable top at or below row rStart in column c (skips ceilings above). */
+function floorBelow(tiles, c, rStart = 9) {
+  if (c < 0 || c >= tiles[0].length) return null;
+  for (let r = rStart; r < tiles.length; r++) {
+    const t = tiles[r][c];
+    if (t === 1 || t === 3 || t === STACK) return r * TILE;
+  }
+  return null;
+}
+
+/**
+ * Find a standing spot near x0 where Joseph's whole box is clear of every solid,
+ * he has firm floor under both feet, and there is room to walk right.
+ * Returns { x, y } with y = feet. Used for chapter spawns and checkpoint respawns.
+ */
+export function findStand(level, x0, { minX = x0 - 4 * TILE, maxX = x0 + 4 * TILE, rStart = 9 } = {}) {
+  const w = 28 * SCALE;
+  const h = STAND_H;
+  const cands = [];
+  for (let d = 0; d <= Math.max(x0 - minX, maxX - x0); d += 4) {
+    if (x0 - d >= minX) cands.push(Math.round(x0 - d));
+    if (d && x0 + d <= maxX) cands.push(Math.round(x0 + d));
+  }
+  const blocked = (b) => level.solids.some((q) => q.kind !== 'plat' && b.x < q.x + q.w && b.x + b.w > q.x && b.y < q.y + q.h && b.y + b.h > q.y);
+  for (const run of [40, 24, 8]) {
+    for (const x of cands) {
+      const fl = floorBelow(level.tiles, Math.floor((x + 2 * SCALE) / TILE), rStart);
+      const fr = floorBelow(level.tiles, Math.floor((x + w - 2 * SCALE - 1) / TILE), rStart);
+      if (fl == null || fl !== fr) continue;
+      if (level.tiles[fl / TILE][Math.floor((x + w / 2) / TILE)] === 4) continue;
+      if (blocked({ x: x + 2, y: fl - h - 2, w: w - 4 + run, h: h })) continue;
+      return { x, y: fl };
+    }
+  }
+  return { x: x0, y: floorBelow(level.tiles, Math.floor((x0 + w / 2) / TILE), rStart) ?? 13 * TILE };
 }
 
 function wrapLevel(num, theme, cols, rows, tiles, enemies, decor, spawn, bossZoneX, extras = {}) {
@@ -234,7 +272,7 @@ export function createLevel3() {
     [68, 69],
     [88, 90],
   ]);
-  placePlatform(tiles, 10, 11, 3);
+  placePlatform(tiles, 12, 11, 3); // starts clear of the spawn
   placePlatform(tiles, 16, 9, 3);
   placePlatform(tiles, 28, 10, 4);
   placePlatform(tiles, 36, 8, 3);
@@ -245,13 +283,14 @@ export function createLevel3() {
   placePlatform(tiles, 80, 6, 3);
   placePlatform(tiles, 93, 10, 3);
   placePlatform(tiles, 100, 7, 3);
-  placePlatform(tiles, 108, 10, 4);
-  for (let c = 120; c < cols; c++) {
+  for (let c = 108; c < cols; c++) {
     tiles[groundR][c] = 1;
     tiles[groundR + 1][c] = 1;
   }
-  placePlatform(tiles, 124, 11, 8);
   farWall(tiles, cols, groundR);
+  // Hill Cumorah: a long natural hill rising from col 113 to a crown near col 131
+  const hill = makeHill({ x0: 113 * TILE, xp: 131 * TILE, x1: cols * TILE, base: groundR * TILE, top: 7 * TILE });
+  hill.stoneX = 133.4 * TILE;
 
   const enemies = [
     createEnemy('scout', 14 * TILE, 7 * TILE, { patrolMin: 10 * TILE, patrolMax: 20 * TILE }),
@@ -260,6 +299,7 @@ export function createLevel3() {
     createEnemy('scout', 64 * TILE, 8 * TILE, { patrolMin: 62 * TILE, patrolMax: 68 * TILE }),
     createEnemy('wolf', 76 * TILE, 6 * TILE, { patrolMin: 72 * TILE, patrolMax: 84 * TILE }),
     createEnemy('wisp', 100 * TILE, 5 * TILE, { patrolMin: 96 * TILE, patrolMax: 108 * TILE }),
+    createEnemy('wolf', 121 * TILE, 8 * TILE, { patrolMin: 117 * TILE, patrolMax: 126 * TILE }), // prowls the slope
   ];
 
   const decor = [];
@@ -268,17 +308,17 @@ export function createLevel3() {
       decor.push({ type: 'tree', x: c * TILE, y: (groundR - 4) * TILE, variant: c % 3 });
     }
   }
-  for (const c of [20, 50, 78, 110]) {
+  for (const c of [20, 50, 78]) {
     decor.push({ type: 'pillar', x: c * TILE, y: (groundR - 4) * TILE });
   }
-  decor.push({ type: 'gate', x: 120 * TILE, y: (groundR - 5) * TILE });
-  decor.push({ type: 'gate', x: 121 * TILE, y: (groundR - 5) * TILE });
-  decor.push({ type: 'shrine', x: 130 * TILE, y: (groundR - 6) * TILE });
 
-  const pickup = { x: 130 * TILE + 20, y: (groundR - 2) * TILE - 8, w: 40, h: 28, taken: false };
+  // the plates rest at the foot of the great stone near the top of the hill
+  const chestX = 131.7 * TILE;
+  const pickup = { x: chestX, y: hill.surf(chestX + 22) - 32, w: 40, h: 28, taken: false };
   return wrapLevel(3, 'storm', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 120 * TILE, {
     goal: 'pickup',
     pickup,
+    hill,
   });
 }
 
@@ -293,7 +333,7 @@ export function createLevel4() {
     [36, 37],
     [62, 63],
   ]);
-  placePlatform(tiles, 10, 10, 5);
+  placePlatform(tiles, 12, 10, 4); // starts clear of the spawn
   placePlatform(tiles, 18, 8, 4);
   placePlatform(tiles, 28, 9, 3);
   placePlatform(tiles, 40, 10, 5);
@@ -431,7 +471,7 @@ export function createLevel6() {
   ]);
   // Mississippi river dock section (planks are added as dynamic solids)
   placeWater(tiles, groundR, cols, [[84, 100]]);
-  placePlatform(tiles, 8, 10, 4);
+  placePlatform(tiles, 12, 10, 2); // starts clear of the spawn
   placePlatform(tiles, 16, 8, 4);
   placePlatform(tiles, 26, 9, 3);
   placePlatform(tiles, 38, 10, 5);
@@ -492,7 +532,7 @@ export function createLevel7() {
   const groundR = 13;
   fillGround(tiles, groundR, cols, []);
   // Cell platforms / stairs feel
-  placePlatform(tiles, 8, 11, 3);
+  placePlatform(tiles, 10, 11, 2); // starts clear of the spawn
   placePlatform(tiles, 12, 9, 3);
   placePlatform(tiles, 18, 11, 3);
   placePlatform(tiles, 29, 10, 2);
@@ -540,10 +580,10 @@ export function createLevel7() {
 }
 
 const CHECKPOINT_COLS = {
-  1: [50, 92],
+  1: [50, 85],
   2: [62],
   3: [60, 104],
-  4: [52, 108],
+  4: [64, 108],
   5: [62, 112],
   6: [64, 111],
   7: [25],
@@ -568,11 +608,19 @@ export function createLevel(num) {
   level.stacks = convertStacks(level.tiles, level.num);
   level.solids = tilesToSolids(level.tiles).concat([{ x: -TILE, y: 0, w: TILE, h: level.rows * TILE, kind: 'wall' }]);
   settleEnemies(level);
-  level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => ({
-    x: c * TILE,
-    y: floorYAt(level.tiles, c * TILE + TILE / 2),
-    lit: false,
-  }));
+  // Spawn on clear ground just right of the on-screen D-pad, never inside a pile
+  const sp = findStand(level, Math.round(W * 0.28), { minX: Math.round(6.5 * TILE), maxX: 12 * TILE });
+  level.spawn = { x: sp.x, y: sp.y - STAND_H };
+  level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => {
+    const st = findStand(level, c * TILE + 2 * SCALE, { minX: (c - 3) * TILE, maxX: (c + 3) * TILE, rStart: 12 });
+    return {
+      x: c * TILE,
+      y: floorBelow(level.tiles, c, 9) ?? floorYAt(level.tiles, c * TILE + TILE / 2),
+      spawnX: st.x,
+      spawnY: st.y,
+      lit: false,
+    };
+  });
   initSetPieces(level);
   initGrove(level);
   placePages(level);
@@ -585,6 +633,11 @@ export function createLevel(num) {
     ];
   }
   if (level.num === 5) level.theme = 'river';
+  if (level.hill) {
+    // smooth height-field ground (player + foes snap to it) and an end wall
+    level.solids.slopes = [level.hill];
+    level.solids.push({ x: level.widthPx, y: -10 * TILE, w: TILE, h: 30 * TILE, kind: 'wall' });
+  }
   if (level.finale) {
     // the jail door is solid: Joseph stands before it, never past it
     level.solids.push({ x: level.finale.doorX, y: 8 * TILE, w: TILE, h: 5 * TILE, kind: 'wall' });
@@ -1057,6 +1110,7 @@ function drawBgStorm(ctx, camX, level) {
     ctx.closePath();
     ctx.fill();
   }
+  drawHillDistant(ctx, camX, level);
   drawRect(ctx, 0, 340, W, H - 340, '#4a5050');
   for (let i = 0; i < 20; i++) {
     const gx = wrapX(i * 34 - camX * 0.4, W + 40);
@@ -1081,6 +1135,7 @@ export function drawLevelTiles(ctx, camX, level, opts = {}) {
     }
   }
   if (!opts.noStacks) drawStacks(ctx, level, camX);
+  if (level.hill) drawHill(ctx, level, camX, drawTree);
 }
 
 function drawGroundTile(ctx, x, y, c, r, level, theme) {

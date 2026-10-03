@@ -1,5 +1,6 @@
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=69';
-import { justPressed, clearAll } from './input.js?v=69';
+import { slopeFloor } from './hill.js?v=70';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=70';
+import { justPressed, clearAll } from './input.js?v=70';
 import {
   createPlayer,
   updatePlayer,
@@ -8,12 +9,12 @@ import {
   playerAttackBox,
   hurtPlayer,
   aabb,
-} from './player.js?v=69';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=69';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=69';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=69';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=69';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=69';
+} from './player.js?v=70';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy } from './enemy.js?v=70';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages } from './level.js?v=70';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=70';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=70';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=70';
 import {
   drawHeart,
   drawText,
@@ -25,8 +26,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=69';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=69';
+} from './sprites.js?v=70';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=70';
 import {
   unlockChapter,
   unlockedChapter,
@@ -40,8 +41,8 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=69';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=69';
+} from './save.js?v=70';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=70';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -212,8 +213,8 @@ function placeAtCheckpoint(game) {
   for (let i = 0; i <= game.checkpointIdx; i++) level.checkpoints[i].lit = true;
   level.enemies = level.enemies.filter((e) => e.type === 'boss' || e.x > cp.x + 4 * TILE);
   if (level.pickup && level.pickup.x < cp.x) level.pickup.taken = true;
-  player.x = cp.x + 2 * SCALE;
-  player.y = cp.y - player.standH;
+  player.x = cp.spawnX ?? cp.x + 2 * SCALE;
+  player.y = (cp.spawnY ?? cp.y) - player.standH;
   player.hp = player.maxHp;
   game.lastHp = player.hp;
   player.invuln = 60;
@@ -595,8 +596,10 @@ const PHASE_LINES = {
   ringleader: 'The ringleader grows desperate!',
 };
 
-function hasFooting(p, solids) {
+function hasFooting(p, solids, slopes = solids.slopes) {
   const feet = p.y + p.h;
+  const sf = slopeFloor(slopes, p.x + p.w / 2);
+  if (sf != null && Math.abs(feet - sf) <= 4) return true;
   const probe = (x) =>
     solids.some((s) => x >= s.x && x <= s.x + s.w && Math.abs(feet - s.y) <= 4);
   return probe(p.x + 2 * SCALE) && probe(p.x + p.w - 2 * SCALE);
@@ -636,7 +639,7 @@ function tickPlay(game, dt) {
   if (!locked) updatePlayer(player, level.solids, dt);
 
   // Remember solid footing; a fall into a gap costs one heart, not the whole run.
-  if (player.alive && player.onGround && hasFooting(player, level.solids.filter((s) => !s.unsafe))) {
+  if (player.alive && player.onGround && hasFooting(player, level.solids.filter((s) => !s.unsafe), level.solids.slopes)) {
     game.safe = { x: player.x, y: player.y + player.h - player.standH };
   }
   if (player.fellOut) {

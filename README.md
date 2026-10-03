@@ -67,6 +67,11 @@ Each chapter opens with a short title card (chapter, story line, place and year)
 - **Jump animation** — takeoff squash, rising stretch, apex tuck, falling pose and landing squash with dust puffs, all built from the painted frames.
 - **Chapter 2 foe** — the first chapter 2 enemy's oversized head was re-proportioned at load time (art files untouched).
 
+## Round 5 fixes
+
+- **Safe spawns** — every chapter start, checkpoint respawn and Continue now uses `findStand()` (`js/level.js`): Joseph's whole box must be clear of solids, both feet on firm ground and room to walk right, just right of the on-screen D-pad. Start-area stacks in ch3/4/6/7 were moved clear; ch1/ch4 checkpoints moved to open ground. `qa/tools/qa_r5.mjs` asserts this for all 7 chapters and every checkpoint on desktop and iPhone layouts.
+- **Hill Cumorah** — chapter 3 ends on a large natural hill (`js/hill.js`): a smooth walkable height field (player and foes snap to it, no snagging) painted with earth strata, buried rocks, grass, wildflowers and trees, with the plates at the foot of a great stone under a big tree near the top, and a distant drumlin silhouette that comes into view as Joseph approaches.
+
 ## Cache busting
 
 Every asset reference carries one version number: `index.html` (`?v=` on CSS, portrait, `main.js`) and **every relative ES module import** in `js/*.js`. All modules must import a file with the same specifier, or the browser loads two copies. To bump:
@@ -120,6 +125,7 @@ js/grove.js       Chapter 1 preachers, camp meeting, grove prayer ending
 js/journal.js     Journal entries shown when a chapter's pages are complete
 js/stacks.js      Grounded stacks (hay, logs, rocks, crates, barrels)
 js/fullscreen.js  Full screen button + iPhone Add to Home Screen guide
+js/hill.js        Hill Cumorah height-field hill (collision + art)
 assets/           Sprite sheets and portraits
 ```
 
