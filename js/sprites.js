@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=71';
+import { COLORS, W, SCALE } from './constants.js?v=72';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -154,6 +154,7 @@ export function preloadSprites() {
     } catch (_) {
       /* preachers fall back to procedural drawing */
     }
+    moroniMetrics = computeMoroniMetrics(); // measured once the sheets are in
     sheetsReady = !!(SHEETS.joseph || SHEETS.foes);
     sheetsLoading = false;
     return sheetsReady;
@@ -1004,34 +1005,156 @@ export function drawWisp(ctx, x, y, frame = 0, flash = false) {
   ctx.restore();
 }
 
-/** Gold-white robed messenger silhouette with gentle glow — no detailed face */
-export function drawMoroni(ctx, x, y, t = 0) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  const img = SHEETS.moroni;
-  if (img) {
-    const fi = Math.floor(t / 14) % 4;
-    blitSimple(ctx, img, fi * 64, 0, 64, 128, ox, oy, JOSEPH_DW, JOSEPH_DH, false, false);
-    return;
+// ── Moroni: drawn at Joseph's height, measured from the painted pixels ──
+// Each sheet cell is 64×128, but the visible figures differ: Joseph's idle frame is
+// ~114 px head-to-feet, Moroni's frames ~92–100 px plus a 2–3 px light glow rim.
+// Matching cell sizes made Moroni look short, so each frame is scaled so his
+// head-to-feet (dark-ish body pixels, glow rim excluded) equals Joseph's.
+const MORONI_FW = 64;
+const MORONI_FH = 128;
+const MORONI_IDLE = [0, 1, 2, 1];
+const MORONI_GREET = 3; // raised-hand frame, used when Joseph is close
+const BODY_LUM = 150; // pixels darker than this are body/outline, lighter opaque ones are glow/robe highlights
+// Fallbacks (from the PNGs) if the sheet can't be read back (tainted canvas)
+const MORONI_FALLBACK = {
+  joseph: { top: 14, bottom: 127, left: 13, right: 48, opTop: 13, opBottom: 127 },
+  frames: [
+    { top: 26, bottom: 125, left: 7, right: 56, opTop: 23, opBottom: 127 },
+    { top: 29, bottom: 125, left: 13, right: 59, opTop: 26, opBottom: 127 },
+    { top: 29, bottom: 125, left: 10, right: 59, opTop: 26, opBottom: 127 },
+    { top: 34, bottom: 125, left: 4, right: 59, opTop: 31, opBottom: 127 },
+  ],
+};
+let moroniMetrics = null;
+
+/** Body + opaque bounds of one sheet cell. A row counts as body when ≥2 pixels are opaque and darker than BODY_LUM. */
+function cellBounds(data, w, sx, sy, sw, sh) {
+  let top = -1, bottom = -1, left = sw, right = -1, opTop = -1, opBottom = -1;
+  for (let y = 0; y < sh; y++) {
+    let dark = 0;
+    let opaque = false;
+    for (let x = 0; x < sw; x++) {
+      const i = ((sy + y) * w + sx + x) * 4;
+      if (data[i + 3] <= 128) continue;
+      opaque = true;
+      const lum = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
+      if (lum < BODY_LUM) {
+        dark++;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+    if (opaque) {
+      if (opTop < 0) opTop = y;
+      opBottom = y;
+    }
+    if (dark >= 2) {
+      if (top < 0) top = y;
+      bottom = y;
+    }
   }
-  const pulse = 0.45 + Math.sin(t * 0.06) * 0.12;
+  return { top, bottom, left, right, opTop, opBottom };
+}
+
+function computeMoroniMetrics() {
+  const jo = SHEETS.joseph;
+  const mo = SHEETS.moroni;
+  let m = null;
+  try {
+    if (jo && mo) {
+      const read = (img) => {
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0);
+        return g.getImageData(0, 0, img.width, img.height).data;
+      };
+      const jd = read(jo);
+      const md = read(mo);
+      const joseph = cellBounds(jd, jo.width, JOSEPH_IDLE[0] * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH);
+      const frames = [];
+      const n = Math.max(1, Math.floor(mo.width / MORONI_FW));
+      for (let k = 0; k < n; k++) frames.push(cellBounds(md, mo.width, k * MORONI_FW, 0, MORONI_FW, MORONI_FH));
+      if (joseph.top >= 0 && frames.every((f) => f.top >= 0)) m = { joseph, frames, measured: true };
+    }
+  } catch (_) {
+    m = null;
+  }
+  if (!m) m = { ...MORONI_FALLBACK, measured: false };
+  // Joseph's on-screen head-to-feet height (his cell is drawn 128 → JOSEPH_DH)
+  m.targetH = ((m.joseph.bottom - m.joseph.top + 1) * JOSEPH_DH) / JOSEPH_FH;
+  return m;
+}
+
+function getMoroniMetrics() {
+  if (!moroniMetrics) moroniMetrics = computeMoroniMetrics();
+  return moroniMetrics;
+}
+
+export function moroniFrameAt(t = 0, greet = false) {
+  return greet ? MORONI_GREET : MORONI_IDLE[Math.floor(t / 18) % MORONI_IDLE.length];
+}
+
+/** Where a Moroni frame lands on screen (used by drawMoroni and the QA suite). */
+export function moroniLayout(cx, footY, t = 0, faceLeft = false, greet = false) {
+  const m = getMoroniMetrics();
+  let fi = moroniFrameAt(t, greet);
+  if (!m.frames[fi]) fi = 0;
+  const f = m.frames[fi];
+  const bodyH = f.bottom - f.top + 1;
+  const dh = Math.round((MORONI_FH * m.targetH) / bodyH);
+  const s = dh / MORONI_FH;
+  const dw = Math.round(MORONI_FW * s);
+  const bob = Math.round((Math.sin(t * 0.05) + 1) * 1); // 0–2 px float, feet never below the baseline
+  const dy = Math.round(footY - bob - (f.bottom + 1) * s);
+  const vc = (f.left + f.right + 1) / 2;
+  const dx = Math.round(faceLeft ? cx - (MORONI_FW - vc) * s : cx - vc * s);
+  return {
+    frame: fi, dx, dy, dw, dh, scale: s, bob, faceLeft,
+    headY: dy + f.top * s,
+    feetY: dy + (f.bottom + 1) * s,
+    bodyH: bodyH * s,
+    opaqueH: (f.opBottom - f.opTop + 1) * s,
+    josephBodyH: m.targetH,
+    josephOpaqueH: ((m.joseph.opBottom - m.joseph.opTop + 1) * JOSEPH_DH) / JOSEPH_FH,
+    measured: m.measured,
+  };
+}
+
+/**
+ * Moroni, feet on `footY` (Joseph's baseline) and centred on `cx`.
+ * `faceLeft` flips the sheet (it is painted facing right) so he always faces Joseph.
+ */
+export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = false) {
+  const img = SHEETS.moroni;
+  const pulse = 0.5 + Math.sin(t * 0.06) * 0.15;
   ctx.save();
-  // Glow halo
-  ellipse(ctx, ox + 20, oy + 36, 36, 48, `rgba(255,230,160,${pulse * 0.35})`);
-  ellipse(ctx, ox + 20, oy + 36, 24, 36, `rgba(255,240,200,${pulse * 0.25})`);
-  // Robe silhouette
-  roundRect(ctx, ox + 8, oy + 28, 24, 52, 8, '#f5ecd0');
-  roundRect(ctx, ox + 10, oy + 30, 20, 48, 6, '#fff8e0');
-  // Soft sash
-  roundRect(ctx, ox + 10, oy + 48, 20, 4, 1, '#d4a84b');
-  // Head oval — blank, luminous
-  ellipse(ctx, ox + 20, oy + 20, 10, 12, '#fffaf0');
-  ellipse(ctx, ox + 20, oy + 18, 7, 8, '#ffe8b0');
-  // Raised arm suggestion (messenger)
-  roundRect(ctx, ox + 28, oy + 34, 14, 5, 2, '#f0e6d0');
-  // Soft feet glow
-  ellipse(ctx, ox + 20, oy + 82, 14, 4, 'rgba(255,220,140,0.4)');
+  // Soft light pooled on the ground under him
+  ellipse(ctx, Math.round(cx), Math.round(footY - 1), 26, 5, `rgba(255,226,150,${(pulse * 0.45).toFixed(3)})`);
   ctx.restore();
+  if (img) {
+    const L = moroniLayout(cx, footY, t, faceLeft, greet);
+    blitSimple(ctx, img, L.frame * MORONI_FW, 0, MORONI_FW, MORONI_FH, L.dx, L.dy, L.dw, L.dh, faceLeft, false);
+    return L;
+  }
+  const ox = Math.floor(cx - 20);
+  const oy = Math.floor(footY - 100);
+  ctx.save();
+  if (faceLeft) {
+    ctx.translate(ox * 2 + 40, 0);
+    ctx.scale(-1, 1);
+  }
+  ellipse(ctx, ox + 20, oy + 44, 36, 56, `rgba(255,230,160,${pulse * 0.35})`);
+  ellipse(ctx, ox + 20, oy + 44, 24, 44, `rgba(255,240,200,${pulse * 0.25})`);
+  roundRect(ctx, ox + 8, oy + 30, 24, 68, 8, '#f5ecd0');
+  roundRect(ctx, ox + 10, oy + 32, 20, 64, 6, '#fff8e0');
+  roundRect(ctx, ox + 10, oy + 56, 20, 4, 1, '#d4a84b');
+  ellipse(ctx, ox + 20, oy + 16, 10, 13, '#fffaf0');
+  ellipse(ctx, ox + 20, oy + 14, 7, 8, '#ffe8b0');
+  roundRect(ctx, ox + 28, oy + 38, 14, 5, 2, '#f0e6d0');
+  ctx.restore();
+  return null;
 }
 
 /** Gold plates chest pickup */

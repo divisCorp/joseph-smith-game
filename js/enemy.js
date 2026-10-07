@@ -1,5 +1,5 @@
-import { landOnSlopes } from './hill.js?v=71';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=71';
+import { landOnSlopes } from './hill.js?v=72';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=72';
 import {
   drawBrigand,
   drawWolf,
@@ -7,12 +7,12 @@ import {
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=71';
-import { aabb } from './player.js?v=71';
-import { createKnife, KNIFE_W } from './projectiles.js?v=71';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=71';
-import { sfx } from './audio.js?v=71';
-import { isEasy, reduceFlash } from './save.js?v=71';
+} from './sprites.js?v=72';
+import { aabb } from './player.js?v=72';
+import { createKnife, KNIFE_W } from './projectiles.js?v=72';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=72';
+import { sfx } from './audio.js?v=72';
+import { isEasy, reduceFlash } from './save.js?v=72';
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {

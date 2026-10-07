@@ -83,12 +83,18 @@ Each chapter opens with a short title card (chapter, story line, place and year)
 - **No cheap arrivals** — foes are moved out of a 9-tile safe zone ahead of every chapter start and checkpoint, and throwers wait 1.5 s after you arrive. Chapter 2 gained a second checkpoint.
 - Full audit: `qa/round6/design-audit.md` (in the QA workspace). Tests: `qa/tools/qa_r6.mjs`.
 
+## Round 7 (Moroni)
+
+- **Moroni faces Joseph** — the sheet is painted facing right, so it is mirrored every frame toward Joseph's side (also behind the chapter-clear card). He raises a hand in greeting when Joseph is within 6 tiles.
+- **Same height** — each Moroni frame is scaled so his head-to-feet height (measured from the sheet's dark body pixels at load, glow rim excluded) equals Joseph's (~100 px). Aspect ratio is kept, scaling is nearest-neighbour, and the painted glow rim scales with him. His feet stand on Joseph's baseline with a 0–2 px float. Sprite art is unchanged.
+- **Room between them** — the meeting triggers ~1.75 tiles before they touch (`MORONI_MEET` in `js/level.js`). Tests: `qa/tools/qa_r7.mjs`.
+
 ## Cache busting
 
 Every asset reference carries one version number: `index.html` (`?v=` on CSS, portrait, `main.js`) and **every relative ES module import** in `js/*.js`. All modules must import a file with the same specifier, or the browser loads two copies. To bump:
 
 ```
-node scripts/bump-version.mjs 71
+node scripts/bump-version.mjs 72
 ```
 
 ## Saving

@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=71';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=71';
-import { unlockAudio, syncMuteButton } from './audio.js?v=71';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=71';
-import { JOURNAL } from './journal.js?v=71';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=71';
-import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=71';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=72';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=72';
+import { unlockAudio, syncMuteButton } from './audio.js?v=72';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=72';
+import { JOURNAL } from './journal.js?v=72';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=72';
+import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=72';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',

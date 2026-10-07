@@ -3,15 +3,15 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=71';
-import { createEnemy } from './enemy.js?v=71';
-import { STAND_H } from './player.js?v=71';
-import { drawRect } from './sprites.js?v=71';
-import { initSetPieces, buildDock } from './setpieces.js?v=71';
-import { reduceFlash } from './save.js?v=71';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=71';
-import { initGrove } from './grove.js?v=71';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=71';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=72';
+import { createEnemy } from './enemy.js?v=72';
+import { STAND_H } from './player.js?v=72';
+import { drawRect } from './sprites.js?v=72';
+import { initSetPieces, buildDock } from './setpieces.js?v=72';
+import { reduceFlash } from './save.js?v=72';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=72';
+import { initGrove } from './grove.js?v=72';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=72';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -203,6 +203,11 @@ export function createLevel1() {
 }
 
 // ── Level 2: A Messenger (meet Moroni) ────────────────────
+// Centre-to-centre distance when the meeting triggers: Joseph's reach to the right
+// incl. the resting pitchfork (~34 px) + Moroni's half-width incl. glow and raised
+// hand (~34 px) + a ~1.75-tile gap (56 px, measured in qa_r7). Body-to-body ~2.5 tiles.
+export const MORONI_MEET = 128;
+const STAND_W = 28 * SCALE; // player.w
 export function createLevel2() {
   const cols = 128;
   const rows = 15;
@@ -251,11 +256,15 @@ export function createLevel2() {
   decor.push({ type: 'gate', x: 108 * TILE, y: (groundR - 5) * TILE });
   decor.push({ type: 'gate', x: 109 * TILE, y: (groundR - 5) * TILE });
 
-  const goalX = 112 * TILE;
+  // Moroni stands (feet on Joseph's baseline) at his centre x. The meeting triggers
+  // when Joseph's centre is MORONI_MEET px away, leaving ~1.5–2 tiles of open
+  // ground between them, so they never overlap.
+  const moroniX = 113 * TILE + TILE / 2;
+  const goalX = moroniX - MORONI_MEET - STAND_W / 2; // compared against player.x (left edge)
   return wrapLevel(2, 'grove', cols, rows, tiles, enemies, decor, { x: 3 * TILE, y: 10 * TILE }, 108 * TILE, {
     goal: 'reach',
     goalX,
-    moroni: { x: goalX, y: (groundR - 3) * TILE },
+    moroni: { x: moroniX, footY: groundR * TILE },
   });
 }
 

@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=71';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=71';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=71';
+import { slopeFloor } from './hill.js?v=72';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=72';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=72';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=71';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit } from './enemy.js?v=71';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=71';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=71';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=71';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=71';
+} from './player.js?v=72';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit } from './enemy.js?v=72';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=72';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=72';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=72';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=72';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=71';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=71';
+} from './sprites.js?v=72';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=72';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,8 +42,8 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=71';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=71';
+} from './save.js?v=72';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=72';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -1043,7 +1043,17 @@ export function drawGame(ctx, game) {
 
   // Moroni NPC
   if (game.level.moroni) {
-    drawMoroni(ctx, game.level.moroni.x - game.camX, game.level.moroni.y, game.tick);
+    const mo = game.level.moroni;
+    const pl = game.player;
+    const pcx = pl ? pl.x + pl.w / 2 : mo.x - 1;
+    // Always face Joseph (sheet is painted facing right); raise a hand as he comes near
+    const faceLeft = pcx < mo.x;
+    const greet = Math.abs(pcx - mo.x) < 6 * TILE;
+    const L = drawMoroni(ctx, mo.x - game.camX, mo.footY, game.tick, faceLeft, greet);
+    if (L) {
+      const m = ctx.getTransform();
+      game.moroniView = { ...L, pcx, cx: mo.x, tm: [m.a, m.b, m.c, m.d, m.e, m.f] }; // read by QA
+    }
   }
 
   for (const e of game.level.enemies) {
