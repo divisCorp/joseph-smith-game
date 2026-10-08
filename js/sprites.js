@@ -237,15 +237,15 @@ const JOSEPH_DW = 56;
 const JOSEPH_DH = 112;
 
 /** Farm pitchfork — held at the side, swung forward. */
-export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false, crouching = false) {
+export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false, crouching = false, handAt = null) {
   const sc = 1;
   const dw = Math.round(JOSEPH_DW * sc);
   const dh = Math.round(JOSEPH_DH * sc);
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
-  const hx = ox + dw * (flip ? 0.22 : 0.78);
-  const hy = oy + dh * (crouching ? 0.70 : swinging ? 0.48 : 0.62);
+  const hx = handAt ? handAt.x : ox + dw * (flip ? 0.22 : 0.78);
+  const hy = handAt ? handAt.y : oy + dh * (crouching ? 0.70 : swinging ? 0.48 : 0.62);
   const angle = swinging
     ? (flip ? Math.PI + 0.05 : -0.05)
     : (flip ? Math.PI - 1.05 : 1.05);

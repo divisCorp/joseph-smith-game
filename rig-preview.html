@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1a1208" />
+<meta name="robots" content="noindex" />
+<title>Joseph rig preview — Palmyra Quest</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse 90% 70% at 50% 10%, #243044 0%, #121820 45%, #08090d 100%);
+    color: #e8e0c8; font-family: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; min-height: 100dvh;
+    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    gap: 10px; -webkit-text-size-adjust: 100%;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-family: Cinzel, Palatino, serif; font-size: clamp(17px, 2.3vw, 26px); color: #f0d48a; letter-spacing: .02em; }
+  .sub { font-size: 13px; color: #b9ae92; }
+  .sub a { color: #f0d48a; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid #6d5626; border-radius: 9px; overflow: hidden; background: #17130c; }
+  .seg button, .btn {
+    font: 600 14px "Source Sans 3", system-ui, sans-serif; color: #e8e0c8; background: transparent;
+    border: 0; padding: 7px 12px; cursor: pointer; min-height: 34px; white-space: nowrap;
+  }
+  .seg button + button { border-left: 1px solid #3d311b; }
+  .seg button[aria-pressed="true"] { background: linear-gradient(#c9a24c, #9c7a2c); color: #1b1408; }
+  .btn { border: 1px solid #6d5626; border-radius: 9px; background: #17130c; }
+  .btn[aria-pressed="true"] { background: linear-gradient(#c9a24c, #9c7a2c); color: #1b1408; }
+  .spacer { flex: 1; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
+  .panel {
+    position: relative; border: 2px solid #c4a050; border-radius: 10px; overflow: hidden; min-height: 220px;
+    box-shadow: 0 0 0 2px #3a2810, 0 12px 30px rgba(0,0,0,.5);
+    background: linear-gradient(#c7d9e6 0%, #e6e2c8 62%, #b9a77a 62.2%, #8f7a4c 100%);
+  }
+  .panel canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .tag {
+    position: absolute; left: 10px; top: 8px; z-index: 2; font: 700 13px "Source Sans 3", sans-serif;
+    background: rgba(18, 14, 8, .78); color: #f0d48a; padding: 4px 9px; border-radius: 7px; letter-spacing: .02em;
+  }
+  .tag small { color: #cbbf9f; font-weight: 600; }
+  footer { font-size: 12.5px; color: #a79c80; line-height: 1.4; }
+  footer b { color: #e8d9a8; }
+  @media (max-height: 500px) and (orientation: landscape) {
+    body { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+    header .sub { display: none; }
+    h1 { font-size: 16px; }
+    .seg button, .btn { padding: 4px 9px; min-height: 30px; font-size: 13px; }
+    footer { display: none; }
+    main { gap: 8px; }
+    .panel { min-height: 0; }
+  }
+  @media (max-width: 560px) and (orientation: portrait) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Joseph · painted cut-out rig</h1>
+  <span class="sub">Proof of concept · same painting, now on a skeleton · <a href="index.html?rig=1">Play chapter 1 with the rig →</a></span>
+</header>
+<div class="bar">
+  <div class="seg" id="anims" role="group" aria-label="Animation"></div>
+  <span class="spacer"></span>
+  <button class="btn" id="play" aria-pressed="true">❚❚ Pause</button>
+  <div class="seg" role="group" aria-label="Speed"><button data-speed="1" aria-pressed="true">1×</button><button data-speed="0.25">0.25×</button></div>
+  <div class="seg" role="group" aria-label="Zoom"><button data-zoom="1">Zoom 1×</button><button data-zoom="3" aria-pressed="true">3×</button></div>
+  <button class="btn" id="bones" aria-pressed="false">Bones</button>
+</div>
+<main>
+  <div class="panel"><span class="tag">Before <small>· sprite sheet (live game)</small></span><canvas id="old"></canvas></div>
+  <div class="panel"><span class="tag">After <small>· skeletal rig</small></span><canvas id="new"></canvas></div>
+</main>
+<footer>
+  <b>What's new:</b> the original idle painting is cut into 16 parts (head, torso, coat skirt, coat tail, far coat panel, upper arms, forearms, thighs, shins, boots) and animated on bones.
+  Proportions and face never change; legs are real painted trouser and boot pieces; 2-bone IK keeps planted feet locked to the ground (watch the tick marks).
+  The far arm and far leg are painted darker. Space = play/pause, ←/→ = step a frame while paused.
+</footer>
+<script type="module">
+import { loadRig } from './js/rig.js?v=73';
+import { ANIMS, oldState, newState, drawOld, drawNew, GAME_K } from './js/rig-demo.js?v=73';
+
+const qs = new URLSearchParams(location.search);
+const state = {
+  anim: ANIMS[qs.get('anim')] ? qs.get('anim') : 'walk',
+  playing: qs.get('paused') == null, speed: +(qs.get('speed') || 1), zoom: +(qs.get('zoom') || 3),
+  bones: qs.has('bones'), t: +(qs.get('t') || 0),
+};
+const sheet = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = 'assets/joseph.png?v=73'; });
+const rig = await loadRig('assets/rig/', '73');
+
+// ---- UI
+const animsEl = document.getElementById('anims');
+for (const [k, a] of Object.entries(ANIMS)) {
+  const b = document.createElement('button');
+  b.textContent = a.label; b.dataset.anim = k;
+  b.onclick = () => { state.anim = k; state.t = 0; sync(); };
+  animsEl.appendChild(b);
+}
+document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { state.speed = +b.dataset.speed; sync(); }));
+document.querySelectorAll('[data-zoom]').forEach((b) => (b.onclick = () => { state.zoom = +b.dataset.zoom; sync(); }));
+const playBtn = document.getElementById('play');
+playBtn.onclick = () => { state.playing = !state.playing; sync(); };
+const bonesBtn = document.getElementById('bones');
+bonesBtn.onclick = () => { state.bones = !state.bones; sync(); };
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { state.playing = !state.playing; sync(); e.preventDefault(); }
+  if (!state.playing && (e.code === 'ArrowRight' || e.code === 'ArrowLeft')) { state.t = Math.max(0, state.t + (e.code === 'ArrowRight' ? 1 : -1) / 60); }
+});
+function sync() {
+  animsEl.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.anim === state.anim)));
+  document.querySelectorAll('[data-speed]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.speed === state.speed)));
+  document.querySelectorAll('[data-zoom]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.zoom === state.zoom)));
+  playBtn.setAttribute('aria-pressed', String(state.playing));
+  playBtn.textContent = state.playing ? '❚❚ Pause' : '▶ Play';
+  bonesBtn.setAttribute('aria-pressed', String(state.bones));
+}
+sync();
+
+// ---- drawing
+const cOld = document.getElementById('old'), cNew = document.getElementById('new');
+function fit(c) {
+  const r = c.getBoundingClientRect(), dpr = Math.min(3, devicePixelRatio || 1);
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  return { w: r.width, h: r.height, dpr };
+}
+function scene(c, which, t) {
+  const { w, h, dpr } = fit(c);
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const A = ANIMS[state.anim];
+  // model px → CSS px. 1× = the in-game size (the 64×128 cell drawn at 56×112).
+  let s = GAME_K * state.zoom;
+  const groundY = Math.round(h * 0.86);
+  s = Math.min(s, (groundY - 18) / 128); // fit tall zooms on short (phone) screens
+  const st = which === 'old' ? oldState(state.anim, t) : newState(state.anim, t);
+  const air = which === 'old' ? st.air : st.pose.rootY;
+  // vertical camera so big jumps stay on screen at high zoom
+  const headroom = groundY - 128 * s - 8;
+  const camY = Math.max(0, -air * s - headroom);
+  const dist = A.speed * t; // model px travelled (ground scrolls under the feet)
+  // ground
+  g.save();
+  g.translate(0, camY);
+  const sky = g.createLinearGradient(0, -camY, 0, groundY);
+  sky.addColorStop(0, '#b9cfe0'); sky.addColorStop(1, '#ece6cc');
+  g.fillStyle = sky; g.fillRect(0, -camY, w, groundY + camY);
+  g.fillStyle = '#7c6a43'; g.fillRect(0, groundY, w, h);
+  g.fillStyle = '#5c4a2c'; g.fillRect(0, groundY, w, Math.max(2, s * 1.2));
+  const loopDist = A.speed * A.dur;
+  const tick = (loopDist ? loopDist / Math.max(1, Math.round(loopDist / 16)) : 16) * s; // world-locked ticks (~16 model px)
+  const off = -((dist * s) % tick);
+  g.fillStyle = 'rgba(40,28,12,.55)';
+  for (let x = off - tick; x < w + tick; x += tick) g.fillRect(Math.round(x), groundY + 3, Math.max(2, s * 0.9), Math.max(5, s * 3));
+  // contact shadow
+  const cx = w / 2;
+  g.fillStyle = `rgba(0,0,0,${0.22 * Math.max(0.25, 1 + air / 140)})`;
+  g.beginPath(); g.ellipse(cx + 2 * s, groundY, 18 * s * Math.max(0.5, 1 + air / 200), 3.5 * s, 0, 0, Math.PI * 2); g.fill();
+  const x0 = cx - 34 * s, y0 = groundY - 128 * s;
+  if (which === 'old') drawOld(g, sheet, st, x0, y0, s);
+  else drawNew(g, rig, st.pose, x0, y0, s, { bones: state.bones });
+  g.restore();
+  g.fillStyle = 'rgba(18,14,8,.7)'; g.font = '600 12px "Source Sans 3", sans-serif';
+  const note = which === 'old'
+    ? (state.anim === 'idle' ? 'one still frame in game' : state.anim === 'kneel' ? 'single crouch frame' : state.anim === 'jump' ? 'no anticipation · 3 frames + squash' : '8 frames, legs barely change')
+    : (state.anim === 'jump' ? 'anticipation → stretch → tuck → reach → squash' : state.anim === 'idle' ? 'breathing · head bob · coat sway' : state.anim === 'kneel' ? 'kneels, palms together, head bowed' : 'IK: planted foot locked to the ticks');
+  const label = `${note}  ·  t=${(t % A.dur).toFixed(2)}s  ·  ${state.speed}×`;
+  g.fillStyle = 'rgba(18,14,8,.72)'; const tw = g.measureText(label).width;
+  g.fillRect(8, h - 24, tw + 14, 18); g.fillStyle = '#efe4c4'; g.fillText(label, 15, h - 10.5);
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state.playing) state.t += dt * state.speed;
+  const A = ANIMS[state.anim];
+  const t = state.t % A.dur;
+  scene(cOld, 'old', t);
+  scene(cNew, 'new', t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__rigPreview = { state, ANIMS };
+</script>
+</body>
+</html>

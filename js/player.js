@@ -5,6 +5,10 @@ import { isDown, justPressed } from './input.js?v=73';
 import { sfx } from './audio.js?v=73';
 import { isEasy, reduceFlash } from './save.js?v=73';
 import {
+  loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose,
+  gaitParams, JUMP_T,
+} from './rig.js?v=73';
+import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
@@ -13,6 +17,66 @@ import {
 } from './projectiles.js?v=73';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
+
+// ---- Skeletal rig proof of concept: add ?rig=1 to the URL to play as the cut-out rig.
+const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') === '1';
+let RIG = null;
+if (RIG_MODE) loadRig('assets/rig/', '73').then((r) => { RIG = r; }).catch(() => {});
+const RIG_K = 56 / 64; // model px → game px
+const RUN_SPEED = 1.55 * SCALE;
+const JUMP_V0 = -6.2 * SCALE;
+const RIG_FADE = 0.16; // s to blend between modes
+
+/** Pick the rig pose from the player's physics state (feet locked to distance travelled). */
+function rigPose(p) {
+  const dt = 1 / 60;
+  const r = p.rig || (p.rig = { t: 0, phase: 0, lastX: p.x, mode: '', from: null, fade: 0, land: 9, kneel: 0, last: null, wasAir: false });
+  const dx = Math.abs(p.x - r.lastX) / RIG_K;
+  r.lastX = p.x;
+  r.t += dt;
+  const moving = (Math.abs(p.vx) > 0.12 * SCALE || !!p.walking) && p.onGround;
+  let mode;
+  let pose;
+  if (!p.onGround) {
+    mode = 'air';
+    const k = Math.max(0, Math.min(1, (p.vy - JUMP_V0) / (-2 * JUMP_V0)));
+    const tt = JUMP_T.leave + 0.02 + k * (JUMP_T.touch - JUMP_T.leave - 0.05);
+    pose = poseJump(Math.min(tt, 0.74), 0);
+    r.wasAir = true;
+  } else {
+    if (r.wasAir) { r.land = 0; r.wasAir = false; }
+    r.kneel = Math.max(0, Math.min(1, r.kneel + (p.crouching ? dt / 0.28 : -dt / 0.22)));
+    if (moving && !p.crouching) {
+      mode = 'walk';
+      const P = gaitParams(Math.abs(p.vx) / RUN_SPEED);
+      r.phase += dx / P.cycle;
+      pose = poseWalk(r.phase, P);
+      r.land = 9;
+    } else if (r.land < JUMP_T.end - JUMP_T.touch) {
+      mode = 'land';
+      pose = poseJump(JUMP_T.touch + r.land);
+      r.land += dt;
+    } else {
+      mode = 'idle';
+      pose = poseIdle(r.t);
+    }
+    if (r.kneel > 0) pose = kneelFrom(pose, r.kneel * r.kneel * (3 - 2 * r.kneel), r.t);
+  }
+  if (p.attackTimer > 0 && !p.canThrow) {
+    // pitchfork thrust: far arm drives the fork forward, body leans in
+    pose = { ...pose, fArm: -80, fFore: -6, nArm: 16, nFore: -10, torsoRot: pose.torsoRot + 5, fHand: undefined, nHand: undefined };
+  }
+  if (mode !== r.mode) {
+    if (r.last && r.mode) { r.from = r.last; r.fade = 1; }
+    r.mode = mode;
+  }
+  if (r.fade > 0 && r.from) {
+    pose = blendPose(pose, r.from, r.fade);
+    r.fade = Math.max(0, r.fade - dt / RIG_FADE);
+  }
+  r.last = pose;
+  return pose;
+}
 export const CROUCH_H = 18 * SCALE;
 const YOUNG_SCALE = 1;
 const STAND_SPEED = 1.55 * SCALE;
@@ -429,6 +493,10 @@ function drawPlayerBody(ctx, p, camX) {
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
   const moving = (Math.abs(p.vx) > 0.12 * SCALE || !!p.walking) && p.onGround;
   const walkFrame = Math.floor(Math.abs(p.x) / (3 * SCALE)) % 8;
+  if (RIG && !(p.attackTimer > 0 && p.canThrow)) {
+    drawPlayerRig(ctx, p, camX, drawY, standH);
+    return;
+  }
   const pose = jumpPose(p);
   const bx = p.x - camX;
   // calm moments (standing still, kneeling in prayer) gather a soft warm rim of light
@@ -476,6 +544,31 @@ function drawPlayerBody(ctx, p, camX) {
     rim
   );
   ctx.restore();
+}
+
+function drawPlayerRig(ctx, p, camX, drawY, standH) {
+  const pose = rigPose(p);
+  const bx = Math.floor(p.x - camX);
+  const oy = Math.floor(drawY);
+  const flip = p.facing < 0;
+  if (p.onGround) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(bx + 28, oy + standH - 3, 56 * 0.28, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  const y0 = oy + 2 * RIG_K; // model ground (y 126) sits on the cell bottom like the old art
+  if (!p.canThrow && !p.forkAway && RIG) {
+    // the fork rides in the far hand
+    const { B } = solveRig(RIG.meta, pose);
+    const f = B.fFore;
+    const hx = f.pos[0] - Math.sin(f.rot) * 16, hy = f.pos[1] + Math.cos(f.rot) * 16;
+    const sx = flip ? bx + (64 - hx) * RIG_K : bx + hx * RIG_K;
+    drawPitchfork(ctx, 0, 0, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching, { x: sx, y: y0 + hy * RIG_K });
+  }
+  drawRig(ctx, RIG, pose, { x: bx, y: y0, scale: RIG_K, flip });
 }
 
 function aabb(a, b) {
