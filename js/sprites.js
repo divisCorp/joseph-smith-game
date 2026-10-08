@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=73';
+import { COLORS, W, SCALE } from './constants.js?v=74';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -88,6 +88,7 @@ function withFlip(ctx, ox, oy, w, flip, fn) {
 // ── Sprite sheets (painterly 16-bit PNGs in assets/) ──
 const SHEETS = {
   joseph: null,
+  josephAdult: null,
   foes: null,
   wolf: null,
   bosses: null,
@@ -134,6 +135,7 @@ export function preloadSprites() {
           };
           const file = {
             joseph: 'joseph.png',
+            josephAdult: 'joseph-adult.png',
             foes: 'foes.png',
             wolf: 'wolf.png',
             bosses: 'bosses.png',
@@ -304,11 +306,11 @@ export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false
 }
 
 
-/** Warm gold silhouette of the Joseph sheet, for a soft rim of light in calm moments. */
-function josephRimSheet() {
-  if (SHEETS.josephRim !== undefined) return SHEETS.josephRim;
-  const img = SHEETS.joseph;
+/** Warm gold silhouette of whichever Joseph sheet is on screen. */
+const josephRims = new Map();
+function josephRimSheet(img) {
   if (!img) return null;
+  if (josephRims.has(img)) return josephRims.get(img);
   try {
     const c = document.createElement('canvas');
     c.width = img.width;
@@ -318,11 +320,12 @@ function josephRimSheet() {
     g.globalCompositeOperation = 'source-in';
     g.fillStyle = '#ffe2a0';
     g.fillRect(0, 0, c.width, c.height);
-    SHEETS.josephRim = c;
+    josephRims.set(img, c);
+    return c;
   } catch (_) {
-    SHEETS.josephRim = null;
+    josephRims.set(img, null);
+    return null;
   }
-  return SHEETS.josephRim;
 }
 
 export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false, airFrame = null, rim = 0) {
@@ -339,7 +342,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
   else if (lookingUp) pose = 'lookup';
   else if (jumping) pose = 'jump';
 
-  const img = SHEETS.joseph;
+  const img = (young ? SHEETS.joseph : SHEETS.josephAdult) || SHEETS.joseph;
   if (img) {
     let fi = JOSEPH_IDLE[((frame % JOSEPH_IDLE.length) + JOSEPH_IDLE.length) % JOSEPH_IDLE.length];
     let dy = oy;
@@ -370,7 +373,7 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
     }
     if (rim > 0.02) {
       // spiritual presence: a thin warm rim of light around the painted figure (art untouched)
-      const rs = josephRimSheet();
+      const rs = josephRimSheet(img);
       if (rs) {
         ctx.save();
         ctx.globalAlpha = Math.min(1, rim) * 0.45;
@@ -554,56 +557,14 @@ export function drawKnife(ctx, x, y, facing = 1) {
 const FOE_HEAD_K = 0.7;
 const FOE_BODY_K = 1.15;
 function reproportionFoes(img) {
-  const W0 = img.width;
-  const H0 = img.height;
-  const src = document.createElement('canvas');
-  src.width = W0;
-  src.height = H0;
-  const sctx = src.getContext('2d', { willReadFrequently: true });
-  sctx.drawImage(img, 0, 0);
-  const data = sctx.getImageData(0, 0, W0, H0).data;
+  // The sheet is already reproportioned on disk (round 9). Keep a canvas copy so
+  // foeSheetsForQa().fixed stays set, but do not shrink the head a second time.
   const out = document.createElement('canvas');
-  out.width = W0;
-  out.height = H0;
+  out.width = img.width;
+  out.height = img.height;
   const o = out.getContext('2d');
-  o.imageSmoothingEnabled = true;
-  o.imageSmoothingQuality = 'high';
-  const FW = 64;
-  const FH = 128;
-  for (let row = 0; row < Math.floor(H0 / FH); row++) {
-    for (let col = 0; col < Math.floor(W0 / FW); col++) {
-      const fx = col * FW;
-      const fy = row * FH;
-      // neck = narrowest opaque row in the 44..68 band
-      let ny = 58;
-      let best = 1e9;
-      let nx = FW / 2;
-      for (let y = 44; y <= 68; y++) {
-        let n = 0;
-        let sx = 0;
-        for (let x = 0; x < FW; x++) {
-          if (data[((fy + y) * W0 + fx + x) * 4 + 3] > 40) {
-            n++;
-            sx += x;
-          }
-        }
-        if (n > 4 && n < best) {
-          best = n;
-          ny = y;
-          nx = sx / n;
-        }
-      }
-      const bodyH = FH - ny;
-      const bodyDH = Math.round(bodyH * FOE_BODY_K);
-      const bodyTop = FH - bodyDH;
-      o.drawImage(img, fx, fy + ny, FW, bodyH, fx, fy + bodyTop, FW, bodyDH);
-      const headDW = FW * FOE_HEAD_K;
-      const headDH = ny * FOE_HEAD_K;
-      const hx = fx + nx - nx * FOE_HEAD_K;
-      const hy = fy + bodyTop + 2 - headDH;
-      o.drawImage(img, fx, fy, FW, ny, hx, hy, headDW, headDH);
-    }
-  }
+  o.imageSmoothingEnabled = false;
+  o.drawImage(img, 0, 0);
   return out;
 }
 
@@ -617,9 +578,9 @@ function reproportionFoes(img) {
  *  baptist     — country preacher: low wide-brim hat, brown cloak, pewter trim
  */
 const PREACHER_DEFS = {
-  methodist: { sheet: 'bosses', fw: 80, fh: 160, row: 0, frames: [0, 1], headK: 0.74, bodyK: 1.1 },
-  presbyterian: { sheet: 'joseph', fw: 64, fh: 128, row: 0, frames: [0, 1], headK: 1, bodyK: 1 },
-  baptist: { sheet: 'bosses', fw: 80, fh: 160, row: 4, frames: [0, 5], headK: 0.74, bodyK: 1.1 },
+  methodist: { sheet: 'bosses', fw: 80, fh: 160, row: 0, frames: [0, 1], headK: 1, bodyK: 1 },
+  presbyterian: { sheet: 'josephAdult', fw: 64, fh: 128, row: 0, frames: [0, 1], headK: 1, bodyK: 1 },
+  baptist: { sheet: 'bosses', fw: 80, fh: 160, row: 4, frames: [0, 5], headK: 1, bodyK: 1 },
 };
 
 function rgbToHsl(r, g, b) {

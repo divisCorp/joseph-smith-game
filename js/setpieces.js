@@ -4,12 +4,12 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { bindText } from './input.js?v=73';
-import { W, H, TILE, SCALE } from './constants.js?v=73';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
-import { drawText, measureText, drawRect } from './sprites.js?v=73';
-import { sfx } from './audio.js?v=73';
-import { isEasy, reduceFlash } from './save.js?v=73';
+import { bindText } from './input.js?v=74';
+import { W, H, TILE, SCALE } from './constants.js?v=74';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=74';
+import { drawText, measureText, drawRect } from './sprites.js?v=74';
+import { sfx } from './audio.js?v=74';
+import { isEasy, reduceFlash } from './save.js?v=74';
 
 const S = SCALE;
 
@@ -364,7 +364,7 @@ function drawFriendBody(ctx, x, base, coat, hat, t, i, hair = '#3a2416') {
   const hy = top - 7;
   ctx.fillStyle = '#e8c4a0';
   ctx.beginPath();
-  ctx.ellipse(hx, hy, 5, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(hx, hy, 4.2, 5.2, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = hair;
   ctx.beginPath();

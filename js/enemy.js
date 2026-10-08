@@ -1,17 +1,17 @@
-import { landOnSlopes } from './hill.js?v=73';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=73';
+import { landOnSlopes } from './hill.js?v=74';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=74';
 import {
   drawBrigand,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=73';
-import { aabb } from './player.js?v=73';
-import { createKnife, KNIFE_W } from './projectiles.js?v=73';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
-import { sfx } from './audio.js?v=73';
-import { isEasy, reduceFlash } from './save.js?v=73';
+} from './sprites.js?v=74';
+import { aabb } from './player.js?v=74';
+import { createKnife, KNIFE_W } from './projectiles.js?v=74';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=74';
+import { sfx } from './audio.js?v=74';
+import { isEasy, reduceFlash } from './save.js?v=74';
 import {
   drawSnake,
   drawBobcat,
@@ -20,7 +20,7 @@ import {
   drawTorchProp,
   drawClubProp,
   drawMusketProp,
-} from './critters.js?v=73';
+} from './critters.js?v=74';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;

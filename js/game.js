@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=73';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=73';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=73';
+import { slopeFloor } from './hill.js?v=74';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=74';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=74';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=73';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=73';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=73';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=73';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=73';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=73';
+} from './player.js?v=74';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=74';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=74';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=74';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=74';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=74';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=73';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=73';
+} from './sprites.js?v=74';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=74';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,9 +42,9 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=73';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=73';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=73';
+} from './save.js?v=74';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=74';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=74';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -148,7 +148,7 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
   if (resetScore) game.score = 0;
   if (!opts.checkpoint) game.chapterStartScore = game.score;
   game.hasPlates = num > 3;
-  game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num === 1, canThrow: !!game.hasPlates });
+  game.player = createPlayer(level.spawn.x, level.spawn.y, { young: num <= 2, canThrow: !!game.hasPlates });
   game.player.maxHp = isEasy() ? EASY_HP : NORMAL_HP;
   game.player.hp = game.player.maxHp;
   game.player.noAttack = !!level.finale; // Carthage: no fighting
