@@ -7,13 +7,13 @@ export const JOURNAL = {
     title: 'The Burned-over District',
     place: 'Palmyra, New York · 1820',
     body:
-      'Revivals swept western New York so often that it was called the “burned-over district.” Camp meetings drew great crowds, and preachers urged everyone to choose a church. Joseph’s own family was divided: his mother Lucy, his brothers Hyrum and Samuel, and his sister Sophronia joined the Presbyterians, while Joseph leaned toward the Methodists. Troubled by the strife, fourteen-year-old Joseph read James 1:5: “If any of you lack wisdom, let him ask of God.” He resolved to ask.',
+      'Revivals swept western New York so often that it was called the “burned-over district.” Camp meetings drew great crowds, and preachers urged everyone to choose a church. Joseph’s own family was divided: his mother Lucy, his brothers Hyrum and Samuel, and his sister Sophronia joined the Presbyterians, while Joseph leaned toward the Methodists. Troubled by the strife, fourteen-year-old Joseph read James 1:5: “If any of you lack wisdom, let him ask of God.” He resolved to ask. (JS—History 1:5–13; James 1:5)',
   },
   2: {
     title: 'Strength Through Prayer',
     place: 'Manchester, New York · 1823',
     body:
-      'On the night of September 21, 1823, Joseph prayed to know his standing before God. The angel Moroni appeared at his bedside and returned three times before dawn. Worn out the next day, Joseph collapsed while crossing a field, and Moroni came again. Prayer gave him strength to go on.',
+      'On the night of September 21, 1823, Joseph prayed to know his standing before God. The angel Moroni appeared at his bedside in the Smith log home and appeared three times that night. Next morning, crossing a fence from the field, he fell helpless, and Moroni came again and told him to go to his father. His father said it was of God, and Joseph went that day to the hill. (JS—History 1:29–50)',
     tip: 'In the game: when you are hurt, stand still and hold Down (▼ on the stick, ↓ or S on a keyboard) to kneel and pray. Each quiet moment of prayer restores a heart.',
   },
   3: {
@@ -32,7 +32,7 @@ export const JOURNAL = {
     title: 'Peace Be unto Thy Soul',
     place: 'Liberty Jail, Missouri · 1838–1839',
     body:
-      'Through the winter of 1838–39, Joseph, his brother Hyrum, and several friends were held for more than four months in Liberty Jail, a cramped stone dungeon with a low ceiling and tiny barred windows. Cold, often ill-fed, and grieving as the Saints were driven from Missouri, Joseph pleaded, “O God, where art thou?” The answer came: “My son, peace be unto thy soul; thine adversity and thine afflictions shall be but a small moment” (D&C 121:7).',
+      'Through the winter of 1838–39, Joseph, his brother Hyrum, and several friends were held for more than four months in Liberty Jail, a cramped stone dungeon with a low ceiling and tiny barred windows. Cold, often ill-fed, and grieving as the Saints were driven from Missouri, Joseph pleaded, “O God, where art thou?” (D&C 121:1). The answer came: “My son, peace be unto thy soul; thine adversity and thine afflictions shall be but a small moment” (D&C 121:7).',
   },
   6: {
     title: 'Nauvoo the Beautiful',
@@ -44,7 +44,7 @@ export const JOURNAL = {
     title: 'Carthage, June 1844',
     place: 'Carthage, Illinois · 1844',
     body:
-      'Facing charges after the Nauvoo city council had an opposing newspaper’s press destroyed, Joseph surrendered at Carthage under Governor Thomas Ford’s promise of protection. “I am going like a lamb to the slaughter,” he said, “but I am calm as a summer’s morning.” On June 27, as Joseph, Hyrum, John Taylor, and Willard Richards waited in the jail, a mob with painted faces stormed the building. Joseph and Hyrum were killed; John Taylor was badly wounded but survived.',
+      'Facing charges after the Nauvoo city council had an opposing newspaper’s press destroyed, Joseph surrendered at Carthage under Governor Thomas Ford’s promise of protection. On the way he said, “I am going like a lamb to the slaughter; but I am calm as a summer’s morning” (D&C 135:4). On June 27, as Joseph, Hyrum, John Taylor, and Willard Richards waited in the jail, an armed mob, “painted black,” stormed the building (D&C 135:1). Joseph and Hyrum were killed; John Taylor was badly wounded but survived.',
   },
 };
 

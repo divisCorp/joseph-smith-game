@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=72';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=72';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=72';
+import { slopeFloor } from './hill.js?v=73';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=73';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=73';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=72';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit } from './enemy.js?v=72';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=72';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=72';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=72';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=72';
+} from './player.js?v=73';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=73';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=73';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=73';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=73';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=73';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=72';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=72';
+} from './sprites.js?v=73';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=73';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,8 +42,9 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=72';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=72';
+} from './save.js?v=73';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=73';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=73';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -207,6 +208,7 @@ function reachCheckpoint(game, cp) {
   game.message = 'CHECKPOINT';
   game.messageT = 60;
   sfx('checkpoint');
+  fxBurst('flare', cp.x + 15 * SCALE, cp.y - 32 * SCALE);
 }
 
 /** Resume a chapter at its last lit lantern: full hearts, passed foes stay cleared. */
@@ -231,9 +233,20 @@ function placeAtCheckpoint(game) {
   game.safe = { x: player.x, y: player.y };
   game.state = STATES.PLAYING;
   game.stateT = 0;
-  game.introFade = 30;
+  game.introFade = 0;
+  fxReset(level);
+  irisOnJoseph(game);
   game.message = 'CHECKPOINT';
   game.messageT = 50;
+}
+
+/** Iris-open the view centred on Joseph (canvas pixels, matching the 1.08 camera zoom). */
+function irisOnJoseph(game) {
+  const p = game.player;
+  if (!p) return;
+  const zx = W * 0.5 + (p.x + p.w / 2 - game.camX - W * 0.5) * 1.08;
+  const zy = H * 0.72 + (p.y + p.h * 0.45 - H * 0.72) * 1.08;
+  fxIris(zx, zy);
 }
 
 /** Full chapter restart (pause menu). */
@@ -468,7 +481,8 @@ function advanceFromClear(game) {
 function endIntro(game) {
   game.state = STATES.PLAYING;
   game.stateT = 0;
-  game.introFade = 24;
+  game.introFade = 0;
+  irisOnJoseph(game);
   clearAll();
   queueChapterTips(game);
 }
@@ -623,7 +637,7 @@ function tickTips(game, dt) {
     if (!tipSeen('kneel') && p.hp < p.maxHp && p.alive) showTip(game, 'kneel');
   } else if (!tipSeen('attack')) {
     const near = level.enemies.some(
-      (e) => e.alive && e.type === 'wolf' && Math.abs(e.x - p.x) < 9 * TILE
+      (e) => e.alive && e.critter && Math.abs(e.x - p.x) < 9 * TILE
     );
     if (near) showTip(game, 'attack');
   }
@@ -723,6 +737,7 @@ function tickPlay(game, dt) {
   if (game.shake > 0) game.shake = Math.max(0, game.shake - dt);
   if (!game.martyrEnding) game.chapterT += dt;
   if (game.introFade > 0) game.introFade -= dt;
+  fxUpdate(game, dt);
 
   // Brief hit-stop: freeze simulation a few frames on solid hits
   if (game.hitStop > 0) {
@@ -809,6 +824,7 @@ function tickPlay(game, dt) {
         const got = [0, 1, 2].filter((i) => game.pagesGot & (1 << i)).length;
         game.score += 250;
         sfx('page');
+        fxBurst('sparkle', pg.x + pg.w / 2, pg.y + pg.h / 2);
         if (got >= 3) {
           // All three: pause for the chapter's journal entry
           unlockJournal(game.levelNum);
@@ -831,7 +847,9 @@ function tickPlay(game, dt) {
       if (aabb(fork, enemyHitbox(e))) {
         player.forkHits.add(e);
         const killed = hurtEnemy(e, 1);
-        sfx(e.type === 'wolf' ? 'yelp' : 'hit');
+        sfx(e.critter ? 'yelp' : 'hit');
+        fxBurst('hit', e.x + e.w / 2, e.y + e.h * 0.4);
+        if (killed) fxBurst('puff', e.x + e.w / 2, e.y + e.h * 0.6);
         game.hitStop = Math.max(game.hitStop, 5);
         game.shake = Math.max(game.shake, 14);
         if (e.type === 'boss') e.vx = player.facing * 1.2 * SCALE;
@@ -859,7 +877,10 @@ function tickPlay(game, dt) {
     },
   };
   for (const e of level.enemies) {
-    if (!e.alive) continue;
+    if (!e.alive) {
+      tickDefeat(e, dt, player); // driven off: runs away / staggers off and fades
+      continue;
+    }
     updateEnemy(e, level.solids, player, dt, world);
 
     // Touch damage only from a telegraphed lunge (or a boss / wisp), never twice in a row
@@ -935,7 +956,9 @@ function tickPlay(game, dt) {
         }
         plate.alive = false;
         const killed = hurtEnemy(e, plate.damage);
-        sfx(e.type === 'wolf' ? 'yelp' : 'hit');
+        sfx(e.critter ? 'yelp' : 'hit');
+        fxBurst('hit', e.x + e.w / 2, e.y + e.h * 0.4);
+        if (killed) fxBurst('puff', e.x + e.w / 2, e.y + e.h * 0.6);
         game.hitStop = Math.max(game.hitStop, 4);
         game.shake = Math.max(game.shake, 12);
         if (killed) game.score += e.score;
@@ -1029,7 +1052,9 @@ export function drawGame(ctx, game) {
   ctx.scale(zoom, zoom);
   ctx.translate(-ax, -ay);
 
-  drawLevelBackground(ctx, game.camX, game.level);
+  const skip = game.qaSkip; // QA-only switch for per-layer perf measurements
+  if (!skip?.bg) drawLevelBackground(ctx, game.camX, game.level);
+  if (!skip?.back) drawFxBack(ctx, game);
   drawSetPiecesBack(ctx, game);
   drawLevelTiles(ctx, game.camX, game.level);
   drawSetPiecesMid(ctx, game);
@@ -1067,9 +1092,10 @@ export function drawGame(ctx, game) {
     if (e.knives) drawKnives(ctx, e.knives, game.camX);
   }
   drawHazards(ctx, game.level.hazards || [], game.camX, game.tick);
+  drawFxForegroundGrass(ctx, game);
+  drawFxWorld(ctx, game);
   drawSetPiecesFront(ctx, game);
-
-  drawVignette(ctx);
+  if (!skip?.front) drawFxFront(ctx, game);
   ctx.restore();
 
   drawHUD(ctx, game);
@@ -1092,7 +1118,9 @@ export function drawGame(ctx, game) {
   if (game.messageT > 0) {
     const mw = W - 56 * SCALE;
     drawPanel(ctx, 28 * SCALE, 86 * SCALE, mw, 32 * SCALE);
-    drawCentered(ctx, game.message, 96 * SCALE, COLORS.uiGold, 12);
+    // long story lines drop to the smaller font size so they always fit the panel
+    const big = measureText(game.message, 12) <= mw - 12 * SCALE;
+    drawCentered(ctx, game.message, (big ? 96 : 98) * SCALE, COLORS.uiGold, big ? 12 : 8);
   }
 
   if (game.introFade > 0) {
@@ -1108,6 +1136,7 @@ export function drawGame(ctx, game) {
   if (game.state === STATES.PAUSED || game.state === STATES.CLEAR || game.state === STATES.JOURNAL) {
     drawRect(ctx, 0, 0, W, H, 'rgba(0,0,0,0.25)');
   }
+  drawFxScreen(ctx, game.state === STATES.PAUSED ? 0 : 1);
 }
 
 function drawMartyrFade(ctx, game) {
@@ -1145,14 +1174,22 @@ function drawTitleScene(ctx, game) {
     drawLevelBackground(ctx, cam, game.titleLevel);
     drawLevelTiles(ctx, cam, game.titleLevel, { noStacks: true });
     const walk = Math.floor(game.titleBlink / 8) % 8;
+    // the title is a living scene: ambient leaves, birds, sun shafts, grading
+    const tg = game.titleFx || (game.titleFx = { level: game.titleLevel, camX: cam, tick: 0, player: null });
+    tg.camX = cam;
+    tg.tick = game.titleBlink;
+    fxUpdate(tg, 1);
+    drawFxBack(ctx, tg);
     drawJoseph(ctx, W * 0.28, game.titleLevel.spawn.y, 1, walk, false, false, false, true, false);
+    drawFxForegroundGrass(ctx, tg);
+    drawFxFront(ctx, tg);
   } else {
     for (let i = 0; i < 20; i++) {
       const t = i / 20;
       drawRect(ctx, 0, i * 24, W, 24, `rgb(${16 + t * 42},${12 + t * 48},${32 + t * 88})`);
     }
   }
-  drawVignette(ctx);
+  if (!game.titleLevel) drawVignette(ctx);
   drawRect(ctx, 0, 0, W, 56, 'rgba(6,4,2,0.35)');
   drawRect(ctx, 0, H - 90, W, 90, 'rgba(6,4,2,0.45)');
 }

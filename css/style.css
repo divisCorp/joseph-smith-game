@@ -1892,3 +1892,14 @@ html.is-standalone .ui-menu-btn--fs { display: none !important; }
   .ui-pause-panel .ui-menu-btn { min-height: 30px; font-size: 12px; padding: 0.2em 0.8em; }
 }
 body[data-state="controls"] .mute-btn { visibility: hidden; }
+
+/* Round 8: HUD feedback */
+.hud-heart.is-lost { animation: hudHeartLost 0.45s ease-out; }
+.hud-heart.is-gained { animation: hudHeartGain 0.5s ease-out; }
+@keyframes hudHeartLost { 0% { transform: scale(1.6); color: #ffd0d0; } 60% { transform: scale(0.8); } 100% { transform: scale(1); } }
+@keyframes hudHeartGain { 0% { transform: scale(0.4); text-shadow: 0 0 10px #ffe0a0; } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.hud-score { transition: color 0.2s, text-shadow 0.2s; }
+.hud-score.is-ticking { color: #ffe9a8; text-shadow: 0 0 8px rgba(255, 210, 120, 0.7), 0 1px 2px #000; }
+@media (prefers-reduced-motion: reduce) {
+  .hud-heart.is-lost, .hud-heart.is-gained { animation: none; }
+}

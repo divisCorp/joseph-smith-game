@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=72';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=72';
-import { unlockAudio, syncMuteButton } from './audio.js?v=72';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=72';
-import { JOURNAL } from './journal.js?v=72';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=72';
-import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=72';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=73';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=73';
+import { unlockAudio, syncMuteButton } from './audio.js?v=73';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=73';
+import { JOURNAL } from './journal.js?v=73';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=73';
+import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=73';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -329,15 +329,34 @@ function syncHud(game) {
       html += `<span class="hud-heart${i < hp ? '' : ' is-empty'}" aria-hidden="true">♥</span>`;
     }
     if (hearts.dataset.sig !== `${n}:${hp}`) {
+      const prev = Number(hearts.dataset.hp ?? hp);
       hearts.dataset.sig = `${n}:${hp}`;
+      hearts.dataset.hp = String(hp);
       hearts.innerHTML = html;
+      // pop the heart that just changed (lost or restored)
+      const idx = hp < prev ? hp : hp > prev ? hp - 1 : -1;
+      const el = idx >= 0 ? hearts.children[idx] : null;
+      if (el && !reduceFlash()) el.classList.add(hp < prev ? 'is-lost' : 'is-gained');
     }
   }
   const chap = hud.querySelector('[data-hud-chapter]');
   if (chap) chap.textContent = `${game.levelNum}/${MAX_LEVEL}`;
   const score = hud.querySelector('[data-hud-score]');
-  if (score) score.textContent = String(game.score).padStart(6, '0');
+  if (score) {
+    // tick the shown score up toward the real one (instant on Reduce flashing)
+    const target = game.score || 0;
+    let shown = hudScoreShown;
+    if (shown > target || reduceFlash()) shown = target;
+    else if (shown < target) shown = Math.min(target, shown + Math.max(1, Math.ceil((target - shown) * 0.18)));
+    if (shown !== hudScoreShown || score.dataset.v !== String(shown)) {
+      score.textContent = String(shown).padStart(6, '0');
+      score.dataset.v = String(shown);
+      score.classList.toggle('is-ticking', shown < target);
+    }
+    hudScoreShown = shown;
+  }
 }
+let hudScoreShown = 0;
 
 let titleSig = '';
 function syncTitle(game) {

@@ -3,14 +3,15 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js?v=72';
-import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=72';
-import { isStandalone } from './fullscreen.js?v=72';
-import { initVirtualControls, setAction } from './input.js?v=72';
-import { initOverlays, syncOverlays } from './ui.js?v=72';
-import { preloadSprites } from './sprites.js?v=72';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=72';
-import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=72';
+import { STATES } from './constants.js?v=73';
+import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=73';
+import { isStandalone } from './fullscreen.js?v=73';
+import { initVirtualControls, setAction } from './input.js?v=73';
+import { initOverlays, syncOverlays } from './ui.js?v=73';
+import { preloadSprites } from './sprites.js?v=73';
+import { fxFrameTime } from './fx.js?v=73';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=73';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=73';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -96,8 +97,11 @@ onGamepadChange((kind) => {
 function frame(now) {
   pollGamepads();
   if (justPressed('mute')) toggleMute();
-  acc += now - last;
+  const interval = now - last;
+  acc += interval;
   last = now;
+  fxFrameTime(interval);
+  const t0 = performance.now();
   // catch-up capped
   let steps = 0;
   while (acc >= STEP && steps < 5) {
@@ -107,6 +111,9 @@ function frame(now) {
   }
   drawGame(ctx, game);
   syncOverlays(game);
+  // work time per frame (update + draw + overlays), read by the perf QA
+  const work = performance.now() - t0;
+  game.workMs = game.workMs == null ? work : game.workMs * 0.95 + work * 0.05;
   requestAnimationFrame(frame);
 }
 

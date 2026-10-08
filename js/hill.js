@@ -5,7 +5,7 @@
  * an offscreen canvas: earthy body, strata, buried rocks, grass cap and tufts,
  * a few trees, and the great stone near the top where the plates rest.
  */
-import { TILE, W, SCALE } from './constants.js?v=72';
+import { TILE, W, SCALE } from './constants.js?v=73';
 
 export function makeHill({ x0, xp, x1, base, top }) {
   const hill = { x0, xp, x1, base, top };

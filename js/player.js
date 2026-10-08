@@ -1,16 +1,16 @@
-import { landOnSlopes } from './hill.js?v=72';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=72';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=72';
-import { isDown, justPressed } from './input.js?v=72';
-import { sfx } from './audio.js?v=72';
-import { isEasy, reduceFlash } from './save.js?v=72';
+import { landOnSlopes } from './hill.js?v=73';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=73';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=73';
+import { isDown, justPressed } from './input.js?v=73';
+import { sfx } from './audio.js?v=73';
+import { isEasy, reduceFlash } from './save.js?v=73';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=72';
+} from './projectiles.js?v=73';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 export const CROUCH_H = 18 * SCALE;
@@ -431,6 +431,22 @@ function drawPlayerBody(ctx, p, camX) {
   const walkFrame = Math.floor(Math.abs(p.x) / (3 * SCALE)) % 8;
   const pose = jumpPose(p);
   const bx = p.x - camX;
+  // calm moments (standing still, kneeling in prayer) gather a soft warm rim of light
+  const calmNow = p.onGround && !moving && !(p.attackTimer > 0) && p.alive !== false;
+  p.calmT = Math.max(0, Math.min(60, (p.calmT || 0) + (calmNow ? 1 : -4)));
+  const rim = (p.calmT / 60) * (p.crouching ? 1 : 0.55);
+  if (rim > 0.05) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const cx = bx + p.w / 2;
+    const cy = drawY + standH * 0.5;
+    const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, 70);
+    g.addColorStop(0, `rgba(255,226,160,${(0.16 * rim).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(255,226,160,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - 70, cy - 70, 140, 140);
+    ctx.restore();
+  }
   ctx.save();
   if (pose.sx !== 1 || pose.sy !== 1 || pose.rot) {
     // squash/stretch anchored at the feet so he never sinks into the ground
@@ -456,7 +472,8 @@ function drawPlayerBody(ctx, p, camX) {
     moving,
     !!p.lookingUp,
     !!p.young,
-    pose.frame
+    pose.frame,
+    rim
   );
   ctx.restore();
 }
