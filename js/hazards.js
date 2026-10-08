@@ -3,8 +3,8 @@
  * Everything here is drawn procedurally on the canvas; sprite sheets are untouched.
  * A hazard with `warn > 0` is only a telegraph (shadow / marker) and cannot hurt yet.
  */
-import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js?v=72';
-import { drawKnife } from './sprites.js?v=72';
+import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js?v=73';
+import { drawKnife } from './sprites.js?v=73';
 
 const S = SCALE;
 
@@ -267,11 +267,8 @@ export function drawHazards(ctx, list, camX, tick) {
         ctx.fillRect(x + 1 * S, h.y + 1 * S, h.w - 2 * S, 2 * S);
         break;
       case 'knife':
-        ctx.save();
-        ctx.translate(x + h.w / 2, h.y + h.h / 2);
-        ctx.rotate(Math.atan2(h.vy, Math.abs(h.vx)) * Math.sign(h.vx || 1));
-        drawKnife(ctx, -h.w / 2, -h.h / 2, Math.sign(h.vx) || 1);
-        ctx.restore();
+        // mobs throw stones; the hitbox and id stay 'knife' so the rules are unchanged
+        drawKnife(ctx, x, h.y, Math.sign(h.vx) || 1);
         break;
       case 'puff': {
         const a = Math.max(0, h.life / 24);

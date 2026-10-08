@@ -4,9 +4,9 @@
  * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
-import { STATES } from './constants.js?v=72';
-import { savedMuted, saveMuted } from './save.js?v=72';
-import * as S from './songs.js?v=72';
+import { STATES } from './constants.js?v=73';
+import { savedMuted, saveMuted } from './save.js?v=73';
+import * as S from './songs.js?v=73';
 
 let actx = null;
 let master = null;
@@ -263,6 +263,22 @@ export function sfx(name) {
       tone(620, 0.07, 'square', 0.28, d, 380);
       tone(480, 0.12, 'square', 0.22, d, 180);
       noise(0.08, 0.2, d, 1400);
+      break;
+    case 'rattle':
+      noise(0.32, 0.1, d, 5200);
+      break;
+    case 'huff':
+      noise(0.22, 0.24, d, 260);
+      tone(80, 0.2, 'triangle', 0.18, d, 55);
+      break;
+    case 'caw':
+      tone(760, 0.09, 'sawtooth', 0.1, d, 520);
+      break;
+    case 'hoot':
+      tone(380, 0.16, 'sine', 0.16, d, 320);
+      break;
+    case 'step':
+      noise(0.03, 0.05, d, 300);
       break;
     case 'hurt':
       tone(320, 0.18, 'square', 0.28, d, 90);

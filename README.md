@@ -33,8 +33,8 @@ Gamepads use the browser Gamepad API (standard mapping); a toast confirms when o
 
 | # | Chapter | Year | Goal |
 |---|---------|------|------|
-| 1 | Sacred Grove | 1820 | Young Joseph; wolves; preachers of rival churches; camp meeting; kneel to pray in the grove |
-| 2 | A Messenger | 1823 | Reach Moroni |
+| 1 | Sacred Grove | 1820 | Young Joseph; rattlesnakes, bobcats and crows; preachers of rival churches; camp meeting; kneel to pray in the grove |
+| 2 | A Messenger | 1823 | Night walk to the Smith log home; reach Moroni at Joseph's bedside |
 | 3 | Hill Cumorah | 1827 | Receive the plates (unlocks plate-throwing) |
 | 4 | Missouri Night | 1838 | Mobs + Mob Captain |
 | 5 | Far West Road | 1838–39 | Road mobs + Jailer Warden |
@@ -83,6 +83,14 @@ Each chapter opens with a short title card (chapter, story line, place and year)
 - **No cheap arrivals** — foes are moved out of a 9-tile safe zone ahead of every chapter start and checkpoint, and throwers wait 1.5 s after you arrive. Chapter 2 gained a second checkpoint.
 - Full audit: `qa/round6/design-audit.md` (in the QA workspace). Tests: `qa/tools/qa_r6.mjs`.
 
+## Round 8 (production value, wildlife, history)
+
+- **Look.** Every chapter has painted parallax (log farmhouse and worm fences, night pines, log cabins with lit windows, a frozen river and Liberty Jail, the Mississippi and the Nauvoo Temple under scaffolding, the Carthage upper room), per-chapter light (sun rays, moonlight, rain, window shafts, lamp and torch light, a vignette) and ambient life (leaves, motes, birds, fireflies, embers, snow, grass).
+- **Wildlife instead of wolves.** Timber rattlesnakes coil and strike, bobcats crouch and pounce, black bears huff and charge, crows and great horned owls swoop. Missouri chapters add a torch-bearer, a club ruffian and a militia guard whose musket is never fired. Mobs throw stones, not knives. Defeated foes are driven off (they run away and fade; people are left dazed). No gore.
+- **History.** Every quoted line is verbatim with a citation (JS—History 1:10 and 1:16, James 1:5, D&C 121:1, D&C 135:4). Chapter 2 ends inside the Smith log home on the night of September 21, 1823. The three men at Carthage are Hyrum Smith, John Taylor and Willard Richards. See `qa/round8/history-audit.md` for the full audit and the list of gameplay liberties kept on purpose.
+- **Characters.** Moroni is redrawn at load time with adult proportions, a robe of exceeding whiteness and a soft glory of light, still exactly Joseph's height and always facing him. Joseph gathers a warm rim of light when he stands still or kneels. (No image-generation tool was available, so the painted sprite sheets were not replaced.)
+- **HUD.** Hearts pop when lost or restored; the score ticks up. "Reduce flashing" also turns the lighting and particle effects down for slower devices.
+
 ## Round 7 (Moroni)
 
 - **Moroni faces Joseph** — the sheet is painted facing right, so it is mirrored every frame toward Joseph's side (also behind the chapter-clear card). He raises a hand in greeting when Joseph is within 6 tiles.
@@ -130,7 +138,10 @@ js/save.js        localStorage progress (validated)
 js/audio.js       Web Audio SFX + look-ahead chiptune sequencer
 js/songs.js       Public-domain melody data + bass roots
 js/player.js      Joseph movement, kneel/pray, pitchfork, plates
-js/enemy.js       Wolves, mobs, bosses
+js/enemy.js       Wildlife, mobs, bosses
+js/critters.js    Rattlesnake, bobcat, bear, crow, owl, torch, club, musket
+js/fx.js          Lighting, particles, vignette, grass
+js/parallax.js    Painted backgrounds and ground sprites
 js/level.js       Chapter maps and backgrounds
 js/input.js       Keyboard + virtual stick / buttons + Gamepad API
 js/hazards.js     Boss/set-piece hazards and the "!" alert bubble

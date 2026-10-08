@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=72';
+import { COLORS, W, SCALE } from './constants.js?v=73';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -154,6 +154,11 @@ export function preloadSprites() {
     } catch (_) {
       /* preachers fall back to procedural drawing */
     }
+    try {
+      SHEETS.moroni = SHEETS.moroni ? reproportionMoroni(SHEETS.moroni) : null;
+    } catch (_) {
+      /* keep the original sheet */
+    }
     moroniMetrics = computeMoroniMetrics(); // measured once the sheets are in
     sheetsReady = !!(SHEETS.joseph || SHEETS.foes);
     sheetsLoading = false;
@@ -299,7 +304,28 @@ export function drawPitchfork(ctx, x, y, facing, swinging = false, young = false
 }
 
 
-export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false, airFrame = null) {
+/** Warm gold silhouette of the Joseph sheet, for a soft rim of light in calm moments. */
+function josephRimSheet() {
+  if (SHEETS.josephRim !== undefined) return SHEETS.josephRim;
+  const img = SHEETS.joseph;
+  if (!img) return null;
+  try {
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = '#ffe2a0';
+    g.fillRect(0, 0, c.width, c.height);
+    SHEETS.josephRim = c;
+  } catch (_) {
+    SHEETS.josephRim = null;
+  }
+  return SHEETS.josephRim;
+}
+
+export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false, crouching = false, moving = false, lookingUp = false, young = false, airFrame = null, rim = 0) {
   const ox = Math.floor(x);
   const oy = Math.floor(y);
   const flip = facing < 0;
@@ -341,6 +367,18 @@ export function drawJoseph(ctx, x, y, facing, frame, attacking, jumping = false,
       ctx.ellipse(ox + dw / 2, oy + dh - 3, dw * 0.28, 4 * sc, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+    }
+    if (rim > 0.02) {
+      // spiritual presence: a thin warm rim of light around the painted figure (art untouched)
+      const rs = josephRimSheet();
+      if (rs) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, rim) * 0.45;
+        for (const [ax, ay] of [[-1.5, 0], [1.5, 0], [0, -1.5]]) {
+          blitSimple(ctx, rs, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox + ax, dy + ay, dw, dh, flip, false);
+        }
+        ctx.restore();
+      }
     }
     blitSimple(ctx, img, fi * JOSEPH_FW, 0, JOSEPH_FW, JOSEPH_FH, ox, dy, dw, dh, flip, false);
     return;
@@ -490,20 +528,19 @@ export function drawKnife(ctx, x, y, facing = 1) {
     ctx.scale(-1, 1);
     ctx.translate(-ox, -oy);
   }
-  ctx.fillStyle = '#8a9098';
+  // A field stone: the mobs throw rocks, not blades (hitbox unchanged)
+  ctx.fillStyle = '#6a6258';
   ctx.beginPath();
-  ctx.moveTo(ox, oy + 3);
-  ctx.lineTo(ox + 12, oy + 1);
-  ctx.lineTo(ox + 14, oy + 3);
-  ctx.lineTo(ox + 12, oy + 5);
-  ctx.closePath();
+  ctx.ellipse(ox + 7, oy + 3.5, 7, 3.4, 0.2, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#d8dee6';
-  ctx.fillRect(ox + 2, oy + 2, 9, 2);
-  ctx.fillStyle = '#5a3a20';
-  ctx.fillRect(ox - 3, oy + 2, 4, 3);
-  ctx.fillStyle = '#c4a060';
-  ctx.fillRect(ox, oy + 1, 2, 5);
+  ctx.fillStyle = '#9a9286';
+  ctx.beginPath();
+  ctx.ellipse(ox + 5, oy + 2.4, 4, 1.8, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#4a443c';
+  ctx.beginPath();
+  ctx.ellipse(ox + 9.5, oy + 4.4, 2.6, 1.4, 0.3, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1005,6 +1042,78 @@ export function drawWisp(ctx, x, y, frame = 0, flash = false) {
   ctx.restore();
 }
 
+/**
+ * The painted Moroni sheet reads as a youth (large head, short body). At load time it is rebuilt,
+ * PNG untouched: the head is drawn at 86% about the neck and the body stretched to fill the cell,
+ * and the robe is lifted toward the "exceeding whiteness" Joseph described (JS—History 1:31).
+ * The feet stay on the last row, so the Round-7 height and facing logic still measures correctly.
+ */
+const MORONI_HEAD_K = 0.86;
+function reproportionMoroni(img) {
+  const W0 = img.width;
+  const H0 = img.height;
+  const src = document.createElement('canvas');
+  src.width = W0;
+  src.height = H0;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.drawImage(img, 0, 0);
+  const data = sctx.getImageData(0, 0, W0, H0).data;
+  const out = document.createElement('canvas');
+  out.width = W0;
+  out.height = H0;
+  const o = out.getContext('2d');
+  o.imageSmoothingEnabled = false; // keep the painted pixels crisp
+  const FW = MORONI_FW;
+  const FH = MORONI_FH;
+  for (let col = 0; col < Math.floor(W0 / FW); col++) {
+    const fx = col * FW;
+    // neck = narrowest opaque row below the head
+    let ny = 56;
+    let best = 1e9;
+    let nx = FW / 2;
+    for (let y = 42; y <= 64; y++) {
+      let n = 0;
+      let sx = 0;
+      for (let x = 0; x < FW; x++) {
+        if (data[(y * W0 + fx + x) * 4 + 3] > 40) {
+          n++;
+          sx += x;
+        }
+      }
+      if (n > 4 && n < best) {
+        best = n;
+        ny = y;
+        nx = sx / n;
+      }
+    }
+    const bodyH = FH - ny;
+    const headDH = Math.round(ny * MORONI_HEAD_K);
+    const bodyTop = headDH - 2;
+    o.drawImage(img, fx, ny, FW, bodyH, fx, bodyTop, FW, FH - bodyTop);
+    const headDW = FW * MORONI_HEAD_K;
+    o.drawImage(img, fx, 0, FW, ny, fx + nx - nx * MORONI_HEAD_K, bodyTop + 2 - headDH, headDW, headDH);
+  }
+  // robe toward exceeding whiteness: brighten, desaturate, keep the warm gold trim
+  const im = o.getImageData(0, 0, W0, H0);
+  const d = im.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 16) continue;
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const warm = r - b;
+    const l = 0.3 * r + 0.59 * g + 0.11 * b;
+    if (l < 150) continue; // hair, eyes, outline and shading keep their colour
+    if (warm > 70) continue; // skin and gold trim stay warm
+    const nl = Math.min(255, l * 1.18 + 28);
+    d[i] = Math.round(r * 0.35 + nl * 0.65);
+    d[i + 1] = Math.round(g * 0.35 + nl * 0.65);
+    d[i + 2] = Math.round(b * 0.35 + Math.min(255, nl * 1.02) * 0.65);
+  }
+  o.putImageData(im, 0, 0);
+  return out;
+}
+
 // ── Moroni: drawn at Joseph's height, measured from the painted pixels ──
 // Each sheet cell is 64×128, but the visible figures differ: Joseph's idle frame is
 // ~114 px head-to-feet, Moroni's frames ~92–100 px plus a 2–3 px light glow rim.
@@ -1135,6 +1244,36 @@ export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = fals
   ctx.restore();
   if (img) {
     const L = moroniLayout(cx, footY, t, faceLeft, greet);
+    // soft glory behind him: a warm-white aura and a few broad, faint light shafts
+    const gx = cx;
+    const gy = footY - L.bodyH * 0.55;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const aura = ctx.createRadialGradient(gx, gy, 6, gx, gy, L.bodyH * 0.9);
+    aura.addColorStop(0, 'rgba(255,248,228,0.42)');
+    aura.addColorStop(0.5, 'rgba(255,240,200,0.14)');
+    aura.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(gx - L.bodyH, gy - L.bodyH, L.bodyH * 2, L.bodyH * 2);
+    ctx.translate(gx, gy);
+    ctx.rotate(Math.sin(t * 0.01) * 0.08);
+    const ray = ctx.createLinearGradient(0, 0, 0, -L.bodyH * 1.1);
+    ray.addColorStop(0, 'rgba(255,246,220,0.16)');
+    ray.addColorStop(1, 'rgba(255,246,220,0)');
+    ctx.fillStyle = ray;
+    for (let i = 0; i < 7; i++) {
+      ctx.save();
+      ctx.rotate(-1.2 + i * 0.4);
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(6, 0);
+      ctx.lineTo(16, -L.bodyH * 1.1);
+      ctx.lineTo(-16, -L.bodyH * 1.1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
     blitSimple(ctx, img, L.frame * MORONI_FW, 0, MORONI_FW, MORONI_FH, L.dx, L.dy, L.dw, L.dh, faceLeft, false);
     return L;
   }

@@ -4,12 +4,12 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { bindText } from './input.js?v=72';
-import { W, H, TILE, SCALE } from './constants.js?v=72';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=72';
-import { drawText, measureText, drawRect } from './sprites.js?v=72';
-import { sfx } from './audio.js?v=72';
-import { isEasy, reduceFlash } from './save.js?v=72';
+import { bindText } from './input.js?v=73';
+import { W, H, TILE, SCALE } from './constants.js?v=73';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
+import { drawText, measureText, drawRect } from './sprites.js?v=73';
+import { sfx } from './audio.js?v=73';
+import { isEasy, reduceFlash } from './save.js?v=73';
 
 const S = SCALE;
 
@@ -276,16 +276,46 @@ function updateFinale(game, dt) {
   }
 }
 
+/**
+ * The three men with Joseph in the upper room on June 27, 1844 (D&C 135:1–2):
+ * his brother Hyrum Smith, John Taylor and Willard Richards (a large, heavy-set man).
+ * Hats are off indoors on a hot June afternoon.
+ */
+export const CARTHAGE_FRIENDS = [
+  { name: 'Hyrum Smith', coat: '#24242c', hair: '#3a2416', wide: 1 },
+  { name: 'John Taylor', coat: '#34343e', hair: '#5a5048', wide: 1, sings: true },
+  { name: 'Willard Richards', coat: '#4a3a2a', hair: '#2a1a10', wide: 1.22 },
+];
+
 function drawFriend(ctx, x0, base0, coat, hat, t, i) {
   // simple procedural figures (no sprite-sheet art): seated friends in the jail room
+  const who = CARTHAGE_FRIENDS[i] || CARTHAGE_FRIENDS[0];
   ctx.save();
   ctx.translate(x0, base0);
-  ctx.scale(1.7, 1.7);
-  drawFriendBody(ctx, 0, 0, coat, hat, t, i);
+  ctx.scale(1.7 * who.wide, 1.7);
+  drawFriendBody(ctx, 0, 0, who.coat, null, t, i, who.hair);
+  ctx.restore();
+  if (who.sings && Math.floor(t / 40) % 3 !== 2) {
+    // John Taylor sang "A Poor Wayfaring Man of Grief" that afternoon
+    const k = (t % 40) / 40;
+    ctx.save();
+    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+    ctx.fillStyle = '#f0d890';
+    ctx.font = 'bold 18px Georgia, serif';
+    ctx.fillText('♪', x0 + 34 + k * 10, base0 - 92 - k * 22);
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.font = '600 12px Georgia, serif';
+  const lw = ctx.measureText(who.name).width;
+  ctx.fillStyle = 'rgba(20,12,6,0.55)';
+  ctx.fillRect(x0 + 22 * who.wide - lw / 2 - 5, base0 - 108, lw + 10, 17);
+  ctx.fillStyle = '#f0e2bc';
+  ctx.fillText(who.name, x0 + 22 * who.wide - lw / 2, base0 - 95);
   ctx.restore();
 }
 
-function drawFriendBody(ctx, x, base, coat, hat, t, i) {
+function drawFriendBody(ctx, x, base, coat, hat, t, i, hair = '#3a2416') {
   // Seated friend, facing the door (right). Units are pre-scale pixels.
   const sway = Math.sin(t * 0.03 + i * 1.7) * 0.6;
   const breathe = Math.sin(t * 0.05 + i) * 0.4;
@@ -336,14 +366,15 @@ function drawFriendBody(ctx, x, base, coat, hat, t, i) {
   ctx.beginPath();
   ctx.ellipse(hx, hy, 5, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#3a2416';
+  ctx.fillStyle = hair;
   ctx.beginPath();
   ctx.ellipse(hx - 2, hy - 2, 4.5, 4.5, 0, Math.PI * 0.9, Math.PI * 2.1);
   ctx.fill();
   ctx.fillRect(hx - 6, hy - 3, 3, 6); // hair at the back
   ctx.fillStyle = '#1a1210';
   ctx.fillRect(hx + 2, hy - 1, 1.5, 1.5); // eye, looking toward the door
-  // hats: top hat, wide brim, bare head
+  // hats (only if one is given; the Carthage friends sit bareheaded indoors)
+  if (!hat) return;
   ctx.fillStyle = hat;
   if (i === 0) {
     ctx.fillRect(hx - 7, hy - 6, 14, 2);
@@ -466,7 +497,7 @@ export function drawSetPiecesFront(ctx, game) {
   const { level, camX } = game;
   const sp = level.sp;
   if (!sp) return;
-  if (level.num === 4) drawNight(ctx, level, camX, game.tick);
+  // ch4 night darkness + lamp light now come from fx.js (lighting layer)
   if (level.num === 4 && sp.barrelWarn > 0) {
     // Edge warning: a barrel is about to roll in from the right
     const top = 13 * TILE - 30 * S;

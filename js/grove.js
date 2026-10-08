@@ -4,11 +4,11 @@
  * walks into the trees and kneels to pray. The chapter closes with a gentle light
  * fade (no depiction of Deity), then the results card.
  */
-import { bindText } from './input.js?v=72';
-import { TILE, SCALE, W, H } from './constants.js?v=72';
-import { drawPreacher, drawPortrait } from './sprites.js?v=72';
-import { sfx } from './audio.js?v=72';
-import { reduceFlash } from './save.js?v=72';
+import { bindText } from './input.js?v=73';
+import { TILE, SCALE, W, H } from './constants.js?v=73';
+import { drawPreacher, drawPortrait } from './sprites.js?v=73';
+import { sfx } from './audio.js?v=73';
+import { reduceFlash } from './save.js?v=73';
 
 const S = SCALE;
 const GROUND_Y = 13 * TILE;
@@ -45,8 +45,8 @@ const CAMP_PREACHERS = [
 ];
 
 const JOSEPH_LINES = [
-  'Which of all these parties is right? Or are they all wrong together? How shall I know?',
-  '“If any of you lack wisdom, let him ask of God, that giveth to all men liberally…” (James 1:5)',
+  '“Who of all these parties are right; or, are they all wrong together? If any one of them be right, which is it, and how shall I know it?” (JS—History 1:10)',
+  '“If any of you lack wisdom, let him ask of God, that giveth to all men liberally, and upbraideth not; and it shall be given him.” (James 1:5)',
   'I will go into the grove and ask of God.',
 ];
 
@@ -79,11 +79,11 @@ export function updateGrove(game, dt, confirm) {
 
   // Road preachers: a friendly word as Joseph passes; the pitchfork is put away nearby
   let calm = false;
-  // never disarm Joseph while a wolf is close by
-  const wolfNear = level.enemies.some((e) => e.alive && Math.abs(e.x - p.x) < 8 * TILE);
+  // never disarm Joseph while a wild animal or foe is close by
+  const foeNear = level.enemies.some((e) => e.alive && Math.abs(e.x - p.x) < 8 * TILE);
   for (const pr of level.preachers) {
     const close = near(p, pr.x, 4.2 * TILE);
-    if (near(p, pr.x, 4.5 * TILE) && !wolfNear) calm = true;
+    if (near(p, pr.x, 4.5 * TILE) && !foeNear) calm = true;
     pr.facing = p.x + p.w / 2 < pr.x + 28 ? -1 : 1;
     if (close && !pr.said) {
       pr.said = true;
@@ -470,10 +470,10 @@ export function drawGroveUi(ctx, game) {
     ctx.globalAlpha = Math.max(0, Math.min(1, (a - 0.55) / 0.35));
     ctx.font = 'italic 600 24px Georgia, serif';
     ctx.fillStyle = '#5a3c14';
-    const line = 'Joseph knelt in the grove and prayed.';
+    const line = '“I saw a pillar of light exactly over my head, above the brightness of the sun…”';
     ctx.fillText(line, (W - ctx.measureText(line).width) / 2, H * 0.42);
     ctx.font = '16px Georgia, serif';
-    const sub = 'Spring 1820';
+    const sub = 'Joseph Smith—History 1:16 · Spring 1820';
     ctx.fillText(sub, (W - ctx.measureText(sub).width) / 2, H * 0.42 + 30);
     ctx.restore();
   }

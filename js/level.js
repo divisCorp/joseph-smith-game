@@ -3,15 +3,16 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=72';
-import { createEnemy } from './enemy.js?v=72';
-import { STAND_H } from './player.js?v=72';
-import { drawRect } from './sprites.js?v=72';
-import { initSetPieces, buildDock } from './setpieces.js?v=72';
-import { reduceFlash } from './save.js?v=72';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=72';
-import { initGrove } from './grove.js?v=72';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=72';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=73';
+import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=73';
+import { createEnemy } from './enemy.js?v=73';
+import { STAND_H } from './player.js?v=73';
+import { drawRect } from './sprites.js?v=73';
+import { initSetPieces, buildDock } from './setpieces.js?v=73';
+import { reduceFlash } from './save.js?v=73';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=73';
+import { initGrove } from './grove.js?v=73';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=73';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -171,10 +172,10 @@ export function createLevel1() {
   farWall(tiles, cols, groundR);
 
   const enemies = [
-    createEnemy('wolf', 22 * TILE, 11 * TILE, { patrolMin: 20 * TILE, patrolMax: 28 * TILE }),
-    createEnemy('wolf', 38 * TILE, 7 * TILE, { patrolMin: 35 * TILE, patrolMax: 42 * TILE }),
-    createEnemy('wolf', 65 * TILE, 8 * TILE, { patrolMin: 60 * TILE, patrolMax: 70 * TILE }),
-    createEnemy('wolf', 92 * TILE, 11 * TILE, { patrolMin: 88 * TILE, patrolMax: 96 * TILE }),
+    createEnemy('snake', 22 * TILE, 11 * TILE, { patrolMin: 20 * TILE, patrolMax: 28 * TILE }),
+    createEnemy('bobcat', 38 * TILE, 7 * TILE, { patrolMin: 35 * TILE, patrolMax: 42 * TILE }),
+    createEnemy('snake', 65 * TILE, 8 * TILE, { patrolMin: 60 * TILE, patrolMax: 70 * TILE }),
+    createEnemy('crow', 92 * TILE, 9 * TILE, { patrolMin: 86 * TILE, patrolMax: 100 * TILE }),
   ];
 
   const decor = [];
@@ -236,12 +237,12 @@ export function createLevel2() {
   farWall(tiles, cols, groundR);
 
   const enemies = [
-    createEnemy('scout', 18 * TILE, 7 * TILE, { patrolMin: 14 * TILE, patrolMax: 24 * TILE }),
-    createEnemy('wolf', 34 * TILE, 8 * TILE, { patrolMin: 32 * TILE, patrolMax: 38 * TILE }),
-    createEnemy('scout', 44 * TILE, 11 * TILE, { patrolMin: 42 * TILE, patrolMax: 48 * TILE }),
-    createEnemy('wolf', 55 * TILE, 8 * TILE, { patrolMin: 52 * TILE, patrolMax: 62 * TILE }),
-    createEnemy('scout', 80 * TILE, 7 * TILE, { patrolMin: 76 * TILE, patrolMax: 88 * TILE }),
-    createEnemy('wolf', 98 * TILE, 8 * TILE, { patrolMin: 96 * TILE, patrolMax: 102 * TILE }),
+    createEnemy('snake', 18 * TILE, 7 * TILE, { patrolMin: 14 * TILE, patrolMax: 24 * TILE }),
+    createEnemy('bobcat', 34 * TILE, 8 * TILE, { patrolMin: 32 * TILE, patrolMax: 38 * TILE }),
+    createEnemy('snake', 44 * TILE, 11 * TILE, { patrolMin: 42 * TILE, patrolMax: 48 * TILE }),
+    createEnemy('owl', 55 * TILE, 6 * TILE, { patrolMin: 50 * TILE, patrolMax: 66 * TILE }),
+    createEnemy('owl', 80 * TILE, 6 * TILE, { patrolMin: 74 * TILE, patrolMax: 88 * TILE }),
+    createEnemy('bear', 98 * TILE, 8 * TILE, { patrolMin: 96 * TILE, patrolMax: 102 * TILE }),
   ];
 
   const decor = [];
@@ -253,8 +254,7 @@ export function createLevel2() {
   for (const c of [16, 36, 60, 82, 100]) {
     decor.push({ type: 'stone', x: c * TILE, y: (groundR - 1) * TILE });
   }
-  decor.push({ type: 'gate', x: 108 * TILE, y: (groundR - 5) * TILE });
-  decor.push({ type: 'gate', x: 109 * TILE, y: (groundR - 5) * TILE });
+  decor.push({ type: 'loghome', x: 106 * TILE, y: (groundR - 5) * TILE });
 
   // Moroni stands (feet on Joseph's baseline) at his centre x. The meeting triggers
   // when Joseph's centre is MORONI_MEET px away, leaving ~1.5–2 tiles of open
@@ -265,6 +265,7 @@ export function createLevel2() {
     goal: 'reach',
     goalX,
     moroni: { x: moroniX, footY: groundR * TILE },
+    indoor: [106 * TILE, cols * TILE], // the Smith family's log home (plank floor, no grass)
   });
 }
 
@@ -303,12 +304,12 @@ export function createLevel3() {
 
   const enemies = [
     createEnemy('scout', 14 * TILE, 7 * TILE, { patrolMin: 10 * TILE, patrolMax: 20 * TILE }),
-    createEnemy('wolf', 30 * TILE, 8 * TILE, { patrolMin: 28 * TILE, patrolMax: 36 * TILE }),
+    createEnemy('snake', 30 * TILE, 8 * TILE, { patrolMin: 28 * TILE, patrolMax: 36 * TILE }),
     createEnemy('wisp', 48 * TILE, 6 * TILE, { patrolMin: 44 * TILE, patrolMax: 56 * TILE }),
     createEnemy('scout', 64 * TILE, 8 * TILE, { patrolMin: 62 * TILE, patrolMax: 68 * TILE }),
-    createEnemy('wolf', 76 * TILE, 6 * TILE, { patrolMin: 72 * TILE, patrolMax: 84 * TILE }),
+    createEnemy('bobcat', 76 * TILE, 6 * TILE, { patrolMin: 72 * TILE, patrolMax: 84 * TILE }),
     createEnemy('wisp', 100 * TILE, 5 * TILE, { patrolMin: 96 * TILE, patrolMax: 108 * TILE }),
-    createEnemy('wolf', 121 * TILE, 8 * TILE, { patrolMin: 117 * TILE, patrolMax: 126 * TILE }), // prowls the slope
+    createEnemy('bear', 121 * TILE, 8 * TILE, { patrolMin: 117 * TILE, patrolMax: 126 * TILE }), // ranges the slope
   ];
 
   const decor = [];
@@ -364,7 +365,7 @@ export function createLevel4() {
     createEnemy('thug', 24 * TILE, 11 * TILE, { patrolMin: 22 * TILE, patrolMax: 30 * TILE }),
     createEnemy('brigand', 42 * TILE, 8 * TILE, { patrolMin: 40 * TILE, patrolMax: 48 * TILE }),
     createEnemy('thug', 50 * TILE, 5 * TILE, { patrolMin: 48 * TILE, patrolMax: 56 * TILE }),
-    createEnemy('wolf', 70 * TILE, 8 * TILE, { patrolMin: 68 * TILE, patrolMax: 76 * TILE }),
+    createEnemy('brigand', 70 * TILE, 8 * TILE, { patrolMin: 68 * TILE, patrolMax: 76 * TILE, variant: 'torch' }),
     createEnemy('thug', 80 * TILE, 6 * TILE, { patrolMin: 76 * TILE, patrolMax: 86 * TILE }),
     createEnemy('brigand', 96 * TILE, 5 * TILE, { patrolMin: 94 * TILE, patrolMax: 102 * TILE }),
     createEnemy('thug', 104 * TILE, 11 * TILE, { patrolMin: 102 * TILE, patrolMax: 108 * TILE }),
@@ -435,10 +436,10 @@ export function createLevel5() {
   const enemies = [
     createEnemy('brigand', 14 * TILE, 8 * TILE, { patrolMin: 12 * TILE, patrolMax: 18 * TILE }),
     createEnemy('scout', 34 * TILE, 7 * TILE, { patrolMin: 32 * TILE, patrolMax: 38 * TILE }),
-    createEnemy('wolf', 44 * TILE, 7 * TILE, { patrolMin: 41 * TILE, patrolMax: 50 * TILE }),
+    createEnemy('brigand', 44 * TILE, 7 * TILE, { patrolMin: 41 * TILE, patrolMax: 50 * TILE, variant: 'club' }),
     createEnemy('thug', 58 * TILE, 8 * TILE, { patrolMin: 56 * TILE, patrolMax: 64 * TILE }),
     createEnemy('scout', 72 * TILE, 8 * TILE, { patrolMin: 67 * TILE, patrolMax: 78 * TILE }),
-    createEnemy('wolf', 84 * TILE, 7 * TILE, { patrolMin: 82 * TILE, patrolMax: 88 * TILE }),
+    createEnemy('thug', 84 * TILE, 7 * TILE, { patrolMin: 82 * TILE, patrolMax: 88 * TILE, variant: 'musket' }),
     createEnemy('brigand', 108 * TILE, 8 * TILE, { patrolMin: 106 * TILE, patrolMax: 112 * TILE }),
     createEnemy('boss', 124 * TILE, 10 * TILE, {
       bossKind: 'warden',
@@ -581,8 +582,8 @@ export function createLevel7() {
     },
     beats: [
       { col: 8, text: 'June 27, 1844 · Carthage Jail' },
-      { col: 22, text: 'Joseph waits with Hyrum and his friends.' },
-      { col: 38, text: 'They sing to lift one another.' },
+      { col: 22, text: 'Joseph waits with Hyrum Smith, John Taylor and Willard Richards.' },
+      { col: 38, text: 'John Taylor sings A Poor Wayfaring Man of Grief.' },
       { col: 50, text: 'Footsteps gather on the stairs…' },
     ],
   });
@@ -797,7 +798,13 @@ export function drawPages(ctx, level, camX, t) {
 // ── Drawing (HD illustrated environments @ 2×) ────────────
 export function drawLevelBackground(ctx, camX, level) {
   const theme = level.theme || 'woods';
-  if (theme === 'grove') drawBgGrove(ctx, camX);
+  if (drawParallax(ctx, camX, level, (typeof performance !== 'undefined' ? performance.now() : 0) / 16.7)) {
+    if (theme === 'storm') {
+      const flash = Math.floor(camX / 80 + (level.num || 5) * 3) % 17 === 0;
+      if (flash && !reduceFlash()) drawRect(ctx, 0, 0, W, 220, 'rgba(200,220,255,0.14)');
+      drawHillDistant(ctx, camX, level);
+    }
+  } else if (theme === 'grove') drawBgGrove(ctx, camX);
   else if (theme === 'village') drawBgVillage(ctx, camX);
   else if (theme === 'river') drawBgRiver(ctx, camX);
   else if (theme === 'storm') drawBgStorm(ctx, camX, level);
@@ -810,13 +817,166 @@ export function drawLevelBackground(ctx, camX, level) {
     if (d.type === 'tree') drawTree(ctx, dx, d.y, d.variant || 0, d.tall);
     if (d.type === 'fence') drawFence(ctx, dx, d.y);
     if (d.type === 'gate') drawGatePost(ctx, dx, d.y);
+    if (d.type === 'loghome') drawLogHome(ctx, dx, level, camX);
     if (d.type === 'cabin') drawCabin(ctx, dx, d.y);
     if (d.type === 'stone') drawStone(ctx, dx, d.y);
-    if (d.type === 'building') drawBuilding(ctx, dx, d.y, d.variant || 0);
+    if (d.type === 'building') {
+      const bs = buildingSprite(level.num, d.variant || 0);
+      if (bs) ctx.drawImage(bs, dx - 10, d.y + 112 + (d.variant || 0) * 16 - 146);
+      else drawBuilding(ctx, dx, d.y, d.variant || 0);
+    }
     if (d.type === 'lamp') drawLamp(ctx, dx, d.y);
     if (d.type === 'reed') drawReed(ctx, dx, d.y);
     if (d.type === 'pillar') drawPillar(ctx, dx, d.y);
     if (d.type === 'shrine') drawShrine(ctx, dx, d.y);
+  }
+}
+
+/**
+ * Chapter 2 ends inside the Smith family's log home in Manchester, where Moroni appeared
+ * at Joseph's bedside on the night of September 21, 1823 (JS—History 1:29–30).
+ * Cut-away view: hewn-log back wall, loft beams, a small sash window with the night outside,
+ * a rope bed with a quilt, a hearth glow at the far end; the room fills with light as
+ * Joseph nears the messenger ("the room was lighter than at noonday").
+ */
+let logHomeCache = null;
+function logHomeCanvas() {
+  if (logHomeCache) return logHomeCache;
+  const w = 18 * TILE;
+  const h = 7.5 * TILE;
+  const cv = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  if (!cv) return null;
+  cv.width = w;
+  cv.height = h;
+  const g = cv.getContext('2d');
+  const top = 1.2 * TILE; // underside of the loft
+  // roof gable (seen beyond the cut)
+  g.fillStyle = '#1e140c';
+  g.beginPath();
+  g.moveTo(-10, top);
+  g.lineTo(w * 0.5, -0.1 * TILE);
+  g.lineTo(w + 10, top);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#3a2614';
+  for (let i = 0; i < 9; i++) g.fillRect(0, top - 6 - i * 4, w, 1);
+  // back wall: hewn logs with chinking
+  for (let y = top, i = 0; y < h; y += 22, i++) {
+    const lg = g.createLinearGradient(0, y, 0, y + 22);
+    lg.addColorStop(0, '#6a4626');
+    lg.addColorStop(0.45, '#7e5630');
+    lg.addColorStop(1, '#4a2e16');
+    g.fillStyle = lg;
+    g.fillRect(0, y, w, 20);
+    g.fillStyle = '#b8a888'; // lime chinking
+    g.fillRect(0, y + 19, w, 3);
+    g.fillStyle = 'rgba(30,18,8,0.35)';
+    for (let x = (i * 53) % 90; x < w; x += 90 + ((i * 37) % 50)) g.fillRect(x, y + 6, 26, 1.5);
+  }
+  // loft beam and joists
+  g.fillStyle = '#3a2412';
+  g.fillRect(0, top - 4, w, 12);
+  for (let x = 20; x < w; x += 70) {
+    g.fillStyle = '#2e1c0e';
+    g.fillRect(x, top - 4, 12, 16);
+  }
+  // cut-away log ends of the front wall (left edge)
+  for (let y = top; y < h; y += 22) {
+    g.fillStyle = '#5a3a1e';
+    g.beginPath();
+    g.ellipse(10, y + 10, 12, 10, 0, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#8a6a44';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.ellipse(10, y + 10, 6, 5, 0, 0, Math.PI * 2);
+    g.stroke();
+  }
+  // small sash window with the night sky
+  const wx = 4.2 * TILE;
+  const wy = top + 1.2 * TILE;
+  g.fillStyle = '#2a1a0c';
+  g.fillRect(wx - 6, wy - 6, 76, 92);
+  const sky = g.createLinearGradient(0, wy, 0, wy + 80);
+  sky.addColorStop(0, '#0e1630');
+  sky.addColorStop(1, '#24305a');
+  g.fillStyle = sky;
+  g.fillRect(wx, wy, 64, 80);
+  g.fillStyle = '#e8ecff';
+  for (const [sx, sy] of [[10, 12], [40, 8], [52, 30], [20, 44], [46, 60]]) g.fillRect(wx + sx, wy + sy, 2, 2);
+  g.fillStyle = '#4a3220';
+  g.fillRect(wx + 30, wy, 4, 80);
+  g.fillRect(wx, wy + 38, 64, 4);
+  g.fillStyle = '#5a3c20';
+  g.fillRect(wx - 10, wy + 82, 84, 6); // sill
+  // rope bed with a quilt (Joseph's bed)
+  const bx = 11.2 * TILE;
+  const by = h - 0.1 * TILE;
+  g.fillStyle = '#3a2412';
+  g.fillRect(bx, by - 70, 8, 70); // headboard post
+  g.fillRect(bx + 4 * TILE - 8, by - 44, 8, 44);
+  g.fillStyle = '#4a2e16';
+  g.fillRect(bx, by - 40, 4 * TILE, 10);
+  g.fillStyle = '#e8dcc0'; // linen
+  g.fillRect(bx + 8, by - 52, 4 * TILE - 16, 14);
+  g.fillStyle = '#f2ead6';
+  g.fillRect(bx + 10, by - 60, 30, 10); // bolster
+  const colors = ['#8a3a2a', '#c8a050', '#3a5a7a', '#6a7a3a'];
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 2; j++) {
+      g.fillStyle = colors[(i + j) % 4];
+      g.fillRect(bx + 44 + i * 10, by - 52 + j * 7, 10, 7); // patchwork quilt
+    }
+  }
+  g.fillStyle = 'rgba(0,0,0,0.35)';
+  g.fillRect(bx + 4, by - 30, 4 * TILE - 8, 30);
+  // pegs with a hat and coat on the wall, a shelf with a candle stick
+  g.fillStyle = '#2a1a0c';
+  g.fillRect(1.8 * TILE, top + 1.6 * TILE, 4, 6);
+  g.fillStyle = '#2e2620';
+  g.fillRect(1.8 * TILE - 10, top + 1.6 * TILE + 6, 26, 40);
+  g.fillStyle = '#4a2e16';
+  g.fillRect(8 * TILE, top + 1.4 * TILE, 70, 6);
+  g.fillStyle = '#c8b890';
+  g.fillRect(8 * TILE + 10, top + 1.4 * TILE - 18, 6, 18);
+  g.fillStyle = '#7a6a5a';
+  g.fillRect(8 * TILE + 40, top + 1.4 * TILE - 14, 18, 14); // pitcher
+  // far wall: stone hearth with embers
+  const hx = 16 * TILE;
+  g.fillStyle = '#5a5248';
+  g.fillRect(hx, top + 0.6 * TILE, 2 * TILE, h - top - 0.6 * TILE);
+  g.fillStyle = '#6e665a';
+  for (let y = top + 0.6 * TILE; y < h; y += 14) for (let x = hx + ((y / 14) % 2) * 10; x < hx + 2 * TILE - 8; x += 20) g.fillRect(x, y, 16, 11);
+  g.fillStyle = '#140c06';
+  g.fillRect(hx + 12, h - 52, 2 * TILE - 24, 52);
+  const em = g.createRadialGradient(hx + TILE, h - 8, 2, hx + TILE, h - 8, 40);
+  em.addColorStop(0, 'rgba(255,150,60,0.9)');
+  em.addColorStop(1, 'rgba(255,90,20,0)');
+  g.fillStyle = em;
+  g.fillRect(hx, h - 60, 2 * TILE, 60);
+  logHomeCache = cv;
+  return cv;
+}
+
+function drawLogHome(ctx, dx, level, camX) {
+  const cv = logHomeCanvas();
+  if (!cv) return;
+  const floorY = 13 * TILE;
+  ctx.drawImage(cv, dx, floorY - cv.height);
+  // the messenger's light fills the room ("lighter than at noonday", JS—History 1:30)
+  const mo = level.moroni;
+  if (mo) {
+    const mx = mo.x - camX;
+    const my = mo.footY - 70;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(mx, my, 10, mx, my, 300);
+    g.addColorStop(0, 'rgba(255,246,220,0.55)');
+    g.addColorStop(0.4, 'rgba(255,236,190,0.22)');
+    g.addColorStop(1, 'rgba(255,230,180,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.max(dx, mx - 300), floorY - cv.height, 600, cv.height);
+    ctx.restore();
   }
 }
 
@@ -1180,6 +1340,12 @@ export function drawLevelTiles(ctx, camX, level, opts = {}) {
 function drawGroundTile(ctx, x, y, c, r, level, theme) {
   const above = r > 0 ? level.tiles[r - 1][c] : 1;
   const isTop = !above || above === 4;
+  const indoor = level.indoor && c * TILE >= level.indoor[0] && c * TILE < level.indoor[1];
+  const spr = groundTile(indoor ? 7 : level.num, isTop, (c * 7 + r * 3) % 4);
+  if (spr) {
+    ctx.drawImage(spr, x, y - 6);
+    return;
+  }
   const topH = 10;
   if (theme === 'village') {
     if (isTop) {

@@ -1,18 +1,39 @@
-import { landOnSlopes } from './hill.js?v=72';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=72';
+import { landOnSlopes } from './hill.js?v=73';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=73';
 import {
   drawBrigand,
-  drawWolf,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=72';
-import { aabb } from './player.js?v=72';
-import { createKnife, KNIFE_W } from './projectiles.js?v=72';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=72';
-import { sfx } from './audio.js?v=72';
-import { isEasy, reduceFlash } from './save.js?v=72';
+} from './sprites.js?v=73';
+import { aabb } from './player.js?v=73';
+import { createKnife, KNIFE_W } from './projectiles.js?v=73';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
+import { sfx } from './audio.js?v=73';
+import { isEasy, reduceFlash } from './save.js?v=73';
+import {
+  drawSnake,
+  drawBobcat,
+  drawBear,
+  drawBird,
+  drawTorchProp,
+  drawClubProp,
+  drawMusketProp,
+} from './critters.js?v=73';
+
+/**
+ * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
+ * `draw` scales the painting so a bobcat reads smaller than a man and a bear bigger than a bobcat.
+ */
+const CRITTERS = {
+  snake: { hp: 1, speed: 0.3, w: 40, h: 14, score: 120, draw: 1 },
+  bobcat: { hp: 1, speed: 0.8, w: 32, h: 24, score: 150, draw: 0.8 },
+  bear: { hp: 3, speed: 0.42, w: 46, h: 36, score: 250, draw: 0.85 },
+  crow: { hp: 1, speed: 0.7, w: 24, h: 16, score: 100, draw: 1, fly: true },
+  owl: { hp: 1, speed: 0.55, w: 26, h: 20, score: 120, draw: 1, fly: true },
+};
+export const CRITTER_TYPES = Object.keys(CRITTERS);
 
 export function createEnemy(type, x, y, opts = {}) {
   const base = {
@@ -49,12 +70,29 @@ export function createEnemy(type, x, y, opts = {}) {
     noGravity: false,
   };
 
-  if (type === 'wolf') {
-    base.hp = base.maxHp = 1;
-    base.speed = 0.9 * SCALE;
-    base.w = 42 * SCALE;
-    base.h = 26 * SCALE;
-    base.score = 150;
+  const cr = CRITTERS[type];
+  if (cr) {
+    base.critter = true;
+    base.hp = base.maxHp = cr.hp;
+    base.speed = cr.speed * SCALE;
+    base.w = cr.w * SCALE;
+    base.h = cr.h * SCALE;
+    base.score = cr.score;
+    base.drawScale = cr.draw;
+    base.fly = !!cr.fly;
+    base.noGravity = !!cr.fly;
+    base.noThrow = true;
+  }
+  // Human mob variants: same painted men, with a period prop and their own habits
+  base.variant = opts.variant || '';
+  if (base.variant === 'torch') {
+    base.torch = true; // also a light source in the night chapters
+    base.noThrow = true;
+  } else if (base.variant === 'club') {
+    base.noThrow = true;
+    base.hp = base.maxHp = 3;
+  } else if (base.variant === 'musket') {
+    base.noThrow = true; // a guard who shoves; the musket is never fired
   }
   if (type === 'scout') {
     base.hp = base.maxHp = 2;
@@ -116,8 +154,16 @@ export function enemyHitbox(e) {
   if (e.type === 'boss') {
     return { x: e.x + 4 * SCALE, y: e.y + 4 * SCALE, w: e.w - 8 * SCALE, h: e.h - 4 * SCALE };
   }
-  if (e.type === 'wolf') {
-    return { x: e.x + 2 * SCALE, y: e.y + 4 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
+  if (e.critter) {
+    const b = { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 2 * SCALE };
+    if (e.type === 'snake' && e.melee === 'lunge') {
+      // the strike reaches past the coiled body
+      b.w += 18 * SCALE;
+      if (e.facing < 0) b.x -= 18 * SCALE;
+      b.y -= 10 * SCALE;
+      b.h += 10 * SCALE;
+    }
+    return b;
   }
   if (e.type === 'wisp') {
     return { x: e.x + 2 * SCALE, y: e.y + 2 * SCALE, w: e.w - 4 * SCALE, h: e.h - 4 * SCALE };
@@ -137,26 +183,50 @@ export const FOE_HIT_CD = 90; // the same foe can't hurt Joseph again for 1.5 s
  * past an idle foe is safe and every melee hit is telegraphed.
  * Returns true while the melee routine owns the foe's movement.
  */
+const MELEE_DEF = {
+  default: { reach: 18, wind: MELEE_WIND, lunge: MELEE_LUNGE, recover: MELEE_RECOVER },
+  // timber rattlesnake: coils and rattles a long time, strikes a short way, never chases
+  snake: { reach: 20, wind: 34, lunge: 12, recover: 56, sp: 0.5, sound: 'rattle' },
+  // bobcat: crouches, then pounces in an arc
+  bobcat: { reach: 52, wind: 24, lunge: 40, recover: 44, sp: 3.0, hop: 3.4 },
+  // black bear: rears and huffs, then a short bluff charge
+  bear: { reach: 26, wind: 36, lunge: 26, recover: 64, sp: 2.7, sound: 'huff' },
+  club: { reach: 20, wind: 24, lunge: 14, recover: 40 },
+};
+function meleeDef(e) {
+  return MELEE_DEF[e.type] || MELEE_DEF[e.variant] || MELEE_DEF.default;
+}
+function lungeSpeed(e, d) {
+  return d.sp != null ? d.sp * SCALE : Math.max(e.speed * 3, 2.2 * SCALE);
+}
+
 function updateMelee(e, player, dt) {
   const ex = e.x + e.w / 2;
   const px = player.x + player.w / 2;
+  const d = meleeDef(e);
   if (e.melee === 'wind') {
     e.vx = 0;
     e.facing = px > ex ? 1 : -1;
     e.meleeT -= dt;
     if (e.meleeT <= 0) {
       e.melee = 'lunge';
-      e.meleeT = MELEE_LUNGE;
-      e.vx = e.facing * Math.max(e.speed * 3, 2.2 * SCALE);
+      e.meleeT = d.lunge;
+      e.vx = e.facing * lungeSpeed(e, d);
+      if (d.hop) {
+        e.vy = -d.hop * SCALE;
+        e.onGround = false;
+      }
     }
     return true;
   }
   if (e.melee === 'lunge') {
     e.meleeT -= dt;
-    e.vx = e.facing * Math.max(e.speed * 3, 2.2 * SCALE);
-    if (e.meleeT <= 0) {
+    e.vx = e.facing * lungeSpeed(e, d);
+    const landed = d.hop && e.onGround && e.meleeT < d.lunge - 6;
+    if (e.meleeT <= 0 || landed) {
       e.melee = 'recover';
-      e.meleeT = MELEE_RECOVER;
+      e.meleeT = d.recover;
+      if (d.hop) e.vx = 0;
     }
     return true;
   }
@@ -172,11 +242,13 @@ function updateMelee(e, player, dt) {
     e.vx = e.hitCd > FOE_HIT_CD - 40 ? -e.facing * e.speed : 0;
     return true;
   }
-  const reach = e.w / 2 + player.w / 2 + (e.type === 'wolf' ? 26 : 18) * SCALE;
+  const reach = e.w / 2 + player.w / 2 + d.reach * SCALE;
   const level = Math.abs(player.y + player.h - (e.y + e.h)) < 30 * SCALE;
   if (player.alive && e.damage > 0 && level && Math.abs(px - ex) < reach && e.onGround) {
     e.melee = 'wind';
-    e.meleeT = MELEE_WIND;
+    e.meleeT = d.wind;
+    e.meleeWind = d.wind;
+    if (d.sound) sfx(d.sound);
     e.vx = 0;
     e.facing = px > ex ? 1 : -1;
     return true;
@@ -208,8 +280,11 @@ export function updateEnemy(e, solids, player, dt, world = null) {
   if (e.attackCd > 0) e.attackCd -= dt;
   if (e.hitCd > 0) e.hitCd -= dt;
 
+  e.clock = (e.clock || 0) + dt;
   if (e.type === 'boss') {
     updateBossAI(e, player, dt, world || {});
+  } else if (e.fly) {
+    updateBirdAI(e, player, dt, world || {});
   } else if (e.type === 'wisp') {
     updateWispAI(e, player, dt);
   } else if (updateMelee(e, player, dt)) {
@@ -217,8 +292,9 @@ export function updateEnemy(e, solids, player, dt, world = null) {
   } else {
     const dx = player.x - e.x;
     const near = Math.abs(dx) < 100 * SCALE && Math.abs(player.y - e.y) < 48 * SCALE;
-    const chaseMul = e.type === 'wolf' ? 1.3 : e.type === 'scout' ? 1.25 : 1.1;
-    if (near && player.alive) {
+    const chaseMul = e.type === 'bobcat' ? 1.3 : e.type === 'scout' ? 1.25 : e.type === 'bear' ? 1.15 : 1.1;
+    // snakes keep to their patch of ground and only strike when stepped near
+    if (near && player.alive && e.type !== 'snake') {
       e.facing = dx > 0 ? 1 : -1;
       e.vx = e.facing * e.speed * chaseMul;
     } else {
@@ -233,6 +309,17 @@ export function updateEnemy(e, solids, player, dt, world = null) {
     if (e.vy > MAX_FALL) e.vy = MAX_FALL;
   }
 
+  if (e.fly) {
+    // birds fly over everything; no tile collision
+    e.x += e.vx * pace;
+    e.y += e.vy * pace;
+    if (!e.telling) e.animT += dt;
+    if (e.animT > 7) {
+      e.animT = 0;
+      e.anim = (e.anim + 1) % 8;
+    }
+    return;
+  }
   e.x += e.vx * pace;
   if (!e.noGravity) resolveEnemy(e, solids, true);
   e.y += e.vy;
@@ -243,7 +330,7 @@ export function updateEnemy(e, solids, player, dt, world = null) {
 
 
   // Humanoids / bosses throw knives when Joseph is in sight (not wisp/npc)
-  const canThrow = e.type !== 'wolf' && e.type !== 'wisp' && e.type !== 'npc' && e.type !== 'boss';
+  const canThrow = !e.noThrow && e.type !== 'wisp' && e.type !== 'npc' && e.type !== 'boss';
   if (canThrow && player.alive && e.attackCd <= 0) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
@@ -267,6 +354,104 @@ export function updateEnemy(e, solids, player, dt, world = null) {
   if (e.y > H + 80 * SCALE && !e.noGravity) {
     e.alive = false;
   }
+}
+
+/**
+ * Crow (day) / great horned owl (night): patrol the air above a stretch of ground, hover with
+ * fast wingbeats as a tell, then swoop at where Joseph stood and climb back. Only the swoop hurts.
+ */
+function updateBirdAI(e, player, dt, world) {
+  e.aiTimer += dt;
+  if (e.homeY === undefined) {
+    const top = world.solids ? groundTopBelow(world.solids, e.x + e.w / 2, e.y - 200 * SCALE, true) : null;
+    e.homeY = (top ?? 13 * 32) - 62 * SCALE;
+  }
+  const ex = e.x + e.w / 2;
+  const ey = e.y + e.h / 2;
+  const px = player.x + player.w / 2;
+  const py = player.y + player.h * 0.4;
+  if (e.melee === 'wind') {
+    e.vx *= 0.85;
+    e.vy = Math.sin(e.aiTimer * 0.5) * 0.3 * SCALE;
+    e.facing = px > ex ? 1 : -1;
+    e.meleeT -= dt;
+    if (e.meleeT <= 0) {
+      e.melee = 'lunge';
+      e.meleeT = 48;
+      const dd = Math.hypot(px - ex, py - ey) || 1;
+      const sp = 3 * SCALE;
+      e.vx = ((px - ex) / dd) * sp;
+      e.vy = Math.max(0.6 * SCALE, ((py - ey) / dd) * sp);
+      e.facing = e.vx > 0 ? 1 : -1;
+      sfx(e.type === 'owl' ? 'hoot' : 'caw');
+    }
+    return;
+  }
+  if (e.melee === 'lunge') {
+    e.meleeT -= dt;
+    if (e.meleeT <= 0 || e.y + e.h > player.y + player.h + 4 * SCALE) {
+      e.melee = 'recover';
+      e.meleeT = 70;
+    }
+    return;
+  }
+  if (e.melee === 'recover') {
+    e.meleeT -= dt;
+    e.vy = -1.3 * SCALE;
+    e.vx = e.facing * e.speed * 1.2;
+    if (e.y <= e.homeY || e.meleeT <= 0) {
+      e.melee = 'none';
+      e.attackCd = 90;
+    }
+    return;
+  }
+  // patrol back and forth, easing back to cruising height
+  if (e.x < e.patrolMin) e.facing = 1;
+  if (e.x > e.patrolMax) e.facing = -1;
+  e.vx = e.facing * e.speed;
+  e.vy = (e.homeY + Math.sin(e.aiTimer * 0.05) * 6 * SCALE - e.y) * 0.05;
+  const dx = px - ex;
+  if (
+    player.alive &&
+    e.attackCd <= 0 &&
+    e.hitCd <= 0 &&
+    Math.abs(dx) < 110 * SCALE &&
+    Math.abs(dx) > 24 * SCALE &&
+    py > ey &&
+    Math.abs(e.y - e.homeY) < 12 * SCALE
+  ) {
+    e.melee = 'wind';
+    e.meleeT = 26;
+    e.meleeWind = 26;
+  }
+}
+
+/** After defeat a foe is driven off: wildlife bolts away, people stagger (dazed) then leave. */
+export function tickDefeat(e, dt, player) {
+  if (e.type === 'boss' || e.defeatDone) return;
+  if (e.defeatT === undefined) {
+    e.defeatT = 0;
+    const pcx = player ? player.x + player.w / 2 : e.x;
+    e.fleeDir = pcx > e.x + e.w / 2 ? -1 : 1;
+    if (e.critter) e.facing = e.fleeDir;
+    e.melee = 'none';
+  }
+  e.defeatT += dt;
+  e.clock = (e.clock || 0) + dt;
+  const T = e.critter ? 50 : 64;
+  if (e.critter) {
+    e.x += e.fleeDir * 3.2 * SCALE * dt;
+    if (e.fly) e.y -= 1.6 * SCALE * dt;
+  } else if (e.defeatT > 30) {
+    e.facing = e.fleeDir;
+    e.x += e.fleeDir * 1.8 * SCALE * dt;
+  }
+  e.animT += dt;
+  if (e.animT > 5) {
+    e.animT = 0;
+    e.anim = (e.anim + 1) % 8;
+  }
+  if (e.defeatT >= T) e.defeatDone = true;
 }
 
 function updateWispAI(e, player, dt) {
@@ -597,7 +782,7 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
   if (e.melee === 'wind' || e.melee === 'lunge') {
     // a hit during the wind-up staggers the foe (rewarding reading the tell)
     e.melee = 'recover';
-    e.meleeT = MELEE_RECOVER;
+    e.meleeT = e.fly ? 70 : meleeDef(e).recover;
   }
   if (!e.noGravity) e.vx = 0;
   if (e.hp <= 0) {
@@ -609,13 +794,68 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
 }
 
 export function drawEnemy(ctx, e, camX) {
-  if (!e.alive) return;
+  let fade = 1;
+  if (!e.alive) {
+    if (e.type === 'boss' || e.defeatT === undefined || e.defeatDone) return;
+    fade = Math.max(0, 1 - e.defeatT / (e.critter ? 50 : 64));
+    if (fade <= 0) return;
+  }
+  ctx.save();
+  if (fade < 1) ctx.globalAlpha = fade;
+  drawEnemyBody(ctx, e, camX);
+  if (!e.alive && !e.critter && e.defeatT < 40) drawDazed(ctx, e.x - camX + e.w / 2, e.y + 4 * SCALE, e.defeatT);
+  ctx.restore();
+}
+
+function drawDazed(ctx, cx, cy, t) {
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    const a = t * 0.18 + (i * Math.PI * 2) / 3;
+    const x = cx + Math.cos(a) * 12;
+    const y = cy - 6 + Math.sin(a) * 4;
+    ctx.fillStyle = '#ffe9a0';
+    ctx.beginPath();
+    for (let k = 0; k < 5; k++) {
+      const r = k % 2 ? 1.6 : 4;
+      const aa = (k / 5) * Math.PI * 2 - Math.PI / 2;
+      ctx.lineTo(x + Math.cos(aa) * r, y + Math.sin(aa) * r);
+      const r2 = 1.6;
+      const a2 = aa + Math.PI / 5;
+      ctx.lineTo(x + Math.cos(a2) * r2, y + Math.sin(a2) * r2);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawCritter(ctx, e, dx, flash, k) {
+  const sc = e.drawScale || 1;
+  const t = e.clock || 0;
+  const state = e.alive ? e.melee : 'none';
+  const moving = Math.abs(e.vx) > 0.05 || !e.alive;
+  ctx.save();
+  const ax = dx + e.w / 2;
+  const ay = e.fly ? e.y + e.h / 2 : e.y + e.h;
+  ctx.translate(ax, ay);
+  ctx.scale(sc, sc);
+  ctx.translate(-ax, -ay);
+  if (e.type === 'snake') drawSnake(ctx, dx, e.y, e.w, e.h, e.facing, t, state, k, flash);
+  else if (e.type === 'bobcat') drawBobcat(ctx, dx, e.y, e.w, e.h, e.facing, t, state, k, flash, moving, !e.onGround && e.alive);
+  else if (e.type === 'bear') drawBear(ctx, dx, e.y, e.w, e.h, e.facing, t, state, k, flash, moving);
+  else drawBird(ctx, dx, e.y, e.w, e.h, e.facing, t, state, k, flash, e.type === 'owl');
+  ctx.restore();
+}
+
+function drawEnemyBody(ctx, e, camX) {
   const flash = e.hurtFlash > 0;
   let dx = e.x - camX;
-  const winding = e.melee === 'wind';
+  const winding = e.alive && e.melee === 'wind';
+  const windT = e.meleeWind || MELEE_WIND;
+  const k = winding ? 1 - e.meleeT / windT : e.melee === 'lunge' ? 1 : 0;
   if (winding) {
     // telegraph: gold glow, lean back, "!" over the head
-    const k = 1 - e.meleeT / MELEE_WIND;
+
     ctx.save();
     ctx.globalAlpha = 0.25 + 0.3 * k;
     ctx.fillStyle = '#ffd060';
@@ -623,13 +863,14 @@ export function drawEnemy(ctx, e, camX) {
     ctx.ellipse(dx + e.w / 2, e.y + e.h * 0.55, e.w * 0.75, e.h * 0.62, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    dx -= e.facing * 3 * SCALE * k;
+    if (!e.critter) dx -= e.facing * 3 * SCALE * k;
   }
-  if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
+  if (e.critter) drawCritter(ctx, e, dx, flash, k);
+  else if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'scout') drawScout(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
-  else if (e.type === 'wolf') drawWolf(ctx, dx, e.y, e.facing, e.anim, flash);
-  else if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
+  if (e.variant && !e.critter) drawVariantProp(ctx, e, dx);
+  if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
   else if (e.type === 'boss') {
     drawBossAura(ctx, e, dx, tickNow(e));
     ctx.save();
@@ -641,7 +882,19 @@ export function drawEnemy(ctx, e, camX) {
     ctx.restore();
     if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + e.w / 2, e.y, e.bs.t);
   }
-  if (winding) drawAlert(ctx, dx + e.w / 2 + e.facing * 3 * SCALE, e.y, MELEE_WIND - e.meleeT);
+  if (winding) {
+    const ay = e.critter ? e.y - (e.fly ? 6 : 14) * SCALE : e.y;
+    drawAlert(ctx, dx + e.w / 2 + e.facing * 3 * SCALE, ay, windT - e.meleeT);
+  }
+}
+
+/** Torch, club or shouldered musket held in the foe's forward hand. */
+function drawVariantProp(ctx, e, dx) {
+  const hx = dx + e.w / 2 + e.facing * 9 * SCALE;
+  const hy = e.y + e.h * 0.52;
+  if (e.variant === 'torch') drawTorchProp(ctx, hx, hy, e.facing, e.clock || 0);
+  else if (e.variant === 'club') drawClubProp(ctx, hx, hy, e.facing, e.melee === 'wind');
+  else if (e.variant === 'musket') drawMusketProp(ctx, dx + e.w / 2 - e.facing * 2 * SCALE, e.y + e.h * 0.42, e.facing);
 }
 
 function tickNow(e) {
