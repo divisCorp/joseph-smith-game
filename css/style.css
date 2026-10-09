@@ -2361,3 +2361,15 @@ html.is-standalone .pqt-row-fs { display: none; }
 @media (max-height: 360px) {
   .pqt-tag { display: none; }
 }
+
+/* v76: Netlify-injected "Powered by Netlify" badge (iframe#nl-badge-frame)
+   moved from bottom-right to top-left, stacked below the hearts / BEST badge. */
+#nl-badge-frame {
+  top: calc(max(10px, env(safe-area-inset-top)) + 52px) !important;
+  left: calc(max(14px, env(safe-area-inset-left)) - 3px) !important;
+  bottom: auto !important;
+  right: auto !important;
+}
+@media (max-height: 500px) {
+  #nl-badge-frame { top: calc(max(10px, env(safe-area-inset-top)) + 42px) !important; }
+}

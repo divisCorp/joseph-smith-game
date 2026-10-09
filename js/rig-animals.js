@@ -17,7 +17,7 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (v) => ((v % 1) + 1) % 1;
 const angDown = (a, b) => Math.atan2(-(b[0] - a[0]), b[1] - a[1]);
 
-import { halfAtlas } from './rig.js?v=75';
+import { halfAtlas } from './rig.js?v=76';
 
 let RIG = null;
 let loading = null;
