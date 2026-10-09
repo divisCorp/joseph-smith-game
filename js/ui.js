@@ -351,7 +351,8 @@ function syncHud(game) {
     }
   }
   const chap = hud.querySelector('[data-hud-chapter]');
-  if (chap) chap.textContent = `${game.levelNum}/${MAX_LEVEL}`;
+  const chapText = `${game.levelNum}/${MAX_LEVEL}`;
+  if (chap && chap.textContent !== chapText) chap.textContent = chapText; // no per-frame DOM write
   const score = hud.querySelector('[data-hud-score]');
   if (score) {
     // tick the shown score up toward the real one (instant on Reduce flashing)

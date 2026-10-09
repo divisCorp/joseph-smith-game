@@ -10,6 +10,7 @@ import { initVirtualControls, setAction } from './input.js?v=76';
 import { initOverlays, syncOverlays } from './ui.js?v=76';
 import { preloadSprites } from './sprites.js?v=76';
 import { fxFrameTime, fxPerf } from './fx.js?v=76';
+import { psAdd, psTake, PERF_ON, NO_READBACK, RES, NO_HUD } from './perfstat.js?v=76';
 import { bakeBytes, bakeStats } from './rig.js?v=76';
 import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=76';
 import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=76';
@@ -107,7 +108,9 @@ function frame(now) {
   // catch-up capped
   let steps = 0;
   while (acc >= STEP && steps < 5) {
+    const tu = PERF_ON ? performance.now() : 0;
     updateGame(game, 1); // dt in frames @ 60fps
+    if (PERF_ON) psAdd('update', performance.now() - tu);
     acc -= STEP;
     steps++;
   }
@@ -117,8 +120,13 @@ function frame(now) {
     return;
   }
   animalBakeFrame();
+  const td = PERF_ON ? performance.now() : 0;
+  if (RES !== 1) ctx.setTransform(RES, 0, 0, RES, 0, 0);
   drawGame(ctx, game);
+  if (PERF_ON) psAdd('draw', performance.now() - td);
+  const to = PERF_ON ? performance.now() : 0;
   syncOverlays(game);
+  if (PERF_ON) psAdd('dom', performance.now() - to);
   // work time per frame (update + draw + overlays), read by the perf QA
   const work = performance.now() - t0;
   game.workMs = game.workMs == null ? work : game.workMs * 0.95 + work * 0.05;
@@ -163,6 +171,16 @@ document.querySelector('[data-gate-dismiss]')?.addEventListener('click', () => {
 
 // ?perf=1: small read-out of fps, ms of work per frame, quality tier and frame-cache size
 let perfHud = null;
+function breakdown(n) {
+  const { t, n: c } = psTake();
+  const f = (k) => ((t[k] || 0) / n).toFixed(1);
+  const level = Math.max(0, (t.draw || 0) - (t.rig || 0) - (t.animals || 0) - (t.fx || 0) - (t.title || 0)) / n;
+  const q = (k) => ((c[k] || 0) / n).toFixed(2);
+  const flags = [...new URLSearchParams(location.search).entries()].filter(([k]) => k !== 'perf').map(([k, v]) => k + '=' + v).join(' ');
+  return `ms/f: update ${f('update')} rig ${f('rig')} animals ${f('animals')} fx ${f('fx')} level ${level.toFixed(1)} title ${f('title')} dom ${f('dom')}\n` +
+    `/f: rigMiss ${q('rigMiss')} animalMiss ${q('animalMiss')} readback ${q('readback')} newCanvas ${q('newCanvas')}` +
+    `${NO_READBACK ? '  [readback OFF]' : ''}${flags ? '\nflags: ' + flags : ''}`;
+}
 if (new URLSearchParams(location.search).get('perf') === '1') {
   const el = document.createElement('pre');
   el.style.cssText = 'position:fixed;right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));z-index:2147483646;margin:0;padding:6px 8px;font:11px/1.35 ui-monospace,Menlo,monospace;color:#cfe;background:rgba(0,0,0,.72);border-radius:6px;pointer-events:none;white-space:pre';
@@ -179,7 +197,18 @@ if (new URLSearchParams(location.search).get('perf') === '1') {
       `fps ${(n * 1000 / (now - t0)).toFixed(0)}  work ${(wsum / n).toFixed(1)}ms (max ${wmax.toFixed(1)})\n` +
       `tier ${p.tier}${document.documentElement.classList.contains('pq-ios') ? ' (iOS)' : ''}  particles ${p.particles}\n` +
       `cache ${mb.toFixed(1)}MB  miss ${((miss - m0) / n).toFixed(2)}/f  hit ${hits - h0 + miss - m0 ? Math.round(100 * (hits - h0) / (hits - h0 + miss - m0)) : 100}%\n` +
-      `canvas ${c.width}x${c.height}  dpr ${devicePixelRatio}  ${innerWidth}x${innerHeight}`;
+      `canvas ${c.width}x${c.height}  dpr ${devicePixelRatio}  ${innerWidth}x${innerHeight}\n` + breakdown(n);
     n = 0; wsum = 0; wmax = 0; t0 = now; h0 = hits; m0 = miss;
   };
+}
+
+// A/B toggles for device testing
+if (RES !== 1) {
+  canvas.width = Math.round(canvas.width * RES);
+  canvas.height = Math.round(canvas.height * RES);
+}
+if (NO_HUD) {
+  const st = document.createElement('style');
+  st.textContent = '#hud,#nl-badge-frame{display:none!important}';
+  document.head.appendChild(st);
 }

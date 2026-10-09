@@ -11,6 +11,7 @@
  */
 import { W, H, TILE, SCALE } from './constants.js?v=76';
 import { reduceFlash } from './save.js?v=76';
+import { timed, NO_FX } from './perfstat.js?v=76';
 
 const S = SCALE;
 const GROUND_Y = 13 * TILE;
@@ -341,7 +342,9 @@ function spawnAmbient(kind, game, anywhere) {
 
 // ── drawing ─────────────────────────────────────────────────
 /** Behind the tiles: distant birds and sun shafts. */
-export function drawFxBack(ctx, game) {
+export const drawFxBack = timed('fx', drawFxBackImpl);
+function drawFxBackImpl(ctx, game) {
+  if (NO_FX) return;
   const level = game.level;
   if (!level) return;
   const L = LOOK[level.num] || LOOK[1];
@@ -446,7 +449,9 @@ function firstVisibleTuft(x0) {
   return lo;
 }
 
-export function drawFxForegroundGrass(ctx, game) {
+export const drawFxForegroundGrass = timed('fx', drawFxGrassImpl);
+function drawFxGrassImpl(ctx, game) {
+  if (NO_FX) return;
   if (!tufts.length) return;
   const camX = game.camX;
   const t = game.tick;
@@ -522,7 +527,9 @@ function fireflyBlink(a) {
 }
 
 /** Darkness + lights + ambient front particles + grading + vignette + foreground framing. */
-export function drawFxFront(ctx, game) {
+export const drawFxFront = timed('fx', drawFxFrontImpl);
+function drawFxFrontImpl(ctx, game) {
+  if (NO_FX) return;
   const level = game.level;
   if (!level) return;
   const L = LOOK[level.num] || LOOK[1];

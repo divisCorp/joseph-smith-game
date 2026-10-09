@@ -1,3 +1,4 @@
+import { timed, psCount, NO_READBACK } from './perfstat.js?v=76';
 /**
  * Palmyra Quest — painted cut-out skeletal rigs (no Spine: our own JSON format).
  *
@@ -151,10 +152,15 @@ export function basePose(sk = skelOf()) {
 }
 
 /** Idle: breathing, a slight lagging head bob, coat-tail sway. t in seconds. */
+export const IDLE_FRAMES = 48;
 export function poseIdle(t, sk = skelOf(), seed = 0) {
   const p = basePose(sk);
-  const w = (Math.PI * 2) / (3.4 + seed * 0.37);
+  const P = 3.4 + seed * 0.37;
+  const w = (Math.PI * 2) / P;
   t += seed * 1.7;
+  // one closed loop of IDLE_FRAMES poses per breath: every term repeats each period, so a
+  // baked idle is a fixed, finite set of frames (no unique-pose cache thrash)
+  t = (Math.floor((((t % P) + P) % P) / P * IDLE_FRAMES) / IDLE_FRAMES) * P;
   const b = Math.sin(w * t); // breath
   p.torsoDy = -0.45 * (b + 1);
   p.torsoRot = 0.5 * b;
@@ -164,10 +170,10 @@ export function poseIdle(t, sk = skelOf(), seed = 0) {
   p.nFore = -1.5 - 1.2 * Math.sin(w * t - 0.9);
   p.fArm = -1.0 * Math.sin(w * t - 0.4);
   p.fFore = -1.0 - 0.8 * Math.sin(w * t - 0.8);
-  p.tail = 1.2 * Math.sin(w * 0.8 * t - 1.2) + 0.4 * Math.sin(w * 2.3 * t);
-  p.tailBend = 1.6 * Math.sin(w * 0.8 * t - 1.9);
+  p.tail = 1.2 * Math.sin(w * t - 1.2) + 0.4 * Math.sin(w * 2 * t);
+  p.tailBend = 1.6 * Math.sin(w * t - 1.9);
   p.skirt = 0.35 * Math.sin(w * t - 1.0);
-  p.skirtBend = 1.0 * Math.sin(w * 0.8 * t - 1.6);
+  p.skirtBend = 1.0 * Math.sin(w * t - 1.6);
   p.coatFar = 0.6 * Math.sin(w * t - 1.1);
   return p;
 }
@@ -629,6 +635,8 @@ function rimScratch(w, h) {
  * same as resampling the 4x atlas every frame, at a quarter of the pixel reads.
  */
 export function halfAtlas(rig) {
+  // CPU-backed (willReadFrequently) like the scratch it is drawn into: on iOS a GPU canvas
+  // drawn into a CPU canvas is read back whole on every part blit
   if (rig.half !== undefined) return rig.half;
   rig.half = null;
   const img = rig.img;
@@ -636,7 +644,7 @@ export function halfAtlas(rig) {
   const c = document.createElement('canvas');
   c.width = Math.ceil(img.width / 2);
   c.height = Math.ceil(img.height / 2);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.imageSmoothingEnabled = true;
   g.imageSmoothingQuality = 'high';
   g.drawImage(img, 0, 0, c.width, c.height);
@@ -726,7 +734,7 @@ function drawParts(g, rig, pose, B, bounds = null) {
 
 // ------------------------------------------------------------------ baked frames (LRU)
 const BAKE = new Map();
-const BAKE_MAX = 320;
+const BAKE_MAX = 480;
 export const bakeStats = { hit: 0, miss: 0 };
 function bakeKey(rig, lp, B, opts) {
   const meta = rig.meta;
@@ -749,9 +757,12 @@ function bakeGet(key) {
 const POOL = [];
 /** A canvas for a baked frame, recycled from evicted entries (no per-miss allocation). */
 export function bakeCanvas(w, h) {
-  const c = POOL.pop() || (typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(w, h));
-  if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
-  else c.getContext('2d').clearRect(0, 0, w, h);
+  // reuse an evicted canvas only if it fits without much waste (keeps cache memory honest)
+  const i = POOL.findIndex((p) => p.width >= w && p.height >= h && p.width * p.height <= w * h * 1.5);
+  if (i >= 0) { const c = POOL.splice(i, 1)[0]; c.getContext('2d').clearRect(0, 0, c.width, c.height); return c; }
+  psCount('newCanvas');
+  const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(w, h);
+  c.width = w; c.height = h;
   return c;
 }
 export function bakeRecycle(c) { if (c) c._f = null; if (c && POOL.length < 64) POOL.push(c); }
@@ -811,7 +822,8 @@ function drawBonesAt(ctx, B, legs, s, meta, ix, iy, cw, opts) {
  * crisp (default true: composite at 1 model px per pixel, hard alpha, nearest blit —
  * the same pixel crispness as the original sprite), filter (e.g. hurt flash), alpha.
  */
-export function drawRig(ctx, rig, pose, opts = {}) {
+export const drawRig = timed('rig', drawRigImpl);
+function drawRigImpl(ctx, rig, pose, opts = {}) {
   const { meta } = rig;
   const s = opts.scale ?? 1;
   const crisp = opts.crisp !== false;
@@ -866,8 +878,11 @@ export function drawRig(ctx, rig, pose, opts = {}) {
     rx = Math.max(0, Math.floor(bb[0] + PAD) - 2); ry = Math.max(0, Math.floor(bb[1] + PAD) - 2);
     rw = Math.min(W, Math.ceil(bb[2] + PAD) + 2) - rx; rh = Math.min(H, Math.ceil(bb[3] + PAD) + 2) - ry;
   }
-  const id = g.getImageData(rx, ry, rw, rh);
-  const d = id.data;
+  psCount('rigMiss');
+  const skipRB = NO_READBACK && !opts.rim;
+  const id = skipRB ? null : g.getImageData(rx, ry, rw, rh);
+  if (!skipRB) psCount('readback');
+  const d = id ? id.data : [];
   for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
   if (opts.rim) {
     // 1px rim around chosen parts where they border empty space (e.g. Moroni's raised
@@ -893,7 +908,7 @@ export function drawRig(ctx, rig, pose, opts = {}) {
       }
     }
   }
-  g.putImageData(id, rx, ry);
+  if (id) g.putImageData(id, rx, ry);
   if (key && rw > 0 && rh > 0) {
     const c = bakeCanvas(rw, rh);
     c.getContext('2d').drawImage(sc, rx, ry, rw, rh, 0, 0, rw, rh);

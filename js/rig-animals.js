@@ -19,6 +19,7 @@ const angDown = (a, b) => Math.atan2(-(b[0] - a[0]), b[1] - a[1]);
 
 import { halfAtlas, bakeCanvas, bakeRecycle, filteredFrame } from './rig.js?v=76';
 import { fxLow } from './fx.js?v=76';
+import { timed, psCount, NO_READBACK } from './perfstat.js?v=76';
 
 let RIG = null;
 let loading = null;
@@ -287,7 +288,7 @@ function snakeCurve(pose) {
     const kx = (2 * Math.PI) / 34;
     const ph = kx * (s + (pose.dist || 0)) + (pose.t || 0) * 0.8 * (pose.idle ? 1 : 0);
     let a0 = Math.atan(2.2 * kx * Math.cos(ph)) * (pose.idle ? 0.55 : 1);
-    if (s < 12) a0 += -0.32 * (1 - s / 12) * (1 + 0.3 * Math.sin((pose.t || 0) * 1.3));
+    if (s < 12) a0 += -0.32 * (1 - s / 12) * (1 + 0.3 * Math.sin((pose.t || 0) * 1.2));
     // coiled: level head, raised S-neck, then flattened loops
     let a1;
     if (s < 4) a1 = 0.1;
@@ -463,7 +464,7 @@ function scratch(w, h) {
 const BOX = 260, OX = 130, OY = 170;
 // baked frames for in-game critters (their clocks are stepped, so poses repeat)
 const BAKE = new Map();
-const BAKE_MAX = 240;
+const BAKE_MAX = 400;
 export const animalBakeStats = { hit: 0, miss: 0, deferred: 0 };
 let missesThisFrame = 0;
 const missBudget = () => (fxLow() ? 1 : 3);
@@ -490,7 +491,7 @@ function darkAtlas(img, d) {
   if (c && c.src === img) return c;
   c = document.createElement('canvas');
   c.width = img.width; c.height = img.height; c.src = img;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
   g.fillStyle = `rgba(0,0,0,${1 - d})`;
@@ -559,7 +560,8 @@ function drawOps(g, ops, bb) {
  * Draw an animal pose. (x, y) = screen point of the model origin (ground point under
  * the body for ground animals, body centre for birds); scale = screen px per model px.
  */
-export function drawAnimal(ctx, sp, pose, x, y, scale, opts = {}) {
+export const drawAnimal = timed('animals', drawAnimalImpl);
+function drawAnimalImpl(ctx, sp, pose, x, y, scale, opts = {}) {
   if (!RIG) return false;
   const def = ANIMALS[sp];
   let ops;
@@ -598,10 +600,14 @@ export function drawAnimal(ctx, sp, pose, x, y, scale, opts = {}) {
       rw = Math.min(BOX, Math.ceil(bb[2]) + 2) - rx; rh = Math.min(BOX, Math.ceil(bb[3]) + 2) - ry;
     }
     if (!(rw > 0 && rh > 0)) return true;
-    const id = g.getImageData(rx, ry, rw, rh);
-    const d = id.data;
-    for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
-    g.putImageData(id, rx, ry);
+    psCount('animalMiss');
+    if (!NO_READBACK) {
+      psCount('readback');
+      const id = g.getImageData(rx, ry, rw, rh);
+      const d = id.data;
+      for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
+      g.putImageData(id, rx, ry);
+    }
     src = sc;
     if (key) {
       const c = bakeCanvas(rw, rh);
@@ -714,7 +720,10 @@ export function drawAnimalRig(ctx, e, dx, flash) {
   let phase = null;
   const k = Math.round(clamp(1 - (e.meleeT || 0) / r.len, 0, 1) * 24) / 24; // 0 → 1 through the current beat (stepped)
   // stepped clocks (20 Hz idle, 1 model px of travel) so poses repeat and frames bake
-  const tq = Math.floor(r.t * 20) / 20;
+  // clock wrapped to a 15.7 s loop (two slither periods) and stepped (12 Hz in lite, 20 Hz
+  // otherwise) so a critter's frames form a finite set the cache can hold
+  const HZ = fxLow() ? 12 : 20, LOOP = (4 * Math.PI) / 0.8;
+  const tq = Math.floor((r.t % LOOP) * HZ) / HZ;
   // travel wrapped to one gait cycle and stepped (32 steps a stride; snake: its 34px wave) so strides repeat
   const spK = Math.abs(mv) > 2.4 ? 1.6 : 1;
   let dq;

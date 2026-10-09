@@ -5,6 +5,7 @@
  * shafts, the rigged Joseph, painted grove trees framing the edges (parallax), drifting
  * motes, ambient leaves, vignette. A gentle camera drift plus pointer parallax gives depth.
  */
+import { timed } from './perfstat.js?v=76';
 import { W, H, STATES } from './constants.js?v=76';
 import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js?v=76';
 import { createPlayer, drawPlayer } from './player.js?v=76';
@@ -317,7 +318,8 @@ export function titleBackdropShown() {
   return shown;
 }
 
-export function drawTitleBackdrop(game) {
+export const drawTitleBackdrop = timed('title', drawTitleBackdropImpl);
+function drawTitleBackdropImpl(game) {
   if (!ensure() || !level) return;
   resize();
   const cw = cv.width;
