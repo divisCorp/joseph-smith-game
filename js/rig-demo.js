@@ -3,8 +3,8 @@
  * Units: model px (64×128 source cell). Game draws the cell at 56×112 (×0.875).
  */
 import {
-  poseIdle, poseWalk, poseJump, kneelFrom, drawRig, soleContacts,
-  WALK, JOG, JUMP_T, jumpHeight, JUMP_PHYS, RIG_GROUND,
+  poseIdle, poseWalk, poseJump, kneelFrom, drawRig, soleContacts, applyThrow,
+  WALK, RUN, JUMP_T, jumpHeight, JUMP_PHYS, RIG_GROUND,
 } from './rig.js?v=73';
 
 export const GAME_K = 56 / 64; // model px → in-game px
@@ -16,10 +16,12 @@ export const RUN_SPEED = (1.55 * 2 * 60) / GAME_K; // in-game run speed, model p
 export const ANIMS = {
   idle: { label: 'Idle', dur: 6.8, speed: 0 },
   walk: { label: 'Walk', dur: WALK_PERIOD * 2, speed: WALK_SPEED },
-  run: { label: 'Run (game speed)', dur: (JOG.cycle / RUN_SPEED) * 4, speed: RUN_SPEED },
+  run: { label: 'Run (game speed)', dur: (RUN.cycle / RUN_SPEED) * 4, speed: RUN_SPEED },
   jump: { label: 'Jump', dur: 1.6, speed: 0 },
   kneel: { label: 'Kneel & pray', dur: 4.0, speed: 0 },
+  throw: { label: 'Plate throw', dur: 1.2, speed: 0 },
 };
+export const THROW_AT = 0.3, THROW_LEN = 0.34; // s; the game shows the throw for 10 frames, the rig follows through
 
 /** Old sprite-sheet state at time t: { frame, sx, sy, rot, dy } (mirrors player.js/sprites.js). */
 export function oldState(anim, t) {
@@ -53,6 +55,9 @@ export function oldState(anim, t) {
   } else if (anim === 'kneel') {
     const k = kneelK(t);
     o.frame = k > 0.5 ? 11 : 0;
+  } else if (anim === 'throw') {
+    const f = (t - THROW_AT) * 60; // attackTimer runs 10 frames
+    if (f >= 0 && f < 10) o.frame = f < 5 ? 12 : 13;
   }
   return o;
 }
@@ -74,7 +79,12 @@ export function newState(anim, t) {
   }
   if (anim === 'run') {
     const dist = t * RUN_SPEED;
-    return { pose: poseWalk(dist / JOG.cycle, JOG), dist };
+    return { pose: poseWalk(dist / RUN.cycle, RUN), dist };
+  }
+  if (anim === 'throw') {
+    const u = (t - THROW_AT) / THROW_LEN;
+    const p = poseIdle(t);
+    return { pose: u > 0 && u < 1 ? applyThrow(p, u) : p, dist: 0 };
   }
   if (anim === 'jump') return { pose: poseJump(t), dist: 0 };
   if (anim === 'kneel') {

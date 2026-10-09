@@ -45,6 +45,7 @@ import {
 } from './save.js?v=73';
 import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=73';
 import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=73';
+import { drawMoroniRig } from './rig-cast.js?v=73';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -1074,7 +1075,8 @@ export function drawGame(ctx, game) {
     // Always face Joseph (sheet is painted facing right); raise a hand as he comes near
     const faceLeft = pcx < mo.x;
     const greet = Math.abs(pcx - mo.x) < 6 * TILE;
-    const L = drawMoroni(ctx, mo.x - game.camX, mo.footY, game.tick, faceLeft, greet);
+    const L = drawMoroni(ctx, mo.x - game.camX, mo.footY, game.tick, faceLeft, greet,
+      (L0, bob) => drawMoroniRig(ctx, L0, game.tick, faceLeft, greet, bob));
     if (L) {
       const m = ctx.getTransform();
       game.moroniView = { ...L, pcx, cx: mo.x, tm: [m.a, m.b, m.c, m.d, m.e, m.f] }; // read by QA

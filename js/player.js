@@ -5,7 +5,7 @@ import { isDown, justPressed } from './input.js?v=73';
 import { sfx } from './audio.js?v=73';
 import { isEasy, reduceFlash } from './save.js?v=73';
 import {
-  loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose,
+  loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose, applyThrow, applyThrust, handPoint,
   gaitParams, JUMP_T,
 } from './rig.js?v=73';
 import {
@@ -26,6 +26,7 @@ const RIG_K = 56 / 64; // model px → game px
 const RUN_SPEED = 1.55 * SCALE;
 const JUMP_V0 = -6.2 * SCALE;
 const RIG_FADE = 0.16; // s to blend between modes
+const RIG_THROW_LEN = 0.34; // s
 
 /** Pick the rig pose from the player's physics state (feet locked to distance travelled). */
 function rigPose(p) {
@@ -64,7 +65,17 @@ function rigPose(p) {
   }
   if (p.attackTimer > 0 && !p.canThrow) {
     // pitchfork thrust: far arm drives the fork forward, body leans in
-    pose = { ...pose, fArm: -80, fFore: -6, nArm: 16, nFore: -10, torsoRot: pose.torsoRot + 5, fHand: undefined, nHand: undefined };
+    pose = applyThrust(pose);
+  }
+  // plate throw: the near arm whips forward and follows through (the rig keeps
+  // the follow-through a little past the game's 10-frame attack window)
+  const atk = p.attackTimer || 0;
+  if (p.canThrow && atk > (r.atk || 0)) r.throwT = 0; // a new throw started
+  r.atk = atk;
+  if (r.throwT !== undefined) {
+    pose = applyThrow(pose, Math.min(1, r.throwT / RIG_THROW_LEN));
+    r.throwT += dt;
+    if (r.throwT >= RIG_THROW_LEN) r.throwT = undefined;
   }
   if (mode !== r.mode) {
     if (r.last && r.mode) { r.from = r.last; r.fade = 1; }
@@ -493,7 +504,7 @@ function drawPlayerBody(ctx, p, camX) {
   const drawY = p.crouching ? p.y - (standH - crouchH) : p.y;
   const moving = (Math.abs(p.vx) > 0.12 * SCALE || !!p.walking) && p.onGround;
   const walkFrame = Math.floor(Math.abs(p.x) / (3 * SCALE)) % 8;
-  if (RIG && !(p.attackTimer > 0 && p.canThrow)) {
+  if (RIG) {
     drawPlayerRig(ctx, p, camX, drawY, standH);
     return;
   }
@@ -563,8 +574,7 @@ function drawPlayerRig(ctx, p, camX, drawY, standH) {
   if (!p.canThrow && !p.forkAway && RIG) {
     // the fork rides in the far hand
     const { B } = solveRig(RIG.meta, pose);
-    const f = B.fFore;
-    const hx = f.pos[0] - Math.sin(f.rot) * 16, hy = f.pos[1] + Math.cos(f.rot) * 16;
+    const [hx, hy] = handPoint(RIG.meta, B, 'f');
     const sx = flip ? bx + (64 - hx) * RIG_K : bx + hx * RIG_K;
     drawPitchfork(ctx, 0, 0, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching, { x: sx, y: y0 + hy * RIG_K });
   }

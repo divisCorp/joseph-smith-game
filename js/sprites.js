@@ -1235,7 +1235,7 @@ export function moroniLayout(cx, footY, t = 0, faceLeft = false, greet = false) 
  * Moroni, feet on `footY` (Joseph's baseline) and centred on `cx`.
  * `faceLeft` flips the sheet (it is painted facing right) so he always faces Joseph.
  */
-export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = false) {
+export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = false, drawBody = null) {
   const img = SHEETS.moroni;
   const pulse = 0.5 + Math.sin(t * 0.06) * 0.15;
   ctx.save();
@@ -1274,7 +1274,10 @@ export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = fals
       ctx.restore();
     }
     ctx.restore();
-    blitSimple(ctx, img, L.frame * MORONI_FW, 0, MORONI_FW, MORONI_FH, L.dx, L.dy, L.dw, L.dh, faceLeft, false);
+    // ?rig=1: the painted cut-out rig stands in for the sprite (same frame-0 placement)
+    if (!(drawBody && drawBody(moroniLayout(cx, footY, 0, faceLeft, false), L.bob))) {
+      blitSimple(ctx, img, L.frame * MORONI_FW, 0, MORONI_FW, MORONI_FH, L.dx, L.dy, L.dw, L.dh, faceLeft, false);
+    }
     return L;
   }
   const ox = Math.floor(cx - 20);

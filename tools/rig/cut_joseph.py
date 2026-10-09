@@ -16,25 +16,32 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'assets', 'joseph.png')
-OUT_PNG = os.path.join(ROOT, 'assets', 'rig', 'joseph-rig.png')
-OUT_JSON = os.path.join(ROOT, 'assets', 'rig', 'joseph-rig.json')
+def _arg(flag, default):
+    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
+# --skin: a recolour of the same painting (e.g. the Presbyterian preacher, built by the
+# live game from joseph.png). Ownership/colour tests run on Joseph's pixels; every
+# copied pixel comes from the skin, so the cut is identical and the colours are its own.
+SKIN = _arg('--skin', None)
+NAME = _arg('--name', 'joseph')
+OUT_PNG = os.path.join(ROOT, 'assets', 'rig', NAME + '-rig.png')
+OUT_JSON = os.path.join(ROOT, 'assets', 'rig', NAME + '-rig.json')
 UP = 4           # atlas upscale (nearest) so rotated parts stay crisp at 3x zoom
 FW, FH = 64, 128
 
 sheet = np.array(Image.open(SRC).convert('RGBA')).astype(np.int32)
-F = sheet[:, 0:FW].copy()          # idle frame 0
+JF = sheet[:, 0:FW].copy()         # Joseph idle frame 0 (ownership tests)
+F = JF if SKIN is None else np.array(Image.open(SKIN).convert('RGBA')).astype(np.int32)[:, 0:FW].copy()
 H_, W_ = F.shape[:2]
 
 def opaque(x, y):
-    return 0 <= x < W_ and 0 <= y < H_ and F[y, x, 3] > 24
+    return 0 <= x < W_ and 0 <= y < H_ and JF[y, x, 3] > 24
 
 def blue(x, y):
-    r, g, b, a = F[y, x]
+    r, g, b, a = JF[y, x]
     return a > 24 and b > r + 6 and b >= g - 6
 
-def dark(x, y):
-    r, g, b, a = F[y, x]
-    return a > 24 and r + g + b < 120
+def lum(px):
+    return 0.3 * px[0] + 0.59 * px[1] + 0.11 * px[2]
 
 # ---------------------------------------------------------------- joints (model px)
 J = {
@@ -56,7 +63,7 @@ def far_arm_left(y):
 # ---------------------------------------------------------------- ownership
 def trim(x, y):
     """Tan/gold piping on the coat's front edge and hem."""
-    r, g, b, a = F[y, x]
+    r, g, b, a = JF[y, x]
     return a > 24 and r > 110 and g > 85 and r - b > 28 and g < r
 
 # x of the coat's front-edge piping per row: everything left of it is coat skirt,
@@ -147,32 +154,94 @@ parts = {}
 head = layer_from({'head'})
 parts['head'] = head
 
-# TORSO (vest, shirt, cravat, coat chest). Under the near arm we repaint coat cloth
-# by cloning the coat panel 8px to the right, with a dark back outline.
+# TORSO / SKIRT / TAIL behind the near arm.
+# The arm hides a strip of coat. It is repainted as cloth: the fold texture comes
+# from the SAME columns of real coat painted below the hand (rows 86-99), its
+# brightness is matched row-by-row to the coat visible just past the sleeve, and it
+# darkens toward one smooth back silhouette (spline through the visible shoulder and
+# hem outline) so the back reads as a continuous edge with no notches.
 torso = layer_from({'torso'})
 dup(torso, 27, 37, 36, 42, lambda x, y: owner[y, x] == 'head')    # neck under chin
-COAT_EDGE = np.array([18, 26, 44, 255])
-for y in range(44, 80):
-    # smooth back silhouette behind the near arm: x 19.6 at the shoulder → 16.8 at the hip
-    xbf = 19.6 - (y - 44) * (2.8 / 35)
-    xb = int(round(xbf))
-    for x in range(xb, 26):
-        if torso[y, x, 3]:
+skirt = layer_from({'skirt'})
+tail = layer_from({'tail'})
+
+BACK = [(43, 20.6), (47, 19.5), (56, 18.4), (66, 17.6), (76, 16.9), (86, 16.2), (92, 15.8)]
+def back_x(y):
+    for (y0, x0), (y1, x1) in zip(BACK, BACK[1:]):
+        if y0 <= y <= y1:
+            t = (y - y0) / (y1 - y0)
+            t = t * t * (3 - 2 * t) * 0.35 + t * 0.65      # gentle ease between keys
+            return x0 + (x1 - x0) * t
+    return BACK[-1][1]
+
+ARM = ('nUpper', 'nFore')
+def is_cloth(x, y):
+    return opaque(x, y) and blue(x, y) and not trim(x, y) and owner[y, x] in ('torso', 'skirt', 'tail')
+BAND = (86, 99)
+band_cols = {}
+for x in range(10, 34):
+    col = [y for y in range(BAND[0], BAND[1] + 1) if is_cloth(x, y)]
+    if col:
+        band_cols[x] = col
+band_lum = np.mean([lum(F[y, x]) for x, ys in band_cols.items() for y in ys])
+def texture(x, y):
+    """Real coat-cloth pixel for column x (nearest painted column), cycling its rows."""
+    for dx in (0, 1, -1, 2, -2, 3, -3, 4, 5, 6):
+        ys = band_cols.get(x + dx)
+        if ys:
+            return F[ys[(y * 7 + x) % len(ys)] if False else ys[(y - BAND[0]) % len(ys)], x + dx].copy()
+    return F[BAND[0] + 4, 22].copy()
+# brightness of the coat visible right of the sleeve, per row (smoothed)
+row_lum = {}
+for y in range(40, 100):
+    xs = [x for x in range(12, 34) if owner[y, x] in ARM]
+    x0 = (max(xs) + 1) if xs else int(back_x(y)) + 1
+    vals = [lum(F[y, x]) for x in range(x0, x0 + 6) if is_cloth(x, y)]
+    row_lum[y] = np.mean(vals) if vals else None
+for y in range(40, 100):
+    if row_lum[y] is None:
+        near = [(abs(k - y), row_lum[k]) for k in row_lum if row_lum[k] is not None]
+        row_lum[y] = min(near)[1] if near else band_lum
+sm = {y: np.mean([row_lum[k] for k in range(y - 3, y + 4) if k in row_lum]) for y in row_lum}
+edge_px = [F[y, x] for y in range(86, 100) for x in range(10, 22) if opaque(x, y) and (not opaque(x - 1, y))]
+COAT_EDGE = min(edge_px, key=lum).copy() if edge_px else np.array([18, 26, 44, 255])
+COAT_EDGE[3] = 255
+
+def target(y, x):
+    if y < 72: return torso
+    if x <= 20 and y >= 80: return tail
+    return skirt
+for y in range(43, 93):
+    xb = back_x(y)
+    xbi = int(math.floor(xb + 0.5))
+    for x in range(xbi, 27):
+        hidden = owner[y, x] in ARM or (not opaque(x, y) and y >= 47)
+        if not hidden:
             continue
-        sx = x + 8
-        while sx < 34 and not blue(sx, y):
-            sx += 1
-        src = F[y, sx] if sx < 34 else F[y, 27]
-        px = src.copy()
-        if x <= xb + 1:   # soft shading toward the back edge
-            px[:3] = (px[:3] * 0.82).astype(np.int32)
-        torso[y, x] = px
-    torso[y, xb] = COAT_EDGE
-# keep the shoulder cap rounded: trim inpaint above the original shoulder line
-for y in range(44, 47):
-    for x in range(17, 22):
-        if not opaque(x, y) and owner[y, x] == '':
+        L = target(y, x)
+        if L[y, x, 3]:
+            continue
+        px = texture(x, y)
+        k = (sm[y] / max(1, band_lum))
+        d = x - xb
+        k *= 0.74 if d < 1.5 else 0.86 if d < 2.5 else 0.94 if d < 3.5 else 1.0
+        px[:3] = np.clip(px[:3] * k, 0, 255)
+        px[3] = 255
+        L[y, x] = px
+    # one dark outline pixel on the smooth back edge (only where the edge was hidden)
+    if owner[y, xbi] in ARM or not opaque(xbi, y):
+        target(y, xbi)[y, xbi] = COAT_EDGE
+    # nothing may stick out past the smooth edge on the hidden rows
+    if y < 86:
+        for L in (torso, skirt, tail):
+            for x in range(8, xbi):
+                L[y, x] = 0
+# rounded shoulder: no fill above the painted shoulder line
+for y in range(43, 47):
+    for x in range(16, 22):
+        if not opaque(x, y):
             torso[y, x] = 0
+dup(skirt, 15, 21, 80, 100, lambda x, y: owner[y, x] == 'tail')   # under the tail
 parts['torso'] = torso
 
 # PELVIS (trouser seat) — sits over both thigh tops so legs swing from inside it
@@ -180,40 +249,7 @@ pelvis = layer_from({'pelvis'})
 # rounded bottom (crotch) so leg seams hide in the folds
 clip_circle_outside(pelvis, 36.0, 76.0, 8.6, lambda x, y: y >= 80)
 parts['pelvis'] = pelvis
-
-# COAT SKIRT (front/near panel). Behind the forearm & hand we clone the cloth from
-# 15 rows below (the same column of the skirt).
-skirt = layer_from({'skirt'})
-def coat_cloth(x, y):
-    """A plain coat-cloth pixel for (x, y): same column further down the skirt, else row."""
-    for sy in list(range(y + 15, 97)) + list(range(y + 14, y + 4, -1)):
-        if 0 <= sy < H_ and blue(x, sy) and owner[sy, x] in ('skirt', 'tail') and not trim(x, sy):
-            return F[sy, x]
-    for dx in range(1, 10):
-        for sx in (x + dx, x - dx):
-            if 0 <= sx < W_ and blue(sx, y) and owner[y, sx] in ('skirt', 'torso'):
-                return F[y, sx]
-    return np.array([41, 60, 92, 255])
-for y in range(66, 86):
-    for x in range(15, 27):
-        if skirt[y, x, 3]:
-            continue
-        if owner[y, x] in ('nFore', 'nUpper') and y >= 68:
-            skirt[y, x] = coat_cloth(x, y)
-# back outline of the cloth hidden behind the hand
-for y in range(68, 86):
-    xs = [x for x in range(13, 27) if skirt[y, x, 3]]
-    if xs and owner[y, xs[0]] in ('nFore', 'nUpper'):
-        skirt[y, xs[0]] = np.array([18, 26, 44, 255])
-dup(skirt, 15, 21, 80, 100, lambda x, y: owner[y, x] == 'tail')   # under the tail
 parts['skirt'] = skirt
-
-# COAT TAIL (back flap, separate for secondary motion)
-tail = layer_from({'tail'})
-for y in range(78, 86):
-    for x in range(14, 21):
-        if tail[y, x, 3] == 0 and owner[y, x] in ('nFore',):
-            tail[y, x] = coat_cloth(x, y)
 parts['tail'] = tail
 
 # FAR COAT PANEL (far front edge of the coat). Extended up behind the far forearm.
@@ -245,6 +281,41 @@ parts['nUpper'], parts['nFore'] = arm('nUpper', 'nFore', J['nShoulder'], J['nElb
 # shoulder, so at rest only its front edge, cuff and hand show — as in the original.
 parts['fUpper'], parts['fFore'] = shade(parts['nUpper'], 0.74, (0, 2, 8)), shade(parts['nFore'], 0.74, (0, 2, 8))
 parts['fUpper'][:47] = 0   # its shoulder cap always sits behind the chest
+
+# OPEN HANDS FOR PRAYER. The painting only has fists. For kneel-pray the forearms
+# end at the cuff (fist removed) and one small painted part — two flat palms pressed
+# together, fingers up — is drawn between the wrists. Its colours are sampled from
+# the fist's own skin ramp and outline, so it matches the original painting.
+WRIST_Y = 77
+parts['nForeOpen'] = parts['nFore'].copy(); parts['nForeOpen'][WRIST_Y:] = 0
+parts['fForeOpen'] = parts['fFore'].copy(); parts['fForeOpen'][WRIST_Y:] = 0
+skin = [F[y, x] for y in range(77, 87) for x in range(14, 28)
+        if opaque(x, y) and JF[y, x, 0] > JF[y, x, 2] + 30 and JF[y, x, 0] > 120]
+skin.sort(key=lum)
+ramp = {k: skin[int(q * (len(skin) - 1))].copy() for k, q in (('S', 0.12), ('M', 0.45), ('L', 0.75), ('H', 0.97))}
+outl = [F[y, x] for y in range(77, 88) for x in range(13, 28) if opaque(x, y) and lum(JF[y, x]) < 70]
+ramp['O'] = min(outl, key=lum).copy() if outl else np.array([40, 22, 16, 255])
+HANDS = [
+    "...OO..",
+    "..OHMO.",
+    "..OLMSO",
+    ".OHLMSO",
+    ".OLLMSO",
+    "OOLLMSO",
+    "OSLLMSO",
+    "OLLMMSO",
+    ".OLMSSO",
+    ".OMMSO.",
+    "..OOO..",
+]
+ph = np.zeros_like(F)
+HX, HY = 40, 20            # paint location (any free area of the 64x128 canvas)
+for j, row in enumerate(HANDS):
+    for i, c in enumerate(row):
+        if c != '.':
+            ph[HY + j, HX + i] = ramp[c]; ph[HY + j, HX + i, 3] = 255
+parts['prayHands'] = ph
+PRAY_PIVOT = (HX + 3.5, HY + len(HANDS) - 0.5)
 
 # LEGS — real painted trouser + boot pixels from the visible leg, with thickness.
 hx, hy = J['hipArt']; kx, ky = J['kneeArt']; ax, ay = J['ankleArt']
@@ -308,12 +379,27 @@ for name, (targets, r) in DIL.items():
         if owner[y, x] in targets:
             L[y, x] = F[y, x] if name not in ('coatFar', 'fUpper') else L[y, x] * 0 + shade(F[y:y+1, x:x+1], 0.92 if name == 'coatFar' else 0.86)[0, 0]
 
+# Back of the waist: when the run leans the torso forward its back-bottom corner lifts
+# ~3px off the coat skirt. Let the torso carry 5 more rows of the (repainted) skirt cloth
+# there, tucked under the skirt at rest, so the lean never opens a gap.
+T_, S_, TL_ = parts['torso'], parts['skirt'], parts['tail']
+for x in range(8, 27):
+    ys_ = np.nonzero(T_[:, x, 3])[0]
+    if not len(ys_):
+        continue
+    yb = ys_.max()
+    for y in range(yb + 1, min(yb + 6, T_.shape[0])):
+        src = S_ if S_[y, x, 3] else TL_ if TL_[y, x, 3] else None
+        if src is not None:
+            T_[y, x] = src[y, x]
+
 # ---------------------------------------------------------------- atlas
 pivots = {
     'head': J['neck'], 'torso': J['pelvis'], 'pelvis': J['pelvis'],
     'skirt': J['skirt'], 'tail': J['tail'], 'coatFar': J['coatFar'],
     'nUpper': J['nShoulder'], 'nFore': J['nElbow'],
     'fUpper': J['nShoulder'], 'fFore': J['nElbow'],
+    'nForeOpen': J['nElbow'], 'fForeOpen': J['nElbow'], 'prayHands': PRAY_PIVOT,
     'nThigh': J['hipArt'], 'nShin': J['kneeArt'], 'nFoot': J['ankleArt'],
     'fThigh': J['hipArt'], 'fShin': J['kneeArt'], 'fFoot': J['ankleArt'],
 }
@@ -339,14 +425,23 @@ for n in order:
     rowh = max(rowh, h)
 AH = cy + rowh
 atlas = Image.new('RGBA', (AW, AH), (0, 0, 0, 0))
-meta = {'scale': UP, 'cell': [FW, FH], 'ground': 126, 'joints': J, 'parts': {}}
+meta = {'scale': UP, 'cell': [FW, FH], 'ground': 126, 'joints': J, 'parts': {},
+        'skel': {'ground': 126, 'thigh': 24, 'shin': 20, 'hipN': [30.5, 76], 'hipF': [38, 76],
+                 'restN': [26.5, 119.5], 'restF': [38, 119.5],
+                 'ankleArt': list(J['ankleArt']), 'heelArt': [34.5, 126], 'toeArt': [48.5, 126],
+                 'hipArt': list(J['hipArt']), 'kneeArt': list(J['kneeArt']),
+                 'upperArm': 13, 'forearm': 17, 'nShoulder': list(J['nShoulder']), 'fShoulder': list(J['fShoulder']),
+                 'farArmRest': -11, 'phi': {}}}
+EXTRA = {'skirt': {'flex': 6}, 'tail': {'flex': 6},
+         'nFore': {'wrist': [21.5, 76.5], 'hand': [22.0, 81.0]}, 'fFore': {'wrist': [21.5, 76.5], 'hand': [22.0, 81.0]},
+         'nForeOpen': {'wrist': [21.5, 76.5], 'hand': [22.0, 81.0]}, 'fForeOpen': {'wrist': [21.5, 76.5], 'hand': [22.0, 81.0]}}
 for n in parts:
     x0, y0, x1, y1 = crops[n]
     im = Image.fromarray(parts[n][y0:y1 + 1, x0:x1 + 1].astype(np.uint8), 'RGBA')
     im = im.resize((im.width * UP, im.height * UP), Image.NEAREST)
     ax_, ay_, w, h = place[n]
     atlas.paste(im, (ax_, ay_))
-    meta['parts'][n] = {'x': int(ax_), 'y': int(ay_), 'w': int(w), 'h': int(h), 'ox': int(x0), 'oy': int(y0), 'pivot': list(pivots[n])}
+    meta['parts'][n] = {'x': int(ax_), 'y': int(ay_), 'w': int(w), 'h': int(h), 'ox': int(x0), 'oy': int(y0), 'pivot': list(pivots[n]), **EXTRA.get(n, {})}
 os.makedirs(os.path.dirname(OUT_PNG), exist_ok=True)
 atlas.save(OUT_PNG, optimize=True)
 with open(OUT_JSON, 'w') as f:

@@ -21,6 +21,7 @@ import {
   drawClubProp,
   drawMusketProp,
 } from './critters.js?v=73';
+import { drawEnemyRig } from './rig-cast.js?v=73';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
@@ -865,11 +866,14 @@ function drawEnemyBody(ctx, e, camX) {
     ctx.restore();
     if (!e.critter) dx -= e.facing * 3 * SCALE * k;
   }
-  if (e.critter) drawCritter(ctx, e, dx, flash, k);
+  // ?rig=1: painted cut-out rigs replace the sprite sheets (props ride in the hands)
+  const rigged = e.type !== 'boss' && drawEnemyRig(ctx, e, dx, flash);
+  if (rigged) { /* drawn */ }
+  else if (e.critter) drawCritter(ctx, e, dx, flash, k);
   else if (e.type === 'brigand') drawBrigand(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'scout') drawScout(ctx, dx, e.y, e.facing, e.anim, flash);
   else if (e.type === 'thug') drawThug(ctx, dx, e.y, e.facing, e.anim, flash);
-  if (e.variant && !e.critter) drawVariantProp(ctx, e, dx);
+  if (e.variant && !e.critter && !rigged) drawVariantProp(ctx, e, dx);
   if (e.type === 'wisp') drawWisp(ctx, dx, e.y, e.anim, flash);
   else if (e.type === 'boss') {
     drawBossAura(ctx, e, dx, tickNow(e));
@@ -878,7 +882,7 @@ function drawEnemyBody(ctx, e, camX) {
     const late = e.telling && e.bs?.mode === 'tell' && e.bs.t > e.bs.tellT - 12;
     // Reduce flashing: the last beat of the tell is a steady highlight instead of a strobe
     const strobe = reduceFlash() ? late : late && Math.floor(e.bs.t / 3) % 2 === 0;
-    drawBoss(ctx, dx, e.y, e.facing, e.telling ? 0 : e.anim, flash || strobe, e.bossKind);
+    if (!drawEnemyRig(ctx, e, dx, flash || strobe)) drawBoss(ctx, dx, e.y, e.facing, e.telling ? 0 : e.anim, flash || strobe, e.bossKind);
     ctx.restore();
     if (e.telling && e.bs?.mode === 'tell') drawAlert(ctx, dx + e.w / 2, e.y, e.bs.t);
   }

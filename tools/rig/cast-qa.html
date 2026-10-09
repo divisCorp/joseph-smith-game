@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Cast rig QA renderer</title></head>
+<body style="margin:0;background:#222">
+<canvas id="c"></canvas>
+<script type="module">
+import { soleContacts, skelOf } from '../../js/rig.js?v=73';
+import { CAST, castPose as castPose0, drawCast, loadCastRigs, rigFor, castOldFrame as castOldFrame0 } from '../../js/rig-cast.js?v=73';
+import { newState, oldState } from '../../js/rig-demo.js?v=73';
+// Joseph's anims (run/jump/kneel/throw) come from the same state machine as rig-preview
+const castPose = (key, rig, anim, t) => key === 'joseph' ? newState(anim, t) : castPose0(key, rig, anim, t);
+const castOldFrame = (key, anim, t, dist) => key === 'joseph' ? oldState(anim, t).frame : castOldFrame0(key, anim, t, dist);
+await loadCastRigs('../../assets/rig/', String(Date.now()));
+const sheets = {};
+const loadImg = (src) => sheets[src] || (sheets[src] = new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = '../../' + src; }));
+for (const k in CAST) await loadImg(CAST[k].old.src);
+window.CAST = CAST;
+/** rows: 'old', 'new', 'bones'. Cells are the character's own source cell size. */
+window.renderCast = async (key, anim, times, { scale = 3, rows = ['old', 'new', 'bones'], labels = true, pad = 16 } = {}) => {
+  const def = CAST[key];
+  const rig = rigFor(key);
+  if (!rig) return null;
+  const sheet = await loadImg(def.old.src);
+  const [cw, chh] = rig.meta.cell;
+  const W = (cw + pad * 2) * scale, H = (chh + 8) * scale;
+  const c = document.getElementById('c');
+  c.width = W * times.length; c.height = H * rows.length;
+  const g = c.getContext('2d');
+  rows.forEach((row, ri) => times.forEach((t, i) => {
+    const x = i * W, y = ri * H;
+    g.fillStyle = (i + ri) % 2 ? '#d9e6d2' : '#cfdec7';
+    g.fillRect(x, y, W, H);
+    g.fillStyle = '#6b5a3a';
+    g.fillRect(x, y + (rig.meta.ground + 0.5 + 4) * scale, W, scale);
+    const ox = x + pad * scale, oy = y + 4 * scale;
+    const { pose, dist } = castPose(key, rig, anim, t);
+    if (row === 'old') {
+      if (sheet) {
+        g.imageSmoothingEnabled = false;
+        const o = def.old, f = castOldFrame(key, anim, t, dist);
+        const air = key === 'joseph' ? (oldState(anim, t).air || 0) + (oldState(anim, t).dy || 0) : 0;
+        g.drawImage(sheet, f * o.fw, o.row * o.fh, o.fw, o.fh, ox, oy + air * scale, o.fw * scale, o.fh * scale);
+      }
+    } else {
+      drawCast(g, key, pose, ox, oy - (def.yOff || 0) * scale, scale, { bones: row === 'bones', t, crisp: true });
+    }
+    if (labels) {
+      g.fillStyle = 'rgba(0,0,0,.65)'; g.font = `${4 * scale}px sans-serif`;
+      g.fillText(`${row} ${anim} ${t.toFixed(2)}s`, x + 2 * scale, y + 6 * scale);
+    }
+  }));
+  return c.toDataURL('image/png');
+};
+/** Foot slide for a cast member's walk (world-space drift of grounded heel/toe). */
+window.castSlide = (key, anim = 'walk', dur = 2, step = 1 / 480) => {
+  const rig = rigFor(key);
+  const sk = skelOf(rig.meta);
+  const drift = [];
+  let prev = null;
+  for (let t = 0; t <= dur + 1e-9; t += step) {
+    const { pose, dist } = castPose(key, rig, anim, t);
+    const sc = soleContacts(rig.meta, pose);
+    if (prev) for (const s of ['n', 'f']) for (const k of ['heel', 'toe']) {
+      if (sc[s][k][1] >= sk.ground - 0.4 && prev.sc[s][k][1] >= sk.ground - 0.4) drift.push(Math.abs(sc[s][k][0] + dist - (prev.sc[s][k][0] + prev.dist)));
+    }
+    prev = { sc, dist };
+  }
+  return { samples: drift.length, maxStepPx: +Math.max(0, ...drift).toFixed(4), meanStepPx: +(drift.reduce((a, b) => a + b, 0) / Math.max(1, drift.length)).toFixed(4) };
+};
+window.ready = true;
+</script>
+</body></html>

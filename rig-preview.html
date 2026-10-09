@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#1a1208" />
 <meta name="robots" content="noindex" />
-<title>Joseph rig preview — Palmyra Quest</title>
+<title>Cast rig preview — Palmyra Quest</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,6 +35,8 @@
   .btn { border: 1px solid #6d5626; border-radius: 9px; background: #17130c; }
   .btn[aria-pressed="true"] { background: linear-gradient(#c9a24c, #9c7a2c); color: #1b1408; }
   .spacer { flex: 1; }
+  .pick { display: inline-flex; align-items: center; gap: 6px; font: 600 13px "Source Sans 3", sans-serif; color: #cbbf9f; }
+  .pick select { font: 600 14px "Source Sans 3", system-ui, sans-serif; color: #e8e0c8; background: #17130c; border: 1px solid #6d5626; border-radius: 9px; padding: 6px 8px; min-height: 34px; max-width: 46vw; }
   main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
   .panel {
     position: relative; border: 2px solid #c4a050; border-radius: 10px; overflow: hidden; min-height: 220px;
@@ -54,6 +56,8 @@
     header .sub { display: none; }
     h1 { font-size: 16px; }
     .seg button, .btn { padding: 4px 9px; min-height: 30px; font-size: 13px; }
+    .pick select { min-height: 30px; padding: 3px 6px; font-size: 13px; }
+    .pick span { display: none; }
     footer { display: none; }
     main { gap: 8px; }
     .panel { min-height: 0; }
@@ -65,54 +69,94 @@
 </head>
 <body>
 <header>
-  <h1>Joseph · painted cut-out rig</h1>
-  <span class="sub">Proof of concept · same painting, now on a skeleton · <a href="index.html?rig=1">Play chapter 1 with the rig →</a></span>
+  <h1>The cast · painted cut-out rigs</h1>
+  <span class="sub">Preview only · the same paintings, now on skeletons · <a href="index.html?rig=1">Play with the rigs (?rig=1) →</a></span>
 </header>
 <div class="bar">
+  <label class="pick"><span>Character</span> <select id="who" aria-label="Character"></select></label>
   <div class="seg" id="anims" role="group" aria-label="Animation"></div>
   <span class="spacer"></span>
   <button class="btn" id="play" aria-pressed="true">❚❚ Pause</button>
   <div class="seg" role="group" aria-label="Speed"><button data-speed="1" aria-pressed="true">1×</button><button data-speed="0.25">0.25×</button></div>
   <div class="seg" role="group" aria-label="Zoom"><button data-zoom="1">Zoom 1×</button><button data-zoom="3" aria-pressed="true">3×</button></div>
   <button class="btn" id="bones" aria-pressed="false">Bones</button>
+  <button class="btn" id="smooth" aria-pressed="false" title="Crisp = composited at 1 art pixel per pixel like the sprite">Smooth</button>
 </div>
 <main>
   <div class="panel"><span class="tag">Before <small>· sprite sheet (live game)</small></span><canvas id="old"></canvas></div>
   <div class="panel"><span class="tag">After <small>· skeletal rig</small></span><canvas id="new"></canvas></div>
 </main>
-<footer>
-  <b>What's new:</b> the original idle painting is cut into 16 parts (head, torso, coat skirt, coat tail, far coat panel, upper arms, forearms, thighs, shins, boots) and animated on bones.
-  Proportions and face never change; legs are real painted trouser and boot pieces; 2-bone IK keeps planted feet locked to the ground (watch the tick marks).
-  The far arm and far leg are painted darker. Space = play/pause, ←/→ = step a frame while paused.
+<footer id="foot">
+  <b>How it works:</b> each character's original painting is cut into parts (head, torso, coat skirt, arms, forearms, thighs, shins, boots) and animated on one shared skeleton.
+  Proportions and faces never change; hidden cloth under the arms is repainted from the same painting; 2-bone IK keeps planted feet locked to the ground (watch the tick marks).
+  Space = play/pause, ←/→ = step a frame while paused.
 </footer>
 <script type="module">
 import { loadRig } from './js/rig.js?v=73';
 import { ANIMS, oldState, newState, drawOld, drawNew, GAME_K } from './js/rig-demo.js?v=73';
+import { CAST, ANIM_LABEL, ANIM_DUR, castPose, castOldFrame, drawCast, loadCastRigs, rigFor } from './js/rig-cast.js?v=73';
 
 const qs = new URLSearchParams(location.search);
 const state = {
-  anim: ANIMS[qs.get('anim')] ? qs.get('anim') : 'walk',
+  who: CAST[qs.get('who')] ? qs.get('who') : 'joseph',
+  anim: qs.get('anim') || 'walk',
   playing: qs.get('paused') == null, speed: +(qs.get('speed') || 1), zoom: +(qs.get('zoom') || 3),
-  bones: qs.has('bones'), t: +(qs.get('t') || 0),
+  bones: qs.has('bones'), t: +(qs.get('t') || 0), smooth: qs.has('smooth'),
 };
-const sheet = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = 'assets/joseph.png?v=73'; });
-const rig = await loadRig('assets/rig/', '73');
+const imgs = {};
+const loadImg = (src) => imgs[src] || (imgs[src] = new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src + '?v=73'; }));
+const [rig] = await Promise.all([loadRig('assets/rig/', '73'), loadCastRigs('assets/rig/', '73')]);
+const sheets = {};
+for (const k in CAST) sheets[CAST[k].old.src] = await loadImg(CAST[k].old.src);
+
+/** Per-character animation table: Joseph keeps his game-timed set, the cast uses rig-cast. */
+function animsFor(who) {
+  if (who === 'joseph') return ANIMS;
+  const o = {};
+  for (const a of CAST[who].anims) {
+    const sp = a === 'walk' ? 1 : 0;
+    o[a] = { label: ANIM_LABEL[a], dur: ANIM_DUR[a], speed: sp };
+  }
+  return o;
+}
+function ensureAnim() {
+  const A = animsFor(state.who);
+  if (!A[state.anim]) state.anim = A.walk ? 'walk' : Object.keys(A)[0];
+}
+ensureAnim();
 
 // ---- UI
-const animsEl = document.getElementById('anims');
-for (const [k, a] of Object.entries(ANIMS)) {
-  const b = document.createElement('button');
-  b.textContent = a.label; b.dataset.anim = k;
-  b.onclick = () => { state.anim = k; state.t = 0; sync(); };
-  animsEl.appendChild(b);
+const whoEl = document.getElementById('who');
+for (const [k, d] of Object.entries(CAST)) {
+  if (!rigFor(k) && k !== 'joseph') continue;
+  const o = document.createElement('option');
+  o.value = k; o.textContent = d.label;
+  whoEl.appendChild(o);
 }
+whoEl.value = state.who;
+whoEl.onchange = () => { state.who = whoEl.value; state.t = 0; buildAnims(); sync(); };
+const animsEl = document.getElementById('anims');
+function buildAnims() {
+  ensureAnim();
+  animsEl.innerHTML = '';
+  for (const [k, a] of Object.entries(animsFor(state.who))) {
+    const b = document.createElement('button');
+    b.textContent = a.label; b.dataset.anim = k;
+    b.onclick = () => { state.anim = k; state.t = 0; sync(); };
+    animsEl.appendChild(b);
+  }
+}
+buildAnims();
 document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { state.speed = +b.dataset.speed; sync(); }));
 document.querySelectorAll('[data-zoom]').forEach((b) => (b.onclick = () => { state.zoom = +b.dataset.zoom; sync(); }));
 const playBtn = document.getElementById('play');
 playBtn.onclick = () => { state.playing = !state.playing; sync(); };
 const bonesBtn = document.getElementById('bones');
 bonesBtn.onclick = () => { state.bones = !state.bones; sync(); };
+const smoothBtn = document.getElementById('smooth');
+smoothBtn.onclick = () => { state.smooth = !state.smooth; sync(); };
 addEventListener('keydown', (e) => {
+  if (e.target === whoEl) return;
   if (e.code === 'Space') { state.playing = !state.playing; sync(); e.preventDefault(); }
   if (!state.playing && (e.code === 'ArrowRight' || e.code === 'ArrowLeft')) { state.t = Math.max(0, state.t + (e.code === 'ArrowRight' ? 1 : -1) / 60); }
 });
@@ -123,6 +167,9 @@ function sync() {
   playBtn.setAttribute('aria-pressed', String(state.playing));
   playBtn.textContent = state.playing ? '❚❚ Pause' : '▶ Play';
   bonesBtn.setAttribute('aria-pressed', String(state.bones));
+  smoothBtn.setAttribute('aria-pressed', String(state.smooth));
+  const d = CAST[state.who];
+  document.getElementById('foot').querySelector('b').textContent = d.note ? d.note + ' ' : 'How it works: ';
 }
 sync();
 
@@ -134,23 +181,38 @@ function fit(c) {
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   return { w: r.width, h: r.height, dpr };
 }
+function sample(which, t) {
+  const who = state.who;
+  if (who === 'joseph') {
+    if (which === 'old') { const st = oldState(state.anim, t); return { st, air: st.air }; }
+    const n = newState(state.anim, t);
+    return { pose: n.pose, air: n.pose.rootY, dist: n.dist };
+  }
+  const r = rigFor(who);
+  const { pose, dist } = castPose(who, r, state.anim, t);
+  if (which === 'old') return { frame: castOldFrame(who, state.anim, t, dist), air: 0, dist };
+  return { pose, air: 0, dist };
+}
 function scene(c, which, t) {
   const { w, h, dpr } = fit(c);
   const g = c.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, w, h);
-  const A = ANIMS[state.anim];
-  // model px → CSS px. 1× = the in-game size (the 64×128 cell drawn at 56×112).
-  let s = GAME_K * state.zoom;
+  const who = state.who, def = CAST[who];
+  const A = animsFor(who)[state.anim];
+  const r = who === 'joseph' ? rig : rigFor(who);
+  const [cw, ch] = r.meta.cell;
+  const ground = who === 'joseph' ? 128 : (r.meta.ground + 1 + (def.yOff || 0));
+  // model px → CSS px. 1× = the in-game size of this character.
+  let s = (def.gameK || GAME_K) * state.zoom;
   const groundY = Math.round(h * 0.86);
-  s = Math.min(s, (groundY - 18) / 128); // fit tall zooms on short (phone) screens
-  const st = which === 'old' ? oldState(state.anim, t) : newState(state.anim, t);
-  const air = which === 'old' ? st.air : st.pose.rootY;
-  // vertical camera so big jumps stay on screen at high zoom
-  const headroom = groundY - 128 * s - 8;
+  s = Math.min(s, (groundY - 18) / ch); // fit tall zooms on short (phone) screens
+  const smp = sample(which, t);
+  const air = smp.air || 0;
+  const headroom = groundY - ch * s - 8;
   const camY = Math.max(0, -air * s - headroom);
-  const dist = A.speed * t; // model px travelled (ground scrolls under the feet)
-  // ground
+  const nw = sample('new', t);
+  const dist = who === 'joseph' ? A.speed * t : nw.dist; // model px travelled (ground scrolls under the feet)
   g.save();
   g.translate(0, camY);
   const sky = g.createLinearGradient(0, -camY, 0, groundY);
@@ -158,24 +220,34 @@ function scene(c, which, t) {
   g.fillStyle = sky; g.fillRect(0, -camY, w, groundY + camY);
   g.fillStyle = '#7c6a43'; g.fillRect(0, groundY, w, h);
   g.fillStyle = '#5c4a2c'; g.fillRect(0, groundY, w, Math.max(2, s * 1.2));
-  const loopDist = A.speed * A.dur;
-  const tick = (loopDist ? loopDist / Math.max(1, Math.round(loopDist / 16)) : 16) * s; // world-locked ticks (~16 model px)
-  const off = -((dist * s) % tick);
+  const loopDist = who === 'joseph' ? A.speed * A.dur : (state.anim === 'walk' ? sample('new', A.dur).dist : 0);
+  const tick = (loopDist ? loopDist / Math.max(1, Math.round(loopDist / 16)) : 16) * s;
+  const off = -(((dist % (loopDist || 1e9)) * s) % tick);
   g.fillStyle = 'rgba(40,28,12,.55)';
   for (let x = off - tick; x < w + tick; x += tick) g.fillRect(Math.round(x), groundY + 3, Math.max(2, s * 0.9), Math.max(5, s * 3));
-  // contact shadow
   const cx = w / 2;
   g.fillStyle = `rgba(0,0,0,${0.22 * Math.max(0.25, 1 + air / 140)})`;
   g.beginPath(); g.ellipse(cx + 2 * s, groundY, 18 * s * Math.max(0.5, 1 + air / 200), 3.5 * s, 0, 0, Math.PI * 2); g.fill();
-  const x0 = cx - 34 * s, y0 = groundY - 128 * s;
-  if (which === 'old') drawOld(g, sheet, st, x0, y0, s);
-  else drawNew(g, rig, st.pose, x0, y0, s, { bones: state.bones });
+  const x0 = Math.round(cx - (cw / 2 + 2) * s), y0 = groundY - ground * s;
+  // non-walking moves (lunges, charges) travel in place: the body shifts, the ground does not
+  const shift = which === 'new' && who !== 'joseph' && state.anim !== 'walk' ? (smp.dist || 0) * s : 0;
+  if (who === 'joseph') {
+    if (which === 'old') drawOld(g, sheets[def.old.src], smp.st, x0, y0, s);
+    else drawNew(g, rig, smp.pose, x0, y0, s, { bones: state.bones, crisp: !state.smooth });
+  } else if (which === 'old') {
+    const o = def.old, img = sheets[o.src];
+    if (img) { g.imageSmoothingEnabled = false; g.drawImage(img, smp.frame * o.fw, o.row * o.fh, o.fw, o.fh, x0, y0, o.fw * s, o.fh * s); }
+  } else {
+    drawCast(g, who, smp.pose, x0 + shift, y0 - (def.yOff || 0) * s, s, { bones: state.bones, crisp: !state.smooth, t });
+  }
   g.restore();
-  g.fillStyle = 'rgba(18,14,8,.7)'; g.font = '600 12px "Source Sans 3", sans-serif';
-  const note = which === 'old'
-    ? (state.anim === 'idle' ? 'one still frame in game' : state.anim === 'kneel' ? 'single crouch frame' : state.anim === 'jump' ? 'no anticipation · 3 frames + squash' : '8 frames, legs barely change')
-    : (state.anim === 'jump' ? 'anticipation → stretch → tuck → reach → squash' : state.anim === 'idle' ? 'breathing · head bob · coat sway' : state.anim === 'kneel' ? 'kneels, palms together, head bowed' : 'IK: planted foot locked to the ticks');
+  const notes = {
+    old: { idle: 'one still frame in game', kneel: 'single crouch frame', jump: 'no anticipation · 3 frames + squash', throw: '2 frames for 10 game frames', walk: 'painted frames', speak: '2-frame sway', greet: 'single greet frame', attack: 'walk frames + lean', tell: 'still frame + glow' },
+    new: { idle: 'breathing · head bob · cloth sway', jump: 'anticipation → stretch → tuck → reach → squash', kneel: 'kneels, palms together, head bowed', throw: 'whip → release → follow-through', walk: 'IK: planted foot locked to the ticks', run: 'IK: ≈3 steps/s at game speed', attack: 'wind-up → lunge → recover', speak: 'open-hand preaching gesture', greet: 'hand raised in greeting', tell: 'gathers, then charges' },
+  };
+  const note = notes[which][state.anim] || notes[which].walk;
   const label = `${note}  ·  t=${(t % A.dur).toFixed(2)}s  ·  ${state.speed}×`;
+  g.font = '600 12px "Source Sans 3", sans-serif';
   g.fillStyle = 'rgba(18,14,8,.72)'; const tw = g.measureText(label).width;
   g.fillRect(8, h - 24, tw + 14, 18); g.fillStyle = '#efe4c4'; g.fillText(label, 15, h - 10.5);
 }
@@ -183,14 +255,14 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (state.playing) state.t += dt * state.speed;
-  const A = ANIMS[state.anim];
+  const A = animsFor(state.who)[state.anim];
   const t = state.t % A.dur;
   scene(cOld, 'old', t);
   scene(cNew, 'new', t);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__rigPreview = { state, ANIMS };
+window.__rigPreview = { state, ANIMS, animsFor, CAST };
 </script>
 </body>
 </html>

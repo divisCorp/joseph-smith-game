@@ -7,6 +7,7 @@
 import { bindText } from './input.js?v=73';
 import { TILE, SCALE, W, H } from './constants.js?v=73';
 import { drawPreacher, drawPortrait } from './sprites.js?v=73';
+import { drawPreacherRig } from './rig-cast.js?v=73';
 import { sfx } from './audio.js?v=73';
 import { reduceFlash } from './save.js?v=73';
 
@@ -278,7 +279,7 @@ export function drawGroveNpcs(ctx, game) {
   for (const pr of level.preachers) {
     const x = pr.x - camX;
     if (x < -80 || x > W + 80) continue;
-    drawPreacher(ctx, x, pr.y, pr.facing, pr.kind, t, pr.talkT > 0);
+    if (!drawPreacherRig(ctx, x, pr.y, pr.facing, pr.kind, t, pr.talkT > 0)) drawPreacher(ctx, x, pr.y, pr.facing, pr.kind, t, pr.talkT > 0);
   }
   const camp = level.camp;
   if (camp) {
@@ -287,7 +288,7 @@ export function drawGroveNpcs(ctx, game) {
       if (x < -80 || x > W + 80) continue;
       const p = game.player;
       pr.facing = p.x + p.w / 2 < pr.x + 28 ? -1 : 1;
-      drawPreacher(ctx, x, pr.y, pr.facing, pr.kind, t, camp.state === 'gather');
+      if (!drawPreacherRig(ctx, x, pr.y, pr.facing, pr.kind, t, camp.state === 'gather')) drawPreacher(ctx, x, pr.y, pr.facing, pr.kind, t, camp.state === 'gather');
     }
   }
 }
