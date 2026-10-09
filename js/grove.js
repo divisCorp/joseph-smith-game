@@ -4,12 +4,12 @@
  * walks into the trees and kneels to pray. The chapter closes with a gentle light
  * fade (no depiction of Deity), then the results card.
  */
-import { bindText } from './input.js?v=73';
-import { TILE, SCALE, W, H } from './constants.js?v=73';
-import { drawPreacher, drawPortrait } from './sprites.js?v=73';
-import { drawPreacherRig } from './rig-cast.js?v=73';
-import { sfx } from './audio.js?v=73';
-import { reduceFlash } from './save.js?v=73';
+import { bindText } from './input.js?v=74';
+import { TILE, SCALE, W, H } from './constants.js?v=74';
+import { drawPreacher, drawPortrait } from './sprites.js?v=74';
+import { drawPreacherRig } from './rig-cast.js?v=74';
+import { sfx } from './audio.js?v=74';
+import { reduceFlash } from './save.js?v=74';
 
 const S = SCALE;
 const GROUND_Y = 13 * TILE;

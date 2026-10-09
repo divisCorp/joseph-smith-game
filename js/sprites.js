@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=73';
+import { COLORS, W, SCALE } from './constants.js?v=74';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -1274,7 +1274,7 @@ export function drawMoroni(ctx, cx, footY, t = 0, faceLeft = false, greet = fals
       ctx.restore();
     }
     ctx.restore();
-    // ?rig=1: the painted cut-out rig stands in for the sprite (same frame-0 placement)
+    // rig (default; ?rig=0 = sprite): the painted cut-out rig stands in for the sprite (same frame-0 placement)
     if (!(drawBody && drawBody(moroniLayout(cx, footY, 0, faceLeft, false), L.bob))) {
       blitSimple(ctx, img, L.frame * MORONI_FW, 0, MORONI_FW, MORONI_FH, L.dx, L.dy, L.dw, L.dh, faceLeft, false);
     }

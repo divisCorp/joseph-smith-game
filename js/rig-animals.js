@@ -1,5 +1,5 @@
 /**
- * Painted wildlife rigs (?rig=1 and rig-preview.html): timber rattlesnake, bobcat,
+ * Painted wildlife rigs (game default, ?rig=0 = old drawing; rig-preview.html): timber rattlesnake, bobcat,
  * American black bear, American crow and great horned owl. Parts are painted in the
  * cast's style by tools/rig/paint_animals.py (assets/rig/animals.png/json) and posed
  * here with our own small skeletons:
@@ -17,9 +17,12 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (v) => ((v % 1) + 1) % 1;
 const angDown = (a, b) => Math.atan2(-(b[0] - a[0]), b[1] - a[1]);
 
+import { halfAtlas } from './rig.js?v=74';
+
 let RIG = null;
 let loading = null;
-export function loadAnimals(base = 'assets/rig/', v = '73') {
+const ASSET_V = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch { return ''; } })(); // follows the module ?v= (bump-version.mjs)
+export function loadAnimals(base = 'assets/rig/', v = ASSET_V) {
   if (!loading) {
     loading = Promise.all([
       fetch(`${base}animals.json?v=${v}`).then((r) => r.json()),
@@ -457,10 +460,34 @@ function scratch(w, h) {
   return SC;
 }
 const BOX = 260, OX = 130, OY = 170;
+// baked frames for in-game critters (their clocks are stepped, so poses repeat)
+const BAKE = new Map();
+const BAKE_MAX = 240;
+export const animalBakeStats = { hit: 0, miss: 0 };
+const r4 = (v) => Math.round((v || 0) * 4);
+function opsKey(ops) {
+  let k = '';
+  for (const o of ops) {
+    if (o.strip) { for (let i = 0; i < o.pts.length; i += 3) k += ';' + r4(o.pts[i][0]) + ',' + r4(o.pts[i][1]); continue; }
+    k += '|' + o.p;
+    if (o.chain) for (const c of o.chain) k += ':' + r4(c[0]) + ',' + r4(c[1]) + ',' + Math.round((c[2] || 0) * 90) + ',' + Math.round(c[4] * 40);
+    else k += ':' + r4(o.pos[0]) + ',' + r4(o.pos[1]) + ',' + Math.round((o.rot || 0) * 90) + ',' + Math.round((o.sx || 1) * 40) + ',' + Math.round((o.sy || 1) * 40);
+    if (o.dark) k += 'd' + o.dark;
+  }
+  return k;
+}
 
-function drawOps(g, ops) {
-  const img = RIG.img;
+function drawOps(g, ops, bb) {
+  const half = halfAtlas(RIG);
+  const img = half || RIG.img;
+  const k = half ? 2 : 1;
   const up = RIG.meta.scale;
+  const grow = (m, w, h) => {
+    for (const [x, y] of [[0, 0], [w, 0], [0, h], [w, h]]) {
+      const X = m.a * x + m.c * y + m.e, Y = m.b * x + m.d * y + m.f;
+      if (X < bb[0]) bb[0] = X; if (Y < bb[1]) bb[1] = Y; if (X > bb[2]) bb[2] = X; if (Y > bb[3]) bb[3] = Y;
+    }
+  };
   for (const o of ops) {
     if (o.strip) {
       const part = P(o.sp, 'body');
@@ -474,7 +501,8 @@ function drawOps(g, ops) {
         g.save();
         g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
         g.rotate(ang);
-        g.drawImage(img, part.x + c * up, part.y, Math.min(2, L - c) * up, part.h, -0.5, -part.pivot[1], Math.min(2, L - c), h);
+        g.drawImage(img, (part.x + c * up) / k, part.y / k, (Math.min(2, L - c) * up) / k, part.h / k, -0.5, -part.pivot[1], Math.min(2, L - c), h);
+        if (bb && (c & 3) === 0) grow(g.getTransform(), 2, h);
         g.restore();
       }
       continue;
@@ -492,7 +520,8 @@ function drawOps(g, ops) {
     }
     g.translate(-part.pivot[0], -part.pivot[1]);
     if (o.dark && o.dark < 1) g.filter = `brightness(${o.dark})`;
-    g.drawImage(img, part.x, part.y, part.w, part.h, 0, 0, part.w / up, part.h / up);
+    g.drawImage(img, part.x / k, part.y / k, part.w / k, part.h / k, 0, 0, part.w / up, part.h / up);
+    if (bb) grow(g.getTransform(), part.w / up, part.h / up);
     if (o.dark && o.dark < 1) g.filter = 'none';
     g.restore();
   }
@@ -509,25 +538,52 @@ export function drawAnimal(ctx, sp, pose, x, y, scale, opts = {}) {
   if (def.kind === 'snake') ops = snakeOps(pose);
   else if (def.kind === 'quad') ops = quadSolve(sp, pose);
   else ops = birdOps(sp, pose);
-  const sc = scratch(BOX, BOX);
-  const g = sc.ctx;
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.clearRect(0, 0, BOX, BOX);
-  g.imageSmoothingEnabled = true;
-  g.imageSmoothingQuality = 'high';
-  g.translate(OX, OY - (def.fly ? 60 : 0));
-  drawOps(g, ops);
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  const id = g.getImageData(0, 0, BOX, BOX);
-  const d = id.data;
-  for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
-  g.putImageData(id, 0, 0);
+  const oy0 = OY - (def.fly ? 60 : 0);
+  const key = opts.bake ? sp + opsKey(ops) : null;
+  let src, rx = 0, ry = 0, rw = BOX, rh = BOX;
+  const hit = key && BAKE.get(key);
+  if (key) animalBakeStats[hit ? 'hit' : 'miss']++;
+  if (hit) {
+    BAKE.delete(key); BAKE.set(key, hit);
+    ({ c: src, rx, ry, w: rw, h: rh } = hit);
+  } else {
+    const sc = scratch(BOX, BOX);
+    const g = sc.ctx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, BOX, BOX);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'low';
+    g.translate(OX, oy0);
+    const bb = [Infinity, Infinity, -Infinity, -Infinity];
+    drawOps(g, ops, bb);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    // hard alpha (no soft fringes); read back only the drawn area
+    if (bb[0] < bb[2]) {
+      rx = Math.max(0, Math.floor(bb[0]) - 2); ry = Math.max(0, Math.floor(bb[1]) - 2);
+      rw = Math.min(BOX, Math.ceil(bb[2]) + 2) - rx; rh = Math.min(BOX, Math.ceil(bb[3]) + 2) - ry;
+    }
+    if (!(rw > 0 && rh > 0)) return true;
+    const id = g.getImageData(rx, ry, rw, rh);
+    const d = id.data;
+    for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
+    g.putImageData(id, rx, ry);
+    src = sc;
+    if (key) {
+      const c = document.createElement('canvas');
+      c.width = rw; c.height = rh;
+      c.getContext('2d').drawImage(sc, rx, ry, rw, rh, 0, 0, rw, rh);
+      BAKE.set(key, { c, rx, ry, w: rw, h: rh });
+      if (BAKE.size > BAKE_MAX) BAKE.delete(BAKE.keys().next().value);
+      src = c;
+    }
+  }
   ctx.save();
   ctx.translate(x, y);
   if (opts.flip) ctx.scale(-1, 1);
   if (opts.filter) ctx.filter = opts.filter;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sc, 0, 0, BOX, BOX, -OX * scale, -(OY - (def.fly ? 60 : 0)) * scale, BOX * scale, BOX * scale);
+  const sx0 = src === SC ? rx : 0, sy0 = src === SC ? ry : 0;
+  ctx.drawImage(src, sx0, sy0, rw, rh, (rx - OX) * scale, (ry - oy0) * scale, rw * scale, rh * scale);
   ctx.filter = 'none';
   ctx.restore();
   return true;
@@ -597,8 +653,8 @@ export function animalPose(sp, anim, t, extra = {}) {
   return birdPose(sp, anim === 'idle' && extra.perch ? 'glide' : 'flap', t);
 }
 
-// --------------------------------------------------------------------- in-game (?rig=1)
-const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') === '1';
+// --------------------------------------------------------------------- in-game (default on; ?rig=0 = old sprites)
+const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') !== '0'; // painted rigs by default; ?rig=0 = old sprites
 if (RIG_MODE) loadAnimals().catch(() => {});
 
 /** Draw a critter enemy with its painted rig. Returns false to fall back to the procedural drawing. */
@@ -617,17 +673,24 @@ export function drawAnimalRig(ctx, e, dx, flash) {
   const state = e.alive ? e.melee || 'none' : 'none';
   if (state !== r.state) { r.state = state; r.len = Math.max(1, e.meleeT || 1); }
   let phase = null;
-  const k = clamp(1 - (e.meleeT || 0) / r.len, 0, 1); // 0 → 1 through the current beat
+  const k = Math.round(clamp(1 - (e.meleeT || 0) / r.len, 0, 1) * 24) / 24; // 0 → 1 through the current beat (stepped)
+  // stepped clocks (20 Hz idle, 1 model px of travel) so poses repeat and frames bake
+  const tq = Math.floor(r.t * 20) / 20;
+  // travel wrapped to one gait cycle and stepped (32 steps a stride; snake: its 34px wave) so strides repeat
+  const spK = Math.abs(mv) > 2.4 ? 1.6 : 1;
+  let dq;
+  if (def.kind === 'quad') { const Lc = QUAD[sp].walkLen * AF(sp) * (spK > 1.3 ? 1.5 : 1); dq = Math.round(((r.dist % Lc) / Lc) * 32) / 32 * Lc; }
+  else dq = Math.round(r.dist) % 34;
   if (state === 'wind' || state === 'lunge' || state === 'recover') phase = state;
   let pose;
   if (def.kind === 'bird') {
-    pose = phase ? animalPose(sp, 'attack', r.t, { phase, k }) : animalPose(sp, 'move', r.t);
+    pose = phase ? animalPose(sp, 'attack', tq, { phase, k }) : animalPose(sp, 'move', tq);
   } else if (def.kind === 'snake') {
-    pose = animalPose(sp, moving ? 'move' : 'idle', r.t, phase ? { phase, k, dist: r.dist } : { dist: r.dist });
-    if (!phase) pose.dist = r.dist;
+    pose = animalPose(sp, moving ? 'move' : 'idle', tq, phase ? { phase, k, dist: dq } : { dist: dq });
+    if (!phase) pose.dist = dq;
   } else {
-    pose = animalPose(sp, 'idle', r.t, { dist: r.dist, moving: r.moveK > 0.5, moveK: r.moveK, speedK: Math.abs(mv) > 2.4 ? 1.6 : 1, ...(phase ? { phase, k } : {}) });
-    if (sp === 'bobcat' && e.onGround === false && e.alive) pose = animalPose(sp, 'idle', r.t, { phase: 'lunge', k: 0.5 });
+    pose = animalPose(sp, 'idle', tq, { dist: dq, moving: r.moveK > 0.5, moveK: Math.round(r.moveK * 12) / 12, speedK: spK, ...(phase ? { phase, k } : {}) });
+    if (sp === 'bobcat' && e.onGround === false && e.alive) pose = animalPose(sp, 'idle', tq, { phase: 'lunge', k: 0.5 });
   }
   const ax = dx + e.w / 2;
   const ay = def.fly ? e.y + e.h / 2 : e.y + e.h;
@@ -642,7 +705,7 @@ export function drawAnimalRig(ctx, e, dx, flash) {
   }
   drawAnimal(ctx, sp, pose, Math.round(ax), Math.round(ay), sc, {
     flip: e.facing < 0,
-    filter: flash ? 'brightness(1.9) saturate(0.6)' : undefined,
+    filter: flash ? 'brightness(1.9) saturate(0.6)' : undefined, bake: true,
   });
   return true;
 }

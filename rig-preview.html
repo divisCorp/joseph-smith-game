@@ -70,7 +70,7 @@
 <body>
 <header>
   <h1>The cast · painted cut-out rigs</h1>
-  <span class="sub">Preview only · the same paintings, now on skeletons · <a href="index.html?rig=1">Play with the rigs (?rig=1) →</a></span>
+  <span class="sub">The same paintings, now on skeletons (the game default) · <a href="index.html">Play →</a> · <a href="index.html?rig=0">old sprites (?rig=0)</a></span>
 </header>
 <div class="bar">
   <label class="pick"><span>Character</span> <select id="who" aria-label="Character"></select></label>
@@ -92,11 +92,11 @@
   Space = play/pause, ←/→ = step a frame while paused.
 </footer>
 <script type="module">
-import { loadRig } from './js/rig.js?v=73';
-import { ANIMS, oldState, newState, drawOld, drawNew, GAME_K } from './js/rig-demo.js?v=73';
-import { CAST, ANIM_LABEL, ANIM_DUR, castPose, castOldFrame, drawCast, loadCastRigs, rigFor } from './js/rig-cast.js?v=73';
-import { ANIMALS, ANIMAL_ANIM_LABEL, ANIMAL_ANIM_DUR, animalPose, drawAnimal, loadAnimals, attackBeat } from './js/rig-animals.js?v=73';
-import { drawSnake, drawBobcat, drawBear, drawBird } from './js/critters.js?v=73';
+import { loadRig } from './js/rig.js?v=74';
+import { ANIMS, oldState, newState, drawOld, drawNew, GAME_K } from './js/rig-demo.js?v=74';
+import { CAST, ANIM_LABEL, ANIM_DUR, castPose, castOldFrame, drawCast, loadCastRigs, rigFor } from './js/rig-cast.js?v=74';
+import { ANIMALS, ANIMAL_ANIM_LABEL, ANIMAL_ANIM_DUR, animalPose, drawAnimal, loadAnimals, attackBeat } from './js/rig-animals.js?v=74';
+import { drawSnake, drawBobcat, drawBear, drawBird } from './js/critters.js?v=74';
 const isAnimal = (k) => !!ANIMALS[k];
 const ANIMAL_NOTE = {
   snake: 'Timber rattlesnake, painted as parts (body strip laid along a spine curve, head, tongue, rattle). Slithers, coils with the rattle buzzing, strikes, recoils.',
@@ -114,8 +114,8 @@ const state = {
   bones: qs.has('bones'), t: +(qs.get('t') || 0), smooth: qs.has('smooth'),
 };
 const imgs = {};
-const loadImg = (src) => imgs[src] || (imgs[src] = new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src + '?v=73'; }));
-const [rig] = await Promise.all([loadRig('assets/rig/', '73'), loadCastRigs('assets/rig/', '73'), loadAnimals('assets/rig/', '73')]);
+const loadImg = (src) => imgs[src] || (imgs[src] = new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src + '?v=74'; }));
+const [rig] = await Promise.all([loadRig('assets/rig/', '74'), loadCastRigs('assets/rig/', '74'), loadAnimals('assets/rig/', '74')]);
 const sheets = {};
 for (const k in CAST) sheets[CAST[k].old.src] = await loadImg(CAST[k].old.src);
 

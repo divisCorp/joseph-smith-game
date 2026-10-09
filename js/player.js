@@ -1,27 +1,28 @@
-import { landOnSlopes } from './hill.js?v=73';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=73';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=73';
-import { isDown, justPressed } from './input.js?v=73';
-import { sfx } from './audio.js?v=73';
-import { isEasy, reduceFlash } from './save.js?v=73';
+import { landOnSlopes } from './hill.js?v=74';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=74';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=74';
+import { isDown, justPressed } from './input.js?v=74';
+import { sfx } from './audio.js?v=74';
+import { isEasy, reduceFlash } from './save.js?v=74';
 import {
   loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose, applyThrow, applyThrust, handPoint,
   gaitParams, JUMP_T,
-} from './rig.js?v=73';
+} from './rig.js?v=74';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=73';
+} from './projectiles.js?v=74';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 
-// ---- Skeletal rig proof of concept: add ?rig=1 to the URL to play as the cut-out rig.
-const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') === '1';
+// ---- Skeletal cut-out rig: on by default; add ?rig=0 to the URL for the old sprite sheets.
+const ASSET_V = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch { return ''; } })(); // follows the module ?v= (bump-version.mjs)
+const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') !== '0'; // painted rigs by default; ?rig=0 = old sprites
 let RIG = null;
-if (RIG_MODE) loadRig('assets/rig/', '73').then((r) => { RIG = r; }).catch(() => {});
+if (RIG_MODE) loadRig('assets/rig/', ASSET_V).then((r) => { RIG = r; }).catch(() => {});
 const RIG_K = 56 / 64; // model px → game px
 const RUN_SPEED = 1.55 * SCALE;
 const JUMP_V0 = -6.2 * SCALE;
@@ -51,7 +52,7 @@ function rigPose(p) {
       mode = 'walk';
       const P = gaitParams(Math.abs(p.vx) / RUN_SPEED);
       r.phase += dx / P.cycle;
-      pose = poseWalk(r.phase, P);
+      pose = poseWalk(Math.round(r.phase * 48) / 48, P); // phase in 1/48ths: poses repeat, frames bake
       r.land = 9;
     } else if (r.land < JUMP_T.end - JUMP_T.touch) {
       mode = 'land';
@@ -59,7 +60,7 @@ function rigPose(p) {
       r.land += dt;
     } else {
       mode = 'idle';
-      pose = poseIdle(r.t);
+      pose = poseIdle(Math.floor(r.t * 20) / 20);
     }
     if (r.kneel > 0) pose = kneelFrom(pose, r.kneel * r.kneel * (3 - 2 * r.kneel), r.t);
   }
@@ -578,7 +579,7 @@ function drawPlayerRig(ctx, p, camX, drawY, standH) {
     const sx = flip ? bx + (64 - hx) * RIG_K : bx + hx * RIG_K;
     drawPitchfork(ctx, 0, 0, p.facing, p.attackTimer > 0, !!p.young, !!p.crouching, { x: sx, y: y0 + hy * RIG_K });
   }
-  drawRig(ctx, RIG, pose, { x: bx, y: y0, scale: RIG_K, flip });
+  drawRig(ctx, RIG, pose, { x: bx, y: y0, scale: RIG_K, flip, bake: true });
 }
 
 function aabb(a, b) {

@@ -164,7 +164,7 @@ Fan tribute. The historical figure is depicted respectfully. Not affiliated with
 ## Skeletal rig proof of concept (branch `spine-rig-poc`)
 
 - `rig-preview.html` — old sprite sheet vs the new painted cut-out rig (idle, walk, run at game speed, jump, kneel & pray) with play/pause, 0.25× slow motion, 1×/3× zoom, a world-locked ground line and a bones overlay.
-- `index.html?rig=1` — play the game with the rigged Joseph (attack-throw with the plates falls back to the sprite frames).
+- The game draws every rigged character (Joseph, the cast, the animals) on skeletons by default; `index.html?rig=0` falls back to the old sprite sheets. Rig frames are baked into a small LRU cache of offscreen composites so repeated poses cost a single blit.
 - `tools/rig/cut_joseph.py` — cuts the original idle frame of `assets/joseph.png` into 16 parts (`assets/rig/joseph-rig.png` + `.json`, 4× nearest so rotations stay crisp). Re-run after editing the cut: `python3 tools/rig/cut_joseph.py`.
 - `js/rig.js` — tiny runtime: bone hierarchy, keyframed tracks (Catmull-Rom), 2-bone IK for legs (planted feet locked to the ground) and arms (prayer hands).
 - `tools/rig/qa.html` — strip renderer + foot-slide report used for QA.

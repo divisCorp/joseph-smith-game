@@ -601,7 +601,8 @@ export function handPoint(meta, B, side) {
 let SCRATCH = null;
 function scratch(w, h) {
   if (!SCRATCH) {
-    SCRATCH = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : document.createElement('canvas');
+    SCRATCH = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(w, h);
+    SCRATCH.width = w; SCRATCH.height = h;
     SCRATCH.ctx = SCRATCH.getContext('2d', { willReadFrequently: true });
   }
   if (SCRATCH.width < w || SCRATCH.height < h) {
@@ -622,14 +623,35 @@ function rimScratch(w, h) {
   return RIM;
 }
 
-/** Draw one part into a model-space context (handles slice-deformed cloth). */
-function drawPart(g, img, part, b, up, bend) {
+/**
+ * The 4x atlas pre-reduced once to 2x (high-quality resample). Parts are drawn at about
+ * 1 model px per pixel, so sampling the 2x copy with plain bilinear filtering looks the
+ * same as resampling the 4x atlas every frame, at a quarter of the pixel reads.
+ */
+export function halfAtlas(rig) {
+  if (rig.half !== undefined) return rig.half;
+  rig.half = null;
+  const img = rig.img;
+  if (!img || !img.width || typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(img.width / 2);
+  c.height = Math.ceil(img.height / 2);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, c.width, c.height);
+  rig.half = c;
+  return c;
+}
+
+/** Draw one part into a model-space context (handles slice-deformed cloth). k = atlas reduction (1 or 2). */
+function drawPart(g, img, part, b, up, bend, k = 1) {
   g.save();
   g.translate(b.pos[0], b.pos[1]);
   if (b.rot) g.rotate(b.rot);
   if (!part.flex || !bend) {
     g.translate(-part.pivot[0], -part.pivot[1]);
-    g.drawImage(img, part.x, part.y, part.w, part.h, part.ox, part.oy, part.w / up, part.h / up);
+    g.drawImage(img, part.x / k, part.y / k, part.w / k, part.h / k, part.ox, part.oy, part.w / up, part.h / up);
     g.restore();
     return;
   }
@@ -642,7 +664,7 @@ function drawPart(g, img, part, b, up, bend) {
   g.translate(-px, -py);
   if (py > top) {
     const hh = Math.min(bot, py) - top;
-    g.drawImage(img, part.x, part.y, part.w, hh * up, part.ox, top, part.w / up, hh);
+    g.drawImage(img, part.x / k, part.y / k, part.w / k, (hh * up) / k, part.ox, top, part.w / up, hh);
   }
   const step = 1;
   for (let y0 = Math.max(top, py); y0 < bot; y0 += step) {
@@ -651,13 +673,16 @@ function drawPart(g, img, part, b, up, bend) {
     const dx = amp * u * u;
     const sy = (y0 - top) * up;
     const hh = Math.min(bot - y0, y1 - y0 + 1); // 1 row of overlap: no seams when smoothed
-    g.drawImage(img, part.x, part.y + sy, part.w, hh * up, part.ox + dx, y0, part.w / up, hh);
+    g.drawImage(img, part.x / k, (part.y + sy) / k, part.w / k, (hh * up) / k, part.ox + dx, y0, part.w / up, hh);
   }
   g.restore();
 }
 
-function drawParts(g, rig, pose, B) {
-  const { meta, img } = rig;
+function drawParts(g, rig, pose, B, bounds = null) {
+  const { meta } = rig;
+  const half = halfAtlas(rig);
+  const img = half || rig.img;
+  const k = half ? 2 : 1;
   const up = meta.scale;
   let order = meta.order || DRAW_ORDER;
   if ((pose.kneelOrder || 0) > 0.5) {
@@ -683,8 +708,68 @@ function drawParts(g, rig, pose, B) {
     }
     if (!part || !b) continue;
     const bend = name === 'tail' ? pose.tailBend : name === 'skirt' ? pose.skirtBend : 0;
-    drawPart(g, img, part, b, up, bend || 0);
+    drawPart(g, img, part, b, up, bend || 0, k);
+    if (bounds) {
+      // screen-space box of this part (rotated rect corners) → the area to read back
+      const c = Math.cos(b.rot || 0), sn = Math.sin(b.rot || 0);
+      const x0 = part.ox - part.pivot[0], y0 = part.oy - part.pivot[1];
+      const pw = part.w / up, ph = part.h / up;
+      const sway = part.flex ? ph : 0;
+      for (const [px, py] of [[x0 - sway, y0], [x0 + pw + sway, y0], [x0 - sway, y0 + ph], [x0 + pw + sway, y0 + ph]]) {
+        const X = b.pos[0] + px * c - py * sn, Y = b.pos[1] + px * sn + py * c;
+        if (X < bounds[0]) bounds[0] = X; if (Y < bounds[1]) bounds[1] = Y;
+        if (X > bounds[2]) bounds[2] = X; if (Y > bounds[3]) bounds[3] = Y;
+      }
+    }
   }
+}
+
+// ------------------------------------------------------------------ baked frames (LRU)
+const BAKE = new Map();
+const BAKE_MAX = 320;
+export const bakeStats = { hit: 0, miss: 0 };
+function bakeKey(rig, lp, B, opts) {
+  const meta = rig.meta;
+  let k = (rig.name || '') + (opts.rim ? '|r' : '') + ((lp.kneelOrder || 0) > 0.5 ? '|k' : '') + (lp.pray ? '|p' : '') +
+    '|' + Math.round((lp.tailBend || 0) * 2) + ',' + Math.round((lp.skirtBend || 0) * 2);
+  for (const name of meta.order || DRAW_ORDER) {
+    const b = B[name];
+    if (!b) continue;
+    k += '|' + Math.round(b.pos[0] * 4) + ',' + Math.round(b.pos[1] * 4) + ',' + Math.round((b.rot || 0) * 90);
+  }
+  return k;
+}
+function bakeGet(key) {
+  const v = BAKE.get(key);
+  if (!v) { bakeStats.miss++; return null; }
+  BAKE.delete(key); BAKE.set(key, v); // most recently used
+  bakeStats.hit++;
+  return v;
+}
+function bakePut(key, v) {
+  BAKE.set(key, v);
+  if (BAKE.size > BAKE_MAX) BAKE.delete(BAKE.keys().next().value);
+}
+/** Blit a composited region (source px sx..sx+w at scratch coords rx, ry) to the screen. */
+function blitComposite(ctx, src, sx, sy, w, h, rx, ry, ix, iy, s, cw, opts) {
+  if (!(w > 0 && h > 0)) return;
+  ctx.save();
+  ctx.translate(opts.x ?? 0, opts.y ?? 0);
+  if (opts.flip) { ctx.translate(cw * s, 0); ctx.scale(-1, 1); }
+  if (opts.filter) ctx.filter = opts.filter;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, sx, sy, w, h, (ix - PAD + rx) * s, (iy - PAD + ry) * s, w * s, h * s);
+  ctx.filter = 'none';
+  ctx.restore();
+}
+function drawBonesAt(ctx, B, legs, s, meta, ix, iy, cw, opts) {
+  ctx.save();
+  ctx.translate(opts.x ?? 0, opts.y ?? 0);
+  if (opts.flip) { ctx.translate(cw * s, 0); ctx.scale(-1, 1); }
+  ctx.translate(ix * s, iy * s);
+  ctx.scale(s, s);
+  drawBones(ctx, B, legs, s, meta);
+  ctx.restore();
 }
 
 /**
@@ -718,17 +803,34 @@ export function drawRig(ctx, rig, pose, opts = {}) {
   const lp = { ...pose, rootX: pose.rootX - ix, rootY: pose.rootY - iy };
   const { B, legs } = solve(meta, lp);
   const W = cw + PAD * 2, H = ch + PAD * 2;
+  // baked frames: game callers that step their clocks (opts.bake) reuse a composite
+  // whenever the solved skeleton matches one already drawn (walk cycles, idles, tells)
+  const key = opts.bake ? bakeKey(rig, lp, B, opts) : null;
+  const hit = key && bakeGet(key);
+  if (hit) {
+    blitComposite(ctx, hit.c, 0, 0, hit.w, hit.h, hit.rx, hit.ry, ix, iy, s, cw, opts);
+    if (opts.bones) drawBonesAt(ctx, B, legs, s, meta, ix, iy, cw, opts);
+    for (const k in B) B[k] = { ...B[k], pos: [B[k].pos[0] + ix, B[k].pos[1] + iy] };
+    return { B, legs };
+  }
   const sc = scratch(W, H);
   const g = sc.ctx;
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, W, H);
   g.imageSmoothingEnabled = true;
-  g.imageSmoothingQuality = 'high';
+  g.imageSmoothingQuality = 'low';
   g.translate(PAD, PAD);
-  drawParts(g, rig, lp, B);
+  const bb = opts.rim ? null : [Infinity, Infinity, -Infinity, -Infinity];
+  drawParts(g, rig, lp, B, bb);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  // hard alpha like the painted sprite (no soft fringes, no part seams)
-  const id = g.getImageData(0, 0, W, H);
+  // hard alpha like the painted sprite (no soft fringes, no part seams); only the
+  // drawn area is read back
+  let rx = 0, ry = 0, rw = W, rh = H;
+  if (bb && bb[0] < bb[2]) {
+    rx = Math.max(0, Math.floor(bb[0] + PAD) - 2); ry = Math.max(0, Math.floor(bb[1] + PAD) - 2);
+    rw = Math.min(W, Math.ceil(bb[2] + PAD) + 2) - rx; rh = Math.min(H, Math.ceil(bb[3] + PAD) + 2) - ry;
+  }
+  const id = g.getImageData(rx, ry, rw, rh);
   const d = id.data;
   for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
   if (opts.rim) {
@@ -755,20 +857,15 @@ export function drawRig(ctx, rig, pose, opts = {}) {
       }
     }
   }
-  g.putImageData(id, 0, 0);
-  ctx.save();
-  ctx.translate(opts.x ?? 0, opts.y ?? 0);
-  if (opts.flip) { ctx.translate(cw * s, 0); ctx.scale(-1, 1); }
-  if (opts.filter) ctx.filter = opts.filter;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sc, 0, 0, W, H, (ix - PAD) * s, (iy - PAD) * s, W * s, H * s);
-  ctx.filter = 'none';
-  if (opts.bones) {
-    ctx.translate(ix * s, iy * s);
-    ctx.scale(s, s);
-    drawBones(ctx, B, legs, s, meta);
+  g.putImageData(id, rx, ry);
+  if (key && rw > 0 && rh > 0) {
+    const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(rw, rh);
+    c.width = rw; c.height = rh;
+    c.getContext('2d').drawImage(sc, rx, ry, rw, rh, 0, 0, rw, rh);
+    bakePut(key, { c, w: rw, h: rh, rx, ry });
   }
-  ctx.restore();
+  blitComposite(ctx, sc, rx, ry, rw, rh, rx, ry, ix, iy, s, cw, opts);
+  if (opts.bones) drawBonesAt(ctx, B, legs, s, meta, ix, iy, cw, opts);
   // report bones in the caller's frame (root offset re-applied)
   for (const k in B) B[k] = { ...B[k], pos: [B[k].pos[0] + ix, B[k].pos[1] + iy] };
   return { B, legs };

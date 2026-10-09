@@ -1,17 +1,17 @@
-import { landOnSlopes } from './hill.js?v=73';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H } from './constants.js?v=73';
+import { landOnSlopes } from './hill.js?v=74';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=74';
 import {
   drawBrigand,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=73';
-import { aabb } from './player.js?v=73';
-import { createKnife, KNIFE_W } from './projectiles.js?v=73';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
-import { sfx } from './audio.js?v=73';
-import { isEasy, reduceFlash } from './save.js?v=73';
+} from './sprites.js?v=74';
+import { aabb } from './player.js?v=74';
+import { createKnife, KNIFE_W } from './projectiles.js?v=74';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=74';
+import { sfx } from './audio.js?v=74';
+import { isEasy, reduceFlash } from './save.js?v=74';
 import {
   drawSnake,
   drawBobcat,
@@ -20,9 +20,9 @@ import {
   drawTorchProp,
   drawClubProp,
   drawMusketProp,
-} from './critters.js?v=73';
-import { drawEnemyRig } from './rig-cast.js?v=73';
-import { drawAnimalRig } from './rig-animals.js?v=73';
+} from './critters.js?v=74';
+import { drawEnemyRig } from './rig-cast.js?v=74';
+import { drawAnimalRig } from './rig-animals.js?v=74';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
@@ -796,6 +796,10 @@ export function hurtEnemy(e, dmg = 1, opts = {}) {
 }
 
 export function drawEnemy(ctx, e, camX) {
+  // off-screen foes are not drawn (the painted rigs composite per frame; a wide margin
+  // covers props, swipes and the boss tells)
+  const sx = e.x - camX;
+  if (sx + e.w + 160 * SCALE < 0 || sx - 160 * SCALE > W) return;
   let fade = 1;
   if (!e.alive) {
     if (e.type === 'boss' || e.defeatT === undefined || e.defeatDone) return;
@@ -832,7 +836,7 @@ function drawDazed(ctx, cx, cy, t) {
 }
 
 function drawCritter(ctx, e, dx, flash, k) {
-  // ?rig=1: painted wildlife rigs (falls back to the procedural drawing below)
+  // default (not ?rig=0): painted wildlife rigs (falls back to the procedural drawing below)
   if (drawAnimalRig(ctx, e, dx, flash)) return;
   const sc = e.drawScale || 1;
   const t = e.clock || 0;
@@ -869,7 +873,7 @@ function drawEnemyBody(ctx, e, camX) {
     ctx.restore();
     if (!e.critter) dx -= e.facing * 3 * SCALE * k;
   }
-  // ?rig=1: painted cut-out rigs replace the sprite sheets (props ride in the hands)
+  // default (not ?rig=0): painted cut-out rigs replace the sprite sheets (props ride in the hands)
   const rigged = e.type !== 'boss' && drawEnemyRig(ctx, e, dx, flash);
   if (rigged) { /* drawn */ }
   else if (e.critter) drawCritter(ctx, e, dx, flash, k);

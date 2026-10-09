@@ -1,6 +1,6 @@
 /**
  * The rigged cast: which painted rig each character uses, its in-game size, its
- * actions, and the props it carries. Shared by the game (?rig=1) and rig-preview.html.
+ * actions, and the props it carries. Shared by the game (default on; ?rig=0 = old sprites) and rig-preview.html.
  *
  * Historical notes kept from the sprite game: the militia guard only carries his
  * musket at shoulder arms / shoves with it — it is never fired; the torch-bearer and
@@ -9,8 +9,9 @@
 import {
   loadCast, skelOf, basePose, poseIdle, poseWalk, WALK, strideLen, applyThrow, applyWind, applyStrike,
   applySpeak, applyGreet, applyHold, applyBrace, drawRig, solve, handPoint, partPoint,
-} from './rig.js?v=73';
-import { drawTorchProp, drawClubProp, drawMusketProp } from './critters.js?v=73';
+} from './rig.js?v=74';
+import { drawTorchProp, drawClubProp, drawMusketProp } from './critters.js?v=74';
+const ASSET_V = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch { return ''; } })(); // follows the module ?v= (bump-version.mjs)
 
 const FOE_OLD = (row) => ({ src: 'tools/rig/src/foesFixed.png', fw: 64, fh: 128, row, frames: [0, 1, 2, 3, 4, 5, 6, 7] });
 const BOSS_OLD = (row) => ({ src: 'tools/rig/src/bosses.png', fw: 80, fh: 160, row, frames: [0, 1, 2, 3, 4, 5] });
@@ -74,7 +75,7 @@ function loadImgProp(base, v, p) {
     new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = `${base}${p.file}.png?v=${v}`; }),
   ]).then(([meta, img]) => { p.meta = meta; p.img = img; }).catch(() => {});
 }
-export function loadCastRigs(base = 'assets/rig/', v = '73') {
+export function loadCastRigs(base = 'assets/rig/', v = ASSET_V) {
   if (!castLoading) {
     castLoading = Promise.all([loadCast(base, v), ...Object.values(IMG_PROPS).map((p) => loadImgProp(base, v, p))])
       .then(([r]) => { CAST_RIGS = r; return r; });
@@ -312,18 +313,22 @@ export function drawCast(ctx, key, pose, x, y, scale, opts = {}) {
   const side = def.prop === 'musket' ? 'n' : 'f';
   if (def.prop && side === 'f' && def.prop !== 'torch') drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale, pose);
   const r = drawRig(ctx, rig, pose, {
-    x, y: y0, scale, flip, bones: opts.bones, crisp: opts.crisp, rim: opts.rim,
+    x, y: y0, scale, flip, bones: opts.bones, crisp: opts.crisp, rim: opts.rim, bake: opts.bake,
     filter: opts.flash ? 'brightness(2.1) sepia(0.7) hue-rotate(-35deg) saturate(2.8) contrast(1.15)' : undefined,
   });
   if (def.prop && (side === 'n' || def.prop === 'torch')) drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale, pose);
   return r;
 }
 
-// ------------------------------------------------------------------ in-game (?rig=1)
-export const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') === '1';
+// ------------------------------------------------------------------ in-game (default on; ?rig=0 = old sprites)
+export const RIG_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') !== '0'; // painted rigs by default; ?rig=0 = old sprites
 if (RIG_MODE) loadCastRigs().catch(() => {});
 
 const VARIANT_KEY = { torch: 'torch', club: 'club', musket: 'guard' };
+// In game the NPC rigs step their clocks (idle at 20 Hz, walk phase in 1/48ths of a
+// cycle) so poses repeat exactly and drawRig can reuse baked composites.
+const qt = (t) => Math.floor(t * 20) / 20;
+const qp = (ph) => Math.round(ph * 48) / 48;
 const THROW_LEN = 0.34;
 
 /** Rig key for an enemy, or null if it stays a sprite (wisps, ringleader/sentinel bosses, critters). */
@@ -350,10 +355,11 @@ function enemyPose(e, key, rig) {
   r.moveK = Math.max(0, Math.min(1, r.moveK + (moving ? dt / 0.15 : -dt / 0.2)));
   const L = strideLen(sk, WALK);
   if (moving) r.phase += dx / L;
-  const idle = withProp(def, poseIdle(r.t, sk, def.seed || 0), r.t);
+  const tq = qt(r.t);
+  const idle = withProp(def, poseIdle(tq, sk, def.seed || 0), tq);
   let p = idle;
   if (r.moveK > 0) {
-    const w = withProp(def, poseWalk(r.phase, WALK, sk), r.t);
+    const w = withProp(def, poseWalk(qp(r.phase), WALK, sk), tq);
     p = r.moveK >= 1 ? w : blend(idle, w, smooth(r.moveK));
   }
   const style = def.style || 'punch';
@@ -367,7 +373,7 @@ function enemyPose(e, key, rig) {
     p = blend(p, applyStrike(applyWind(p, 1, def.arm, style), 1, def.arm, style), smooth(k));
   } else if (e.telling) {
     p = applyWind(p, 1, def.arm, def.style || 'punch');
-    p.rootX = Math.sin(r.t * 60) * 0.4;
+    p.rootX = Math.sin(tq * 60) * 0.4;
   }
   if (r.throwT < THROW_LEN) {
     p = applyThrow(p, r.throwT / THROW_LEN);
@@ -384,7 +390,7 @@ export function drawEnemyRig(ctx, e, dx, flash) {
   const def = CAST[key];
   const pose = enemyPose(e, key, rig);
   drawCast(ctx, key, pose, Math.floor(dx), Math.floor(e.y), def.gameK, {
-    flip: e.facing < 0, flash, t: (e.clock || 0) / 60,
+    flip: e.facing < 0, flash, t: (e.clock || 0) / 60, bake: true,
   });
   return true;
 }
@@ -395,7 +401,7 @@ export function drawPreacherRig(ctx, x, y, facing, kind, tick, speaking) {
   const def = CAST[kind];
   const rig = rigFor(kind);
   const sk = skelOf(rig.meta);
-  const t = tick / 60;
+  const t = qt(tick / 60);
   let pose = poseIdle(t, sk, def.seed || 0);
   if (speaking) pose = applySpeak(pose, t, def.arm);
   ctx.save();
@@ -404,7 +410,7 @@ export function drawPreacherRig(ctx, x, y, facing, kind, tick, speaking) {
   ctx.ellipse(Math.floor(x) + 28, Math.floor(y) + 112 - 3, 56 * 0.3, 4, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-  drawCast(ctx, kind, pose, Math.floor(x), Math.floor(y), def.gameK, { flip: facing < 0, t });
+  drawCast(ctx, kind, pose, Math.floor(x), Math.floor(y), def.gameK, { flip: facing < 0, t, bake: true });
   return true;
 }
 
@@ -416,20 +422,20 @@ export function drawMoroniRig(ctx, L0, tick, faceLeft, greet, bob) {
   if (!RIG_MODE || !rigFor('moroni')) return false;
   const rig = rigFor('moroni');
   const sk = skelOf(rig.meta);
-  const t = tick / 60;
+  const t = qt(tick / 60);
   const st = rig._greet || (rig._greet = { k: 0 });
   st.k = Math.max(0, Math.min(1, st.k + (greet ? 1 / 30 : -1 / 30)));
   let pose = poseIdle(t, sk, 10);
   if (st.k > 0) pose = applyGreet(pose, st.k, 'f');
   // the raised hand gets a thin warm rim so it reads against the glory behind it
   drawCast(ctx, 'moroni', pose, L0.dx, L0.dy + (L0.bob - bob), L0.scale, {
-    flip: faceLeft, t, rim: st.k > 0 ? { parts: ['fFore', 'fUpper'], color: [122, 84, 44] } : undefined,
+    flip: faceLeft, t, rim: st.k > 0 ? { parts: ['fFore', 'fUpper'], color: [122, 84, 44] } : undefined, bake: true,
   });
   return true;
 }
 
 /**
- * Carthage (ch. 7, ?rig=1 only): Hyrum Smith, John Taylor and Willard Richards stand
+ * Carthage (ch. 7, rigs on by default): Hyrum Smith, John Taylor and Willard Richards stand
  * in the room; when the knocking starts they walk to the door and brace it with Joseph,
  * one behind the other, heaving with each push. Nothing else changes (no weapons, no
  * harm shown). Returns false to fall back to the seated procedural figures.
@@ -482,10 +488,11 @@ export function drawCarthageRig(ctx, f, base, camX, tick, W) {
     const arrived = engaged && Math.abs(target - m.cx) < 1;
     const want = !arrived ? 0 : f.mode === 'calm' ? 0.55 : 1;
     m.braceK += Math.max(-dt / 0.4, Math.min(dt / 0.3, want - m.braceK));
-    let p = poseIdle(m.t, sk, def.seed || 0);
-    if (m.moveK > 0) p = blend(p, poseWalk(m.phase, WP, sk), smooth(m.moveK));
+    const tq = qt(m.t);
+    let p = poseIdle(tq, sk, def.seed || 0);
+    if (m.moveK > 0) p = blend(p, poseWalk(qp(m.phase), WP, sk), smooth(m.moveK));
     p = posture(def, p);
-    if (m.braceK > 0) p = applyBrace(p, m.braceK, f.mode === 'push' && arrived ? 1 : 0, m.t + i * 0.4, sk);
+    if (m.braceK > 0) p = applyBrace(p, m.braceK, f.mode === 'push' && arrived ? 1 : 0, tq + i * 0.4, sk);
     const x = m.cx - camX;
     if (x < -80 || x > W + 80) continue;
     const gk = def.gameK;
@@ -498,7 +505,7 @@ export function drawCarthageRig(ctx, f, base, camX, tick, W) {
     ctx.restore();
     const left = Math.round(x - 33 * gk);
     const top = Math.round(base - ground * gk);
-    drawCast(ctx, m.key, p, left, top, gk, { t: m.t, flip: d < -0.5 });
+    drawCast(ctx, m.key, p, left, top, gk, { t: m.t, flip: d < -0.5, bake: true });
     // name label (and John Taylor's song while the room is still calm)
     const headY = top + 10 * gk;
     if (i === 1 && !engaged && Math.floor(tick / 40) % 3 !== 2) {
