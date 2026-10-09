@@ -109,6 +109,11 @@ function frame(now) {
     acc -= STEP;
     steps++;
   }
+  // 120Hz (ProMotion): the sim runs at 60 steps/s, so skip redraws when nothing advanced
+  if (steps === 0) {
+    requestAnimationFrame(frame);
+    return;
+  }
   drawGame(ctx, game);
   syncOverlays(game);
   // work time per frame (update + draw + overlays), read by the perf QA
@@ -127,4 +132,25 @@ window.addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
     e.preventDefault();
   }
+});
+
+// iOS Safari can keep a stale dvh/innerHeight after rotation: pin layout height to the
+// visual viewport, re-measure after the rotation settles, and undo any leftover scroll.
+function syncAppHeight() {
+  const h = Math.round(window.visualViewport?.height || window.innerHeight);
+  document.documentElement.style.setProperty('--app-h', h + 'px');
+  if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+}
+function onRotate() {
+  syncAppHeight();
+  [100, 300, 700].forEach((ms) => setTimeout(syncAppHeight, ms));
+}
+syncAppHeight();
+window.addEventListener('resize', onRotate);
+window.addEventListener('orientationchange', onRotate);
+window.visualViewport?.addEventListener('resize', onRotate);
+
+// Rotate gate: "Play anyway" dismisses it for this session
+document.querySelector('[data-gate-dismiss]')?.addEventListener('click', () => {
+  document.documentElement.classList.add('gate-dismissed');
 });

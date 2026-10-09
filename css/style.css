@@ -986,8 +986,8 @@ body.touch-ui .touch-bar {
   50% { transform: rotate(22deg); }
 }
 
-@media (orientation: portrait) and (pointer: coarse) {
-  #rotate-gate {
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  html:not(.gate-dismissed) #rotate-gate {
     display: flex !important;
   }
 }
@@ -2372,4 +2372,17 @@ html.is-standalone .pqt-row-fs { display: none; }
 }
 @media (max-height: 500px) {
   #nl-badge-frame { top: calc(max(10px, env(safe-area-inset-top)) + 42px) !important; }
+}
+
+/* rotate-fix: layout height follows the live visual viewport (iOS stale dvh after rotation) */
+html, body, #game-wrap, html.touch-ui #game-wrap, body.touch-ui #game-wrap { height: var(--app-h, 100dvh); }
+html.touch-ui #game-wrap, body.touch-ui #game-wrap { min-height: var(--app-h, 100dvh); }
+#stage { height: var(--app-h, 100dvh); max-height: var(--app-h, 100dvh); }
+@media (orientation: landscape) and (max-height: 500px) {
+  html.touch-ui #stage, body.touch-ui #stage { height: var(--app-h, 100dvh); max-height: var(--app-h, 100dvh); }
+}
+html, body { overflow: hidden; overscroll-behavior: none; }
+.rotate-anyway {
+  margin-top: 0.6rem; padding: 0.7em 1.6em; border-radius: 999px; border: 2px solid #d4a84b;
+  background: rgba(212, 168, 75, 0.15); color: #f0e6d0; font: inherit; font-size: 0.75em; cursor: pointer;
 }
