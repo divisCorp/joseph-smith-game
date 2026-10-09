@@ -4,7 +4,7 @@
  * Each has its own silhouette, idle/move cycle, a readable wind-up pose and an attack pose.
  * They are driven off (run away), never hurt on screen.
  */
-import { SCALE } from './constants.js?v=74';
+import { SCALE } from './constants.js?v=75';
 
 const S = SCALE;
 const OUT = 'rgba(20,12,6,0.85)';

@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=74';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=74';
-import { unlockAudio, syncMuteButton } from './audio.js?v=74';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=74';
-import { JOURNAL } from './journal.js?v=74';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=74';
-import { titleOptions, titleTapBegins, PAUSE_OPTIONS } from './game.js?v=74';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=75';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=75';
+import { unlockAudio, syncMuteButton } from './audio.js?v=75';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=75';
+import { JOURNAL } from './journal.js?v=75';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=75';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=75';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -155,6 +155,9 @@ function bindCmdButtons() {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // keyboard and pad menus are driven by the game's own selection: drop DOM focus so
+      // a later Enter / Space cannot also "click" whichever button the mouse last touched
+      if (e.detail > 0) el.blur();
       if (el.dataset.uiCmd === 'fullscreen') {
         // must run inside the tap itself (user activation) for the Fullscreen API
         const r = toggleFullscreen();
@@ -197,6 +200,10 @@ export function initOverlays(game) {
     unlockAudio();
     if (titleTapBegins()) sendCmd('begin');
   });
+  document.querySelector('[data-pqt-settings]')?.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    if (e.target === e.currentTarget) sendCmd('settings-close');
+  });
   document.getElementById('ui-intro')?.addEventListener('pointerdown', (e) => {
     if (e.button != null && e.button !== 0) return;
     unlockAudio();
@@ -232,6 +239,10 @@ export function syncOverlays(game) {
     document.body.dataset.state = state; // CSS hides the touch pad outside of play
     if (state !== STATES.INTRO) introSig = '';
     if (state !== STATES.TITLE) titleSig = '';
+    // the full title intro plays once; coming back from a menu uses a quick fade
+    const tEl = document.getElementById('ui-title');
+    if (tEl && state !== STATES.TITLE && tEl.dataset.seen) tEl.classList.add('pqt-quick');
+    if (tEl && state === STATES.TITLE) tEl.dataset.seen = '1';
     if (state === STATES.WIN) {
       // Restart the credits roll from the bottom
       const roll = document.querySelector('[data-ui-credits-roll]');
@@ -363,24 +374,39 @@ function syncTitle(game) {
   const opts = titleOptions();
   const n = unlockedChapter();
   const best = bestScore();
-  const sig = `${opts.join(',')}:${n}:${best}:${game.titleSel}`;
+  const open = titleSettingsOpen();
+  const sig = `${opts.join(',')}:${n}:${best}:${game.titleSel}:${open}`;
   if (sig === titleSig) return;
   titleSig = sig;
+  const root = document.getElementById('ui-title');
+  const hasSave = n > 1;
+  root?.classList.toggle('has-save', hasSave);
+  const sheet = root?.querySelector('[data-pqt-settings]');
+  if (sheet && sheet.hidden === open) {
+    sheet.hidden = !open;
+    root.classList.toggle('settings-open', open);
+  }
   const cont = document.querySelector('[data-ui-cmd="continue"]');
   if (cont) {
-    cont.hidden = opts.length < 2;
+    cont.hidden = !hasSave;
     const name = LEVEL_META[n]?.name || '';
     cont.innerHTML = `Continue <small>Chapter ${n}${name ? ` · ${name}` : ''}</small>`;
     cont.setAttribute('aria-label', `Continue from chapter ${n}`);
   }
   const sel = opts[game.titleSel] || opts[0];
-  document.querySelectorAll('#ui-title [data-ui-cmd]').forEach((el) => {
-    el.classList.toggle('is-selected', el.dataset.uiCmd === sel && opts.length > 1);
+  // keyboard / gamepad highlight: only the menu (or the open Settings sheet), and only
+  // after the player has actually used the keys (mouse and touch users get hover / press)
+  const scope = open ? '#ui-title .pqt-sheet [data-ui-cmd]' : '#ui-title .pqt-menu [data-ui-cmd]';
+  document.querySelectorAll('#ui-title [data-ui-cmd]').forEach((el) => el.classList.remove('is-selected'));
+  document.querySelectorAll(scope).forEach((el) => {
+    if (el.dataset.uiCmd !== sel) return;
+    if (el.dataset.uiCmd === 'begin' && el.classList.contains('pqt-new') !== hasSave) return;
+    el.classList.add('is-selected');
   });
   const bestEl = document.querySelector('[data-ui-best]');
   if (bestEl) {
     bestEl.hidden = best <= 0;
-    bestEl.textContent = `Best score ${best}`;
+    bestEl.innerHTML = `<span>Best</span> ${best.toLocaleString('en-US')}`;
   }
 }
 
@@ -509,12 +535,14 @@ function syncOptionLabels() {
   if (sig === optSig) return;
   optSig = sig;
   document.querySelectorAll('[data-ui-diff-label]').forEach((n) => {
-    n.textContent = `Difficulty: ${isEasy() ? 'Easy' : 'Normal'}`;
+    if (n.classList.contains('pqt-row')) n.innerHTML = `<span>Difficulty</span><b>${isEasy() ? 'Easy' : 'Normal'}</b>`;
+    else n.textContent = `Difficulty: ${isEasy() ? 'Easy' : 'Normal'}`;
     n.setAttribute('aria-label', `Difficulty ${isEasy() ? 'Easy' : 'Normal'}, tap to change`);
     n.classList.toggle('is-on', isEasy());
   });
   document.querySelectorAll('[data-ui-flash-label]').forEach((n) => {
-    n.textContent = `Reduce flashing: ${reduceFlash() ? 'On' : 'Off'}`;
+    if (n.classList.contains('pqt-row')) n.innerHTML = `<span>Reduce flashing</span><b>${reduceFlash() ? 'On' : 'Off'}</b>`;
+    else n.textContent = `Reduce flashing: ${reduceFlash() ? 'On' : 'Off'}`;
     n.setAttribute('aria-pressed', reduceFlash() ? 'true' : 'false');
     n.classList.toggle('is-on', reduceFlash());
   });

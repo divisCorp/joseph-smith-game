@@ -3,15 +3,15 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js?v=74';
-import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=74';
-import { isStandalone } from './fullscreen.js?v=74';
-import { initVirtualControls, setAction } from './input.js?v=74';
-import { initOverlays, syncOverlays } from './ui.js?v=74';
-import { preloadSprites } from './sprites.js?v=74';
-import { fxFrameTime } from './fx.js?v=74';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=74';
-import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=74';
+import { STATES } from './constants.js?v=75';
+import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=75';
+import { isStandalone } from './fullscreen.js?v=75';
+import { initVirtualControls, setAction } from './input.js?v=75';
+import { initOverlays, syncOverlays } from './ui.js?v=75';
+import { preloadSprites } from './sprites.js?v=75';
+import { fxFrameTime } from './fx.js?v=75';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=75';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=75';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');

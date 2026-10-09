@@ -9,8 +9,8 @@
 import {
   loadCast, skelOf, basePose, poseIdle, poseWalk, WALK, strideLen, applyThrow, applyWind, applyStrike,
   applySpeak, applyGreet, applyHold, applyBrace, drawRig, solve, handPoint, partPoint,
-} from './rig.js?v=74';
-import { drawTorchProp, drawClubProp, drawMusketProp } from './critters.js?v=74';
+} from './rig.js?v=75';
+import { drawTorchProp, drawClubProp, drawMusketProp } from './critters.js?v=75';
 const ASSET_V = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch { return ''; } })(); // follows the module ?v= (bump-version.mjs)
 
 const FOE_OLD = (row) => ({ src: 'tools/rig/src/foesFixed.png', fw: 64, fh: 128, row, frames: [0, 1, 2, 3, 4, 5, 6, 7] });

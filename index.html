@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
-  <meta name="theme-color" content="#1a1208" />
+  <meta name="theme-color" content="#0f1d17" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Palmyra Quest" />
@@ -19,14 +19,16 @@
   <meta name="twitter:title" content="Joseph Smith — Palmyra Quest" />
   <meta name="twitter:description" content="A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage." />
   <meta name="twitter:image" content="https://palmyra-quest.netlify.app/assets/og.png" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icons/favicon-32.png?v=75" sizes="32x32" type="image/png" />
+  <link rel="icon" href="assets/icons/favicon-16.png?v=75" sizes="16x16" type="image/png" />
+  <link rel="icon" href="assets/icons/icon-192.png?v=75" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon-180.png?v=75" sizes="180x180" />
+  <link rel="manifest" href="manifest.webmanifest?v=75" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <title>Joseph Smith — Palmyra Quest</title>
-  <link rel="stylesheet" href="css/style.css?v=74" />
+  <link rel="stylesheet" href="css/style.css?v=75" />
   <script>
     (function () {
       var touch =
@@ -50,6 +52,7 @@
   <div id="game-wrap">
     <div id="stage">
       <canvas id="game" width="1080" height="480" aria-label="Joseph Smith Palmyra Quest"></canvas>
+      <canvas id="title-bg" aria-hidden="true"></canvas>
       <div id="hud" hidden>
         <div class="hud-hearts" data-hud-hearts></div>
         <div class="hud-chapter" data-hud-chapter>1/7</div>
@@ -64,31 +67,43 @@
       </div>
 
       <div id="ui-overlays" aria-live="polite">
-        <div id="ui-title" class="ui-screen" hidden>
-          <div class="ui-title-inner">
-            <p class="ui-flourish">◆</p>
-            <img class="ui-portrait" src="assets/joseph-portrait.png?v=74" alt="" width="88" height="88" />
-            <h1 class="ui-title-name">Joseph Smith</h1>
-            <h2 class="ui-title-sub">Palmyra Quest</h2>
-            <p class="ui-rule" aria-hidden="true"></p>
-            <p class="ui-level">The Prophet's Path</p>
-            <div class="ui-card">
-              <p>From a boy in the grove to Carthage.</p>
-              <p>Seven chapters. One testimony.</p>
+        <div id="ui-title" class="ui-screen pqt" hidden>
+          <div class="pqt-top">
+            <p class="pqt-best" data-ui-best hidden></p>
+            <div class="pqt-top-btns">
+              <button type="button" class="pqt-icon-btn" data-ui-cmd="sound" data-ui-sound-icon aria-label="Mute sound" title="Sound"><svg class="pqt-ico-on" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 8.8a4.5 4.5 0 0 1 0 6.4M18.2 6.2a8.2 8.2 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><svg class="pqt-ico-off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+              <button type="button" class="pqt-icon-btn pqt-fs-btn" data-ui-cmd="fullscreen" data-ui-fs-icon aria-label="Play full screen" title="Full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
           </div>
-          <div class="ui-title-actions">
-            <button type="button" class="ui-start-btn ui-continue-btn" data-ui-cmd="continue" hidden>Continue</button>
-            <button type="button" class="ui-start-btn" data-ui-cmd="begin" aria-label="Begin a new game">Begin</button>
-            <button type="button" class="ui-start-btn ui-chapters-btn" data-ui-cmd="chapters" aria-label="Choose a chapter">Chapters</button>
+
+          <div class="pqt-lockup">
+            <p class="pqt-kicker"><span class="pqt-kick-line" aria-hidden="true"></span>Joseph Smith<span class="pqt-kick-line" aria-hidden="true"></span></p>
+            <h1 class="pqt-name" aria-label="Joseph Smith: Palmyra Quest"><span class="pqt-name-a" data-text="Palmyra">Palmyra</span> <span class="pqt-name-b" data-text="Quest">Quest</span></h1>
+            <svg class="pqt-orn" viewBox="0 0 320 22" aria-hidden="true" focusable="false"><defs><linearGradient id="pqtOrnG" x1="0" x2="1"><stop offset="0" stop-color="#c99a3a" stop-opacity="0"/><stop offset=".5" stop-color="#ffe7a8"/><stop offset="1" stop-color="#c99a3a" stop-opacity="0"/></linearGradient></defs><path d="M8 11H136M184 11H312" stroke="url(#pqtOrnG)" stroke-width="1.6"/><path d="M160 2l9 9-9 9-9-9z" fill="none" stroke="#f3d48a" stroke-width="1.6"/><path d="M160 6.5l4.5 4.5-4.5 4.5-4.5-4.5z" fill="#ffe7a8"/><circle cx="141" cy="11" r="2" fill="#e8c26a"/><circle cx="179" cy="11" r="2" fill="#e8c26a"/></svg>
+            <p class="pqt-tag">From the Sacred Grove to Carthage</p>
           </div>
-          <div class="ui-title-options" role="group" aria-label="Options">
-            <button type="button" class="ui-opt-btn" data-ui-cmd="difficulty" data-ui-diff-label aria-label="Difficulty">Difficulty: Normal</button>
-            <button type="button" class="ui-opt-btn" data-ui-cmd="flash" data-ui-flash-label aria-label="Reduce flashing" title="Also turns down particles and lighting effects">Reduce flashing: Off</button>
-            <button type="button" class="ui-opt-btn" data-ui-cmd="controls" aria-label="Controls">Controls</button>
+
+          <div class="pqt-menu" role="group" aria-label="Main menu">
+            <button type="button" class="pqt-btn pqt-primary ui-continue-btn" data-ui-cmd="continue" hidden>Continue</button>
+            <button type="button" class="pqt-btn pqt-primary pqt-play" data-ui-cmd="begin" aria-label="Play: begin a new game"><span class="pqt-play-ico" aria-hidden="true"></span>Play</button>
+            <div class="pqt-sec">
+              <button type="button" class="pqt-btn pqt-secondary pqt-new" data-ui-cmd="begin" aria-label="New game from chapter 1">New Game</button>
+              <button type="button" class="pqt-btn pqt-secondary" data-ui-cmd="chapters" aria-label="Choose a chapter">Chapters</button>
+              <button type="button" class="pqt-btn pqt-secondary" data-ui-cmd="settings" aria-label="Settings" aria-haspopup="dialog">Settings</button>
+              <button type="button" class="pqt-btn pqt-secondary" data-ui-cmd="controls" aria-label="Controls">Controls</button>
+            </div>
           </div>
-          <p class="ui-best" data-ui-best hidden></p>
-          <button type="button" class="ui-fs-title-btn" data-ui-cmd="fullscreen" data-ui-fs-label aria-label="Play full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-ui-fs-text>Full screen</span></button>
+
+          <div class="pqt-settings" data-pqt-settings hidden>
+            <div class="pqt-sheet" role="dialog" aria-modal="true" aria-labelledby="pqt-settings-title">
+              <h2 class="pqt-sheet-title" id="pqt-settings-title">Settings</h2>
+              <button type="button" class="pqt-row" data-ui-cmd="difficulty" data-ui-diff-label aria-label="Difficulty">Difficulty: Normal</button>
+              <button type="button" class="pqt-row" data-ui-cmd="flash" data-ui-flash-label title="Also turns down particles and lighting effects">Reduce flashing: Off</button>
+              <button type="button" class="pqt-row" data-ui-cmd="sound" data-ui-sound-label>Sound: On</button>
+              <button type="button" class="pqt-row pqt-row-fs" data-ui-cmd="fullscreen" data-ui-fs-label><span data-ui-fs-text>Full screen</span></button>
+              <button type="button" class="pqt-btn pqt-secondary pqt-done" data-ui-cmd="settings-close">Done</button>
+            </div>
+          </div>
         </div>
 
         <div id="ui-chapters" class="ui-screen ui-screen--dim" hidden>
@@ -309,7 +324,7 @@
               <li class="ui-fs-arrow" aria-hidden="true">→</li>
               <li><span class="ui-fs-ico ui-fs-ico--menu"><span class="ui-fs-menu-row">Add to Home Screen <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="8" fill="none" stroke="#222" stroke-width="3.4"/><path d="M24 15v18M15 24h18" stroke="#222" stroke-width="3.4" stroke-linecap="round"/></svg></span></span><span class="ui-fs-cap"><b>2</b> Choose <b>Add to Home Screen</b></span></li>
               <li class="ui-fs-arrow" aria-hidden="true">→</li>
-              <li><span class="ui-fs-ico ui-fs-ico--app"><img src="assets/apple-touch-icon.png?v=74" alt="" width="44" height="44" /></span><span class="ui-fs-cap"><b>3</b> Open <b>Palmyra Quest</b> from your Home Screen</span></li>
+              <li><span class="ui-fs-ico ui-fs-ico--app"><img src="assets/apple-touch-icon.png?v=75" alt="" width="44" height="44" /></span><span class="ui-fs-cap"><b>3</b> Open <b>Palmyra Quest</b> from your Home Screen</span></li>
             </ol>
             <p class="ui-fs-note">On newer iPhones, Share may be inside the <b>•••</b> menu.</p>
           </div>
@@ -352,6 +367,6 @@
 
     <p id="hint" data-ui-key-hint>Move ← → / A D · Jump Space / Z · Attack X / J · Kneel ↓ / S · Look up ↑ / W · Pause Esc / P · Mute M · Gamepad: A jump, B / X attack</p>
   </div>
-  <script type="module" src="js/main.js?v=74"></script>
+  <script type="module" src="js/main.js?v=75"></script>
 </body>
 </html>

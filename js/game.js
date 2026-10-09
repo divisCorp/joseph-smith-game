@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=74';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=74';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=74';
+import { slopeFloor } from './hill.js?v=75';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=75';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=75';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=74';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=74';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=74';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=74';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=74';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=74';
+} from './player.js?v=75';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=75';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=75';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=75';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=75';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=75';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=74';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=74';
+} from './sprites.js?v=75';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=75';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,10 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=74';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=74';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=74';
-import { drawMoroniRig } from './rig-cast.js?v=74';
+} from './save.js?v=75';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=75';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=75';
+import { drawMoroniRig } from './rig-cast.js?v=75';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=75';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -107,17 +108,31 @@ export function setFullscreenOffered(on) {
   fsOffered = !!on;
 }
 
-/** Title choices: Continue only appears once a later chapter is unlocked. */
+let settingsOpen = false;
+/** Is the title's Settings sheet open? */
+export function titleSettingsOpen() {
+  return settingsOpen;
+}
+
+/**
+ * Title choices, in keyboard / gamepad order. One primary action (Continue once a later
+ * chapter is unlocked, otherwise Play), then New Game · Chapters · Settings · Controls.
+ * While the Settings sheet is open the choices are its rows.
+ */
 export function titleOptions() {
-  const n = unlockedChapter();
-  const base = ['begin', 'chapters', 'difficulty', 'flash', 'controls'];
-  if (fsOffered) base.push('fullscreen');
-  return n > 1 ? ['continue', ...base] : base;
+  if (settingsOpen) {
+    const rows = ['difficulty', 'flash', 'sound'];
+    if (fsOffered) rows.push('fullscreen');
+    rows.push('settings-close');
+    return rows;
+  }
+  const base = ['begin', 'chapters', 'settings', 'controls'];
+  return unlockedChapter() > 1 ? ['continue', ...base] : base;
 }
 
 /** Tapping the bare title scene begins only for brand-new players. */
 export function titleTapBegins() {
-  return unlockedChapter() <= 1;
+  return unlockedChapter() <= 1 && !settingsOpen;
 }
 
 export const PAUSE_OPTIONS = ['resume', 'restart', 'controls', 'fullscreen', 'difficulty', 'flash', 'sound', 'quit'];
@@ -276,6 +291,7 @@ function quitToTitle(game) {
 }
 
 function setState(game, st) {
+  if (st !== STATES.TITLE) settingsOpen = false;
   game.state = st;
   game.stateT = 0;
   clearAll();
@@ -306,6 +322,20 @@ function runCommand(game, cmd) {
       if (game.state === STATES.CHAPTERS) {
         setState(game, STATES.TITLE);
         game.titleSel = titleOptions().indexOf('chapters');
+      }
+      break;
+    case 'settings':
+      if (game.state === STATES.TITLE && !settingsOpen) {
+        settingsOpen = true;
+        game.titleSel = 0;
+        sfx('select');
+      }
+      break;
+    case 'settings-close':
+      if (settingsOpen) {
+        settingsOpen = false;
+        game.titleSel = Math.max(0, titleOptions().indexOf('settings'));
+        sfx('select');
       }
       break;
     case 'difficulty':
@@ -517,6 +547,10 @@ export function updateGame(game, dt) {
   }
 
   if (game.state === STATES.TITLE) {
+    if (settingsOpen && justPressed('pause')) {
+      runCommand(game, 'settings-close');
+      return;
+    }
     const opts = titleOptions();
     if (game.titleSel >= opts.length) game.titleSel = 0;
     game.titleSel = menuNav(game.titleSel, opts.length);
@@ -1026,8 +1060,11 @@ export function drawGame(ctx, game) {
   ctx.imageSmoothingEnabled = true;
   ctx.clearRect(0, 0, W, H);
 
-  if (game.state === STATES.TITLE) {
-    drawTitleScene(ctx, game);
+  // The title (and the screens reached from it) paint a full-bleed backdrop on #title-bg
+  const backdrop = wantsTitleBackdrop(game);
+  setTitleBackdrop(backdrop);
+  if (backdrop) {
+    drawTitleBackdrop(game);
     return;
   }
   if (game.state === STATES.WIN) {
@@ -1161,39 +1198,6 @@ function drawVignette(ctx) {
 
 function drawHUD(_ctx, _game) {
   // HTML HUD in index.html — canvas bar was clipping/overlapping on widescreen
-}
-
-function drawTitleScene(ctx, game) {
-  if (!game.titleLevel) {
-    try {
-      game.titleLevel = createLevel(1);
-    } catch (_) {
-      game.titleLevel = null;
-    }
-  }
-  if (game.titleLevel) {
-    const cam = 36 + (Math.sin(game.titleBlink * 0.01) * 0.5 + 0.5) * 64;
-    drawLevelBackground(ctx, cam, game.titleLevel);
-    drawLevelTiles(ctx, cam, game.titleLevel, { noStacks: true });
-    const walk = Math.floor(game.titleBlink / 8) % 8;
-    // the title is a living scene: ambient leaves, birds, sun shafts, grading
-    const tg = game.titleFx || (game.titleFx = { level: game.titleLevel, camX: cam, tick: 0, player: null });
-    tg.camX = cam;
-    tg.tick = game.titleBlink;
-    fxUpdate(tg, 1);
-    drawFxBack(ctx, tg);
-    drawJoseph(ctx, W * 0.28, game.titleLevel.spawn.y, 1, walk, false, false, false, true, false);
-    drawFxForegroundGrass(ctx, tg);
-    drawFxFront(ctx, tg);
-  } else {
-    for (let i = 0; i < 20; i++) {
-      const t = i / 20;
-      drawRect(ctx, 0, i * 24, W, 24, `rgb(${16 + t * 42},${12 + t * 48},${32 + t * 88})`);
-    }
-  }
-  if (!game.titleLevel) drawVignette(ctx);
-  drawRect(ctx, 0, 0, W, 56, 'rgba(6,4,2,0.35)');
-  drawRect(ctx, 0, H - 90, W, 90, 'rgba(6,4,2,0.45)');
 }
 
 /** Calm closing backdrop: the grove at sunrise, slowly drifting. */

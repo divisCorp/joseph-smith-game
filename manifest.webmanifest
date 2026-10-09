@@ -2,13 +2,18 @@
   "name": "Joseph Smith — Palmyra Quest",
   "short_name": "Palmyra Quest",
   "description": "A family-friendly 7-chapter arcade campaign: from the Sacred Grove to Carthage.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#0a0c12",
-  "theme_color": "#1a1208",
+  "background_color": "#0a1410",
+  "theme_color": "#0f1d17",
   "icons": [
-    { "src": "assets/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    { "src": "assets/icons/icon-192.png?v=75", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png?v=75", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-192.png?v=75", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon-maskable-512.png?v=75", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/apple-touch-icon-180.png?v=75", "sizes": "180x180", "type": "image/png", "purpose": "any" }
   ]
 }

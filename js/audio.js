@@ -4,9 +4,9 @@
  * Arrangements (chiptune voicing + bass lines) are original to this game.
  * AudioContext is created only inside a user gesture so iPhone will actually play.
  */
-import { STATES } from './constants.js?v=74';
-import { savedMuted, saveMuted } from './save.js?v=74';
-import * as S from './songs.js?v=74';
+import { STATES } from './constants.js?v=75';
+import { savedMuted, saveMuted } from './save.js?v=75';
+import * as S from './songs.js?v=75';
 
 let actx = null;
 let master = null;
@@ -175,7 +175,13 @@ export function syncMuteButton() {
     btn.textContent = muted ? 'UNMUTE' : 'MUTE';
   }
   document.querySelectorAll('[data-ui-sound-label]').forEach((n) => {
-    n.textContent = muted ? 'Sound: Off' : 'Sound: On';
+    if (n.classList.contains('pqt-row')) n.innerHTML = `<span>Sound</span><b>${muted ? 'Off' : 'On'}</b>`;
+    else n.textContent = muted ? 'Sound: Off' : 'Sound: On';
+  });
+  document.querySelectorAll('[data-ui-sound-icon]').forEach((n) => {
+    n.classList.toggle('is-muted', muted);
+    n.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    n.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
   });
 }
 

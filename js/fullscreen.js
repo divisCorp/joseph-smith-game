@@ -100,7 +100,8 @@ function syncLabels() {
   document.documentElement.classList.toggle('is-fullscreen', on);
   document.querySelectorAll('[data-ui-fs-label]').forEach((n) => {
     const t = n.querySelector('[data-ui-fs-text]') || n;
-    t.textContent = on ? 'Exit full screen' : 'Full screen';
+    if (n.classList.contains('pqt-row')) n.innerHTML = `<span data-ui-fs-text>Full screen</span><b>${on ? 'On' : 'Off'}</b>`;
+    else t.textContent = on ? 'Exit full screen' : 'Full screen';
     n.setAttribute('aria-label', on ? 'Exit full screen' : 'Play full screen');
   });
   document.querySelectorAll('[data-ui-fs-icon]').forEach((n) => {
