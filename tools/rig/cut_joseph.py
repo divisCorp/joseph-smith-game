@@ -113,6 +113,13 @@ for y in range(H_):
         else:
             o = 'torso'
         owner[y, x] = o
+if SKIN is not None:
+    # a skin may paint the head larger than Joseph's (other hair, a fuller jaw): those
+    # extra pixels belong to the head
+    for y in range(0, 44):
+        for x in range(W_):
+            if F[y, x, 3] > 24 and not opaque(x, y) and (y <= 40 or 26 <= x <= 40):
+                owner[y, x] = 'head'
 
 def layer_from(names):
     L = np.zeros_like(F)

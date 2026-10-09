@@ -10,6 +10,7 @@ import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=73';
 import { drawText, measureText, drawRect } from './sprites.js?v=73';
 import { sfx } from './audio.js?v=73';
 import { isEasy, reduceFlash } from './save.js?v=73';
+import { drawCarthageRig } from './rig-cast.js?v=73';
 
 const S = SCALE;
 
@@ -406,11 +407,13 @@ function drawFinaleBack(ctx, game) {
   }
   const coats = ['#3a4a6a', '#5a3a2a', '#4a4a44'];
   const hats = ['#1a1a1e', '#2a1a10', '#1e1e1e'];
-  f.friendsX.forEach((fx, i) => {
-    const x = fx - camX;
-    if (x < -60 || x > W + 60) return;
-    drawFriend(ctx, x, base, coats[i], hats[i], tick, i);
-  });
+  if (!drawCarthageRig(ctx, f, base, camX, tick, W)) {
+    f.friendsX.forEach((fx, i) => {
+      const x = fx - camX;
+      if (x < -60 || x > W + 60) return;
+      drawFriend(ctx, x, base, coats[i], hats[i], tick, i);
+    });
+  }
   // the door
   const dx = f.doorX - camX + (f.rattle > 0 ? Math.sin(tick * 2.2) * 2 * S : 0);
   if (dx > -60 && dx < W + 60) {

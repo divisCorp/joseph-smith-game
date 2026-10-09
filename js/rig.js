@@ -342,6 +342,7 @@ export function poseKneel(t = 0, sk = skelOf()) {
   p.tailBend = 10; p.skirtBend = 6; // coat folds over the heel
   p.nFoot = foot(sk, 'n', 8, 117.5); p.nFootRot = 64;
   p.fFoot = foot(sk, 'f', 47, 119.5); p.fFootRot = 0;
+  p.kneelOrder = 1;
   return p;
 }
 
@@ -436,6 +437,32 @@ export function applyGreet(base, k, arm = 'f') {
   p[arm + 'Arm'] = lerp(base[arm + 'Arm'], -36, a);
   p[arm + 'Fore'] = lerp(base[arm + 'Fore'], -118, a);
   p.headRot = base.headRot - 2 * a;
+  return p;
+}
+/**
+ * Bracing a door (Carthage): weight forward over a staggered stance, both palms
+ * pressed forward at chest height. k eases in; push (0..1) adds rhythmic heaves.
+ */
+export function applyBrace(base, k, push = 0, t = 0, sk = null) {
+  const p = { ...base };
+  const a = smooth(clamp(k, 0, 1));
+  const heave = push * (0.5 + 0.5 * Math.sin(t * 7.5));
+  p.torsoRot = base.torsoRot + (13 + 4 * heave) * a;
+  p.headRot = base.headRot - (7 + 2 * heave) * a;
+  p.pelvisDx = (base.pelvisDx || 0) + (3 + 1.5 * heave) * a;
+  p.pelvisDy = (base.pelvisDy || 0) + 2.2 * a;
+  p.fArm = lerp(base.fArm, -74 - 6 * heave, a);
+  p.fFore = lerp(base.fFore, -34 + 10 * heave, a);
+  p.nArm = lerp(base.nArm, -66 - 6 * heave, a);
+  p.nFore = lerp(base.nFore, -40 + 10 * heave, a);
+  if (sk) {
+    // front (far) foot a little forward, back (near) foot pushed back, heel lifted
+    p.fFoot = [lerp(base.fFoot[0], sk.restF[0] + 5, a), base.fFoot[1]];
+    p.nFoot = [lerp(base.nFoot[0], sk.restN[0] - 13, a), lerp(base.nFoot[1], sk.restN[1] - 1.5, a)];
+    p.nFootRot = lerp(base.nFootRot || 0, 22, a);
+  }
+  p.tailBend = (base.tailBend || 0) - 4 * a;
+  p.tail = (base.tail || 0) - 3 * a;
   return p;
 }
 /** Torch held up and forward in the far hand. */
@@ -573,6 +600,15 @@ function scratch(w, h) {
   return SCRATCH;
 }
 const PAD = 48;
+let RIM = null;
+function rimScratch(w, h) {
+  if (!RIM || RIM.width < w || RIM.height < h) {
+    RIM = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : document.createElement('canvas');
+    RIM.width = w; RIM.height = h;
+    RIM.ctx = RIM.getContext('2d', { willReadFrequently: true });
+  }
+  return RIM;
+}
 
 /** Draw one part into a model-space context (handles slice-deformed cloth). */
 function drawPart(g, img, part, b, up, bend) {
@@ -611,7 +647,14 @@ function drawPart(g, img, part, b, up, bend) {
 function drawParts(g, rig, pose, B) {
   const { meta, img } = rig;
   const up = meta.scale;
-  const order = meta.order || DRAW_ORDER;
+  let order = meta.order || DRAW_ORDER;
+  if ((pose.kneelOrder || 0) > 0.5) {
+    // kneeling: the planted shin lies on the ground in front of the coat hem, so the
+    // knee and shin read clearly instead of vanishing under the skirt
+    order = order.filter((n) => n !== 'nShin' && n !== 'nFoot');
+    const i = order.indexOf('tail');
+    order.splice(i + 1, 0, 'nFoot', 'nShin');
+  }
   const pray = pose.pray && meta.parts.prayHands;
   for (const name of order) {
     let part = meta.parts[name];
@@ -676,6 +719,30 @@ export function drawRig(ctx, rig, pose, opts = {}) {
   const id = g.getImageData(0, 0, W, H);
   const d = id.data;
   for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
+  if (opts.rim) {
+    // 1px rim around chosen parts where they border empty space (e.g. Moroni's raised
+    // hand against his glow): draw those parts alone, then darken the ring outside them
+    const r2 = rimScratch(W, H);
+    const h2 = r2.ctx;
+    h2.setTransform(1, 0, 0, 1, 0, 0);
+    h2.clearRect(0, 0, W, H);
+    h2.imageSmoothingEnabled = true;
+    h2.translate(PAD, PAD);
+    const only = { ...rig, meta: { ...meta, order: (meta.order || DRAW_ORDER).filter((n) => opts.rim.parts.includes(n)) } };
+    drawParts(h2, only, lp, B);
+    const m = h2.getImageData(0, 0, W, H).data;
+    const [rr, rg, rb] = opts.rim.color;
+    const near = (x, y) => x >= 0 && y >= 0 && x < W && y < H && m[(y * W + x) * 4 + 3] >= 110;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4;
+        if (d[i + 3]) continue;
+        if (near(x + 1, y) || near(x - 1, y) || near(x, y + 1) || near(x, y - 1)) {
+          d[i] = rr; d[i + 1] = rg; d[i + 2] = rb; d[i + 3] = 255;
+        }
+      }
+    }
+  }
   g.putImageData(id, 0, 0);
   ctx.save();
   ctx.translate(opts.x ?? 0, opts.y ?? 0);

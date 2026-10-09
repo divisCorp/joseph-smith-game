@@ -8,7 +8,7 @@
  */
 import {
   loadCast, skelOf, basePose, poseIdle, poseWalk, WALK, strideLen, applyThrow, applyWind, applyStrike,
-  applySpeak, applyGreet, applyHold, drawRig, solve, handPoint, partPoint,
+  applySpeak, applyGreet, applyHold, applyBrace, drawRig, solve, handPoint, partPoint,
 } from './rig.js?v=73';
 import { drawTorchProp, drawClubProp, drawMusketProp } from './critters.js?v=73';
 
@@ -39,16 +39,27 @@ export const CAST = {
     old: { src: 'tools/rig/src/moroni.png', fw: 64, fh: 128, row: 0, frames: [0, 1, 2, 1], greet: 3 } },
   captain: { label: 'Captain (ch. 4 boss)', rig: 'captain', gameK: 0.7, arm: 'f', style: 'punch', seed: 11, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(2),
     note: 'His long coat hides most of the legs, so the thighs are short. The coat side under the sleeve is repainted as plain cloth.' },
-  warden: { label: 'Warden (ch. 5 boss)', rig: 'warden', gameK: 0.7, arm: 'f', style: 'club', prop: 'mace', seed: 12, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(3),
-    note: 'Body cut from his painted frame 0; the mace is cut from his painted frame 1 (shaft under the fist painted in). Coif and mace are the existing live art, unchanged.' },
+  warden: { label: 'Warden (ch. 5 boss)', rig: 'warden', gameK: 0.7, bodyK: 0.8, arm: 'f', style: 'club', prop: 'mace', seed: 12, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(3),
+    note: 'Body cut from his painted frame 0, drawn at the size of his painted walk frames (frame 0 is painted larger); the mace is cut from his painted frame 1 (shaft under the fist painted in). Coif and mace are the existing live art, unchanged.' },
+  // Carthage, June 27, 1844 (ch. 7). Hand-painted on the house template in 1840s dress;
+  // heights by uniform rig scale only (Hyrum tall, Richards tallest and heavy-set).
+  hyrum: { label: 'Hyrum Smith (Carthage)', rig: 'hyrum', gameK: 0.875 * 1.04, yOff: 2, arm: 'f', seed: 14, anims: ['idle', 'walk', 'brace'], carthage: true,
+    old: { src: 'tools/rig/src/carthage_hyrum.png', fw: 64, fh: 128, row: 0, frames: [0] },
+    note: 'New hand-painted character (no AI imagery): tall, dark hair with a side parting, charcoal frock coat, black silk stock. Braces the door with Joseph; no weapons, no harm shown.' },
+  taylor: { label: 'John Taylor (Carthage)', rig: 'taylor', gameK: 0.875, yOff: 2, arm: 'f', seed: 15, anims: ['idle', 'walk', 'brace'], carthage: true,
+    old: { src: 'tools/rig/src/carthage_taylor.png', fw: 64, fh: 128, row: 0, frames: [0] },
+    note: 'New hand-painted character (no AI imagery): English-born, dark hair combed back, black frock coat, burgundy waistcoat, white cravat.' },
+  richards: { label: 'Willard Richards (Carthage)', rig: 'richards', gameK: 0.875 * 1.075, yOff: 2, arm: 'f', seed: 16, anims: ['idle', 'walk', 'brace'], carthage: true,
+    old: { src: 'tools/rig/src/carthage_richards.png', fw: 64, fh: 128, row: 0, frames: [0] },
+    note: 'New hand-painted character (no AI imagery): taller and heavy-set (fuller face, second chin), receding hair, brown frock coat, buff waistcoat with a watch chain.' },
   overseer: { label: 'Overseer (ch. 6 boss)', rig: 'overseer', gameK: 0.7, arm: 'f', style: 'punch', seed: 13, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(4) },
 };
 
 export const ANIM_LABEL = {
   idle: 'Idle', walk: 'Walk', run: 'Run (game speed)', jump: 'Jump', kneel: 'Kneel & pray', throw: 'Throw',
-  attack: 'Attack', speak: 'Preach', greet: 'Greet', tell: 'Wind-up & charge',
+  attack: 'Attack', speak: 'Preach', greet: 'Greet', tell: 'Wind-up & charge', brace: 'Brace the door',
 };
-export const ANIM_DUR = { idle: 6.8, walk: 2, attack: 1.8, throw: 1.2, speak: 6, greet: 3.6, tell: 2.4 };
+export const ANIM_DUR = { idle: 6.8, walk: 2, attack: 1.8, throw: 1.2, speak: 6, greet: 3.6, tell: 2.4, brace: 4 };
 
 let CAST_RIGS = null;
 let castLoading = null;
@@ -128,6 +139,13 @@ export function castPose(key, rig, anim, t) {
     if (T > 0.3 && T < 0.62) p = applyThrow(p, (T - 0.3) / 0.32);
     return { pose: p, dist: 0 };
   }
+  if (anim === 'brace') {
+    // step in → brace → heave against the knocks → ease → repeat
+    const T = t % ANIM_DUR.brace;
+    const k = T < 0.5 ? T / 0.5 : T < 3.4 ? 1 : 1 - (T - 3.4) / 0.6;
+    const push = T > 1.2 && T < 3.2 ? 1 : 0;
+    return { pose: applyBrace(poseIdle(t, sk, seed), k, push, t, sk), dist: 0 };
+  }
   if (anim === 'speak') return { pose: applySpeak(poseIdle(t, sk, seed), t, def.arm), dist: 0 };
   if (anim === 'greet') {
     const T = t % ANIM_DUR.greet;
@@ -206,7 +224,14 @@ function drawProp(ctx, def, rig, B, toScreen, gs, flip, t, state) {
     }
     const up = -10 + ((B.fUpper.rot - B.torso.rot) - rig._clubRef) * 180 / Math.PI; // ≈ pose angle
     const flex = clamp((-40 - up) / 30, 0, 1) * 108 * Math.PI / 180;
-    ctx.rotate(foreAng + 1.25 - flex);
+    // wind-up: the club is cocked back behind the head (pointing back and a little down),
+    // not held level; it comes over the top as the arm swings through
+    const cock = smooth(clamp((up - 70) / 80, 0, 1));
+    const a0 = foreAng + 1.25 - flex;
+    const aBack = -1.7; // club direction ≈ 115° back from straight up
+    let d = aBack - a0;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    ctx.rotate(a0 + d * cock);
     drawClubProp(ctx, 0, 0, 1, false);
   } else if (def.prop === 'musket') {
     // shoulder arms at rest (as the old sprite carried it); swung to port arms (diagonal
@@ -226,7 +251,8 @@ function drawProp(ctx, def, rig, B, toScreen, gs, flip, t, state) {
       const { B: B0 } = solve(meta, withProp(def, basePose(sk), 0));
       rig._propRef = B0[side + 'Fore'].rot + phiF;
     }
-    ctx.scale(1 / gs * state, 1 / gs * state); // state = body scale (model px → screen)
+    const pk = def.bodyK ? 1 / def.bodyK : 1; // the prop keeps the scale of the frame it was cut from
+    ctx.scale(1 / gs * state * pk, 1 / gs * state * pk); // state = body scale (model px → screen)
     ctx.rotate(foreAng - rig._propRef);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(P.img, -P.meta.grip[0], -P.meta.grip[1]);
@@ -243,6 +269,13 @@ export function drawCast(ctx, key, pose, x, y, scale, opts = {}) {
   const rig = rigFor(key);
   if (!def || !rig) return null;
   const meta = rig.meta;
+  if (def.bodyK && def.bodyK !== 1) {
+    // body drawn at bodyK of the cell scale, feet kept on the same ground point
+    const ak = def.bodyK;
+    x += (meta.cell[0] / 2) * scale * (1 - ak);
+    y += (meta.ground + 1 + (def.yOff || 0)) * scale * (1 - ak);
+    scale *= ak;
+  }
   const flip = !!opts.flip;
   const y0 = y + (def.yOff || 0) * scale;
   const cw = meta.cell[0];
@@ -252,7 +285,7 @@ export function drawCast(ctx, key, pose, x, y, scale, opts = {}) {
   const side = def.prop === 'musket' ? 'n' : 'f';
   if (def.prop && side === 'f' && def.prop !== 'torch') drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale);
   const r = drawRig(ctx, rig, pose, {
-    x, y: y0, scale, flip, bones: opts.bones, crisp: opts.crisp,
+    x, y: y0, scale, flip, bones: opts.bones, crisp: opts.crisp, rim: opts.rim,
     filter: opts.flash ? 'brightness(2.1) sepia(0.7) hue-rotate(-35deg) saturate(2.8) contrast(1.15)' : undefined,
   });
   if (def.prop && (side === 'n' || def.prop === 'torch')) drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale);
@@ -361,6 +394,104 @@ export function drawMoroniRig(ctx, L0, tick, faceLeft, greet, bob) {
   st.k = Math.max(0, Math.min(1, st.k + (greet ? 1 / 30 : -1 / 30)));
   let pose = poseIdle(t, sk, 10);
   if (st.k > 0) pose = applyGreet(pose, st.k, 'f');
-  drawCast(ctx, 'moroni', pose, L0.dx, L0.dy + (L0.bob - bob), L0.scale, { flip: faceLeft, t });
+  // the raised hand gets a thin warm rim so it reads against the glory behind it
+  drawCast(ctx, 'moroni', pose, L0.dx, L0.dy + (L0.bob - bob), L0.scale, {
+    flip: faceLeft, t, rim: st.k > 0 ? { parts: ['fFore', 'fUpper'], color: [122, 84, 44] } : undefined,
+  });
+  return true;
+}
+
+/**
+ * Carthage (ch. 7, ?rig=1 only): Hyrum Smith, John Taylor and Willard Richards stand
+ * in the room; when the knocking starts they walk to the door and brace it with Joseph,
+ * one behind the other, heaving with each push. Nothing else changes (no weapons, no
+ * harm shown). Returns false to fall back to the seated procedural figures.
+ */
+const CARTHAGE_KEYS = ['hyrum', 'taylor', 'richards'];
+const CARTHAGE_NAMES = ['Hyrum Smith', 'John Taylor', 'Willard Richards'];
+export function drawCarthageRig(ctx, f, base, camX, tick, W) {
+  if (!RIG_MODE || !CAST_RIGS || CARTHAGE_KEYS.some((k) => !rigFor(k))) return false;
+  const defs = CARTHAGE_KEYS.map((k) => CAST[k]);
+  if (!f.rigMen) {
+    f.rigMen = CARTHAGE_KEYS.map((key, i) => {
+      const rig = rigFor(key);
+      // seat spots: the old figures' x0 is their left edge; centre the body there
+      return { key, cx: f.friendsX[i] + 22, phase: 0, braceK: 0, moveK: 0, t: i * 1.3, last: tick };
+    });
+  }
+  // brace spots: Hyrum's palms on the door, Taylor's on Hyrum's back, Richards' on Taylor's
+  const spots = [];
+  let handX = f.doorX - 1;
+  for (let i = 0; i < 3; i++) {
+    const gk = defs[i].gameK;
+    const cx = handX - (62 - 33) * gk;     // brace hand ≈ 29 model px ahead of the body centre
+    spots.push(cx);
+    handX = cx - 13 * gk;                  // the next man presses on this one's back
+  }
+  const engaged = f.state === 'active' || f.state === 'done';
+  const order = [2, 1, 0];                 // back to front; the man behind overlaps the one ahead
+  for (const i of order) {
+    const m = f.rigMen[i];
+    const def = defs[i];
+    const rig = rigFor(m.key);
+    const sk = skelOf(rig.meta);
+    const steps = Math.max(0, Math.min(4, tick - m.last));
+    m.last = tick;
+    const dt = steps / 60;
+    m.t += dt;
+    const target = engaged ? spots[i] : f.friendsX[i] + 22;
+    const d = target - m.cx;
+    const speed = 1.5 * 2 * steps;         // game px this frame (an unhurried walk)
+    let moved = 0;
+    if (Math.abs(d) > 0.5) {
+      moved = Math.sign(d) * Math.min(Math.abs(d), speed);
+      m.cx += moved;
+    }
+    const moving = Math.abs(moved) > 0.01;
+    m.moveK = Math.max(0, Math.min(1, m.moveK + (moving ? dt / 0.15 : -dt / 0.25)));
+    const L = strideLen(sk, WALK);
+    if (moving) m.phase += Math.abs(moved) / def.gameK / L;
+    const arrived = engaged && Math.abs(target - m.cx) < 1;
+    const want = !arrived ? 0 : f.mode === 'calm' ? 0.55 : 1;
+    m.braceK += Math.max(-dt / 0.4, Math.min(dt / 0.3, want - m.braceK));
+    let p = poseIdle(m.t, sk, def.seed || 0);
+    if (m.moveK > 0) p = blend(p, poseWalk(m.phase, WALK, sk), smooth(m.moveK));
+    if (m.braceK > 0) p = applyBrace(p, m.braceK, f.mode === 'push' && arrived ? 1 : 0, m.t + i * 0.4, sk);
+    const x = m.cx - camX;
+    if (x < -80 || x > W + 80) continue;
+    const gk = def.gameK;
+    const ground = rig.meta.ground + 1 + (def.yOff || 0);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(Math.round(x + 2), base - 2, 17, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    const left = Math.round(x - 33 * gk);
+    const top = Math.round(base - ground * gk);
+    drawCast(ctx, m.key, p, left, top, gk, { t: m.t, flip: d < -0.5 });
+    // name label (and John Taylor's song while the room is still calm)
+    const headY = top + 10 * gk;
+    if (i === 1 && !engaged && Math.floor(tick / 40) % 3 !== 2) {
+      const k = (tick % 40) / 40;
+      ctx.save();
+      ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+      ctx.fillStyle = '#f0d890';
+      ctx.font = 'bold 18px Georgia, serif';
+      ctx.fillText('♪', x + 16 + k * 10, headY - 6 - k * 22);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.font = '600 12px Georgia, serif';
+    const name = CARTHAGE_NAMES[i];
+    const lw = ctx.measureText(name).width;
+    const ly = headY - 22 - (engaged ? i * 18 : 0); // stack labels when they stand close
+    const lx = engaged ? Math.min(x - lw / 2, f.doorX - camX - 26 - lw) : x - lw / 2; // keep clear of the door
+    ctx.fillStyle = 'rgba(20,12,6,0.55)';
+    ctx.fillRect(lx - 5, ly - 13, lw + 10, 17);
+    ctx.fillStyle = '#f0e2bc';
+    ctx.fillText(name, lx, ly);
+    ctx.restore();
+  }
   return true;
 }

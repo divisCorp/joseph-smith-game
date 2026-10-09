@@ -87,10 +87,12 @@ CAST_TALL = {
         drop=[[(40, 121), (78, 121), (78, 160), (0, 160), (0, 144), (40, 144)]],
         extraParts={'pelvis': dict(poly=[(38, 117), (64, 117), (64, 130), (38, 130)], pivot=(46, 118), round=(51, 117, 12), borrow=['torso'])},
         leg=dict(polys=[[(42, 121), (61, 121), (61, 144), (68, 144), (68, 160), (42, 160)]],
-                 hip=(51, 121), knee=(52, 134), ankle=(54, 149), heel=(47.5, 158), toe=(62, 157),
-                 shinR=7, thighR=7, thighFromShin=True, thighFrac=0.5, despeckle=True,
+                 # hip joint sits up under the coat (waist 117), so the thigh is as long as
+                 # the shin instead of the short stub the visible trouser suggested
+                 hip=(51, 113), knee=(52.5, 133), ankle=(54, 149), heel=(47.5, 158), toe=(62, 157),
+                 shinR=7, thighR=7, thighFromShin=True, thighFrac=0.7, despeckle=True,
                  footPoly=[(43, 145), (67, 145), (67, 160), (43, 160)]),
-        hipN=(42, 121), hipF=(51, 121), restN=(40, 0), restF=(53, 0)),
+        hipN=(42, 113), hipF=(51, 113), restN=(40, 0), restF=(53, 0)),
     'warden': tall('bosses.png', (0, 480, 80, 160), ground=155,
         head=[(16, 14), (70, 14), (72, 64), (66, 74), (54, 78), (40, 79), (26, 78), (16, 70)],
         neck=(44, 77), pelvis=(45, 103), waist=103,

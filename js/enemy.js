@@ -22,6 +22,7 @@ import {
   drawMusketProp,
 } from './critters.js?v=73';
 import { drawEnemyRig } from './rig-cast.js?v=73';
+import { drawAnimalRig } from './rig-animals.js?v=73';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
@@ -831,6 +832,8 @@ function drawDazed(ctx, cx, cy, t) {
 }
 
 function drawCritter(ctx, e, dx, flash, k) {
+  // ?rig=1: painted wildlife rigs (falls back to the procedural drawing below)
+  if (drawAnimalRig(ctx, e, dx, flash)) return;
   const sc = e.drawScale || 1;
   const t = e.clock || 0;
   const state = e.alive ? e.melee : 'none';

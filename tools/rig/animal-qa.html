@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>animal QA</title></head>
+<body style="margin:0;background:#a4c8a8">
+<script type="module">
+import { loadAnimals, ANIMALS, animalPose, drawAnimal, attackBeat, quadStats } from '../../js/rig-animals.js?v=73';
+import { drawSnake, drawBobcat, drawBear, drawBird } from '../../js/critters.js?v=73';
+await loadAnimals('../../assets/rig/', String(Date.now()));
+/** Old procedural drawing at the same beat (critters.js signature, t in frames). */
+function drawOld(g, sp, anim, t, x, y) {
+  const def = ANIMALS[sp];
+  const [w, h] = def.box.map((v) => v * 2);
+  const b = anim === 'attack' ? attackBeat(t) : { phase: 'none', k: 0 };
+  const state = b.phase === 'wind' ? 'wind' : b.phase === 'lunge' ? 'lunge' : 'none';
+  const k = b.phase === 'wind' ? b.k : b.phase === 'lunge' ? 1 : 0;
+  const moving = anim === 'move';
+  const sc = def.drawScale;
+  g.save();
+  const ax = x, ay = y;
+  g.translate(ax, ay); g.scale(sc, sc); g.translate(-ax, -ay);
+  const bx = x - w / 2, by = def.fly ? y - h / 2 : y - h;
+  const tf = t * 60;
+  if (sp === 'snake') drawSnake(g, bx, by, w, h, 1, tf, state, k, false);
+  else if (sp === 'bobcat') drawBobcat(g, bx, by, w, h, 1, tf, state, k, false, moving, false);
+  else if (sp === 'bear') drawBear(g, bx, by, w, h, 1, tf, state, k, false, moving);
+  else drawBird(g, bx, by, w, h, 1, tf, state, k, false, sp === 'owl');
+  g.restore();
+}
+window.renderAnimals = (sps, anims, ts, opts = {}) => {
+  const Z = opts.zoom || 3, cw = opts.cw || 150, ch = opts.ch || 110;
+  const rows = [];
+  for (const sp of sps) for (const a of anims[sp] || anims) for (const which of opts.rows || ['old', 'new']) rows.push([sp, a, which]);
+  const c = document.createElement('canvas');
+  c.width = cw * Z * ts.length; c.height = ch * Z * rows.length;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  rows.forEach(([sp, a, which], ri) => {
+    ts.forEach((t, ci) => {
+      g.save();
+      g.translate(ci * cw * Z, ri * ch * Z);
+      g.fillStyle = (ri + ci) % 2 ? '#a8ccac' : '#b4d4b6'; g.fillRect(0, 0, cw * Z, ch * Z);
+      g.fillStyle = '#6a5a3a'; g.fillRect(0, (ch - 14) * Z, cw * Z, 1 * Z);
+      g.scale(Z, Z);
+      const def = ANIMALS[sp];
+      const gx = cw / 2, gy = def.fly ? ch / 2 : ch - 14;
+      if (which === 'old') drawOld(g, sp, a, t, gx, gy);
+      else {
+        const p = animalPose(sp, a, t);
+        drawAnimal(g, sp, p, gx, gy - (p.hop || 0) * 0.875 * def.drawScale, 0.875 * def.drawScale, {});
+      }
+      g.restore();
+      g.fillStyle = '#1a1208'; g.font = '11px sans-serif';
+      g.fillText(`${which} ${sp} ${a} ${t.toFixed(2)}`, ci * cw * Z + 4, ri * ch * Z + 12);
+    });
+  });
+  return c.toDataURL();
+};
+window.quadStats = quadStats;
+window.ready = true;
+</script></body></html>

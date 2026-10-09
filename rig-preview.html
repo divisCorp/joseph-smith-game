@@ -83,7 +83,7 @@
   <button class="btn" id="smooth" aria-pressed="false" title="Crisp = composited at 1 art pixel per pixel like the sprite">Smooth</button>
 </div>
 <main>
-  <div class="panel"><span class="tag">Before <small>· sprite sheet (live game)</small></span><canvas id="old"></canvas></div>
+  <div class="panel"><span class="tag" id="oldTag">Before <small>· sprite sheet (live game)</small></span><canvas id="old"></canvas></div>
   <div class="panel"><span class="tag">After <small>· skeletal rig</small></span><canvas id="new"></canvas></div>
 </main>
 <footer id="foot">
@@ -95,23 +95,38 @@
 import { loadRig } from './js/rig.js?v=73';
 import { ANIMS, oldState, newState, drawOld, drawNew, GAME_K } from './js/rig-demo.js?v=73';
 import { CAST, ANIM_LABEL, ANIM_DUR, castPose, castOldFrame, drawCast, loadCastRigs, rigFor } from './js/rig-cast.js?v=73';
+import { ANIMALS, ANIMAL_ANIM_LABEL, ANIMAL_ANIM_DUR, animalPose, drawAnimal, loadAnimals, attackBeat } from './js/rig-animals.js?v=73';
+import { drawSnake, drawBobcat, drawBear, drawBird } from './js/critters.js?v=73';
+const isAnimal = (k) => !!ANIMALS[k];
+const ANIMAL_NOTE = {
+  snake: 'Timber rattlesnake, painted as parts (body strip laid along a spine curve, head, tongue, rattle). Slithers, coils with the rattle buzzing, strikes, recoils.',
+  bobcat: 'Bobcat, painted as parts. Four planted-foot legs (2-bone IK, each paw stays put while it bears weight); crouches, wiggles and pounces.',
+  bear: 'American black bear, painted as parts. Heavy planted-foot walk; rears up and huffs, then a short bluff charge with a forepaw swipe. No harm shown.',
+  crow: 'American crow, painted as parts. Wings flap about the body axis (seen from the side: raised, edge-on, lowered); glide; swoops with feet forward.',
+  owl: 'Great horned owl, painted as parts. Slow deep wingbeats, glide, swoop with talons forward. No harm shown.',
+};
 
 const qs = new URLSearchParams(location.search);
 const state = {
-  who: CAST[qs.get('who')] ? qs.get('who') : 'joseph',
+  who: CAST[qs.get('who')] || ANIMALS[qs.get('who')] ? qs.get('who') : 'joseph',
   anim: qs.get('anim') || 'walk',
   playing: qs.get('paused') == null, speed: +(qs.get('speed') || 1), zoom: +(qs.get('zoom') || 3),
   bones: qs.has('bones'), t: +(qs.get('t') || 0), smooth: qs.has('smooth'),
 };
 const imgs = {};
 const loadImg = (src) => imgs[src] || (imgs[src] = new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src + '?v=73'; }));
-const [rig] = await Promise.all([loadRig('assets/rig/', '73'), loadCastRigs('assets/rig/', '73')]);
+const [rig] = await Promise.all([loadRig('assets/rig/', '73'), loadCastRigs('assets/rig/', '73'), loadAnimals('assets/rig/', '73')]);
 const sheets = {};
 for (const k in CAST) sheets[CAST[k].old.src] = await loadImg(CAST[k].old.src);
 
 /** Per-character animation table: Joseph keeps his game-timed set, the cast uses rig-cast. */
 function animsFor(who) {
   if (who === 'joseph') return ANIMS;
+  if (isAnimal(who)) {
+    const o = {};
+    for (const a of ANIMALS[who].anims) o[a] = { label: ANIMAL_ANIM_LABEL[a], dur: ANIMAL_ANIM_DUR[a], speed: a === 'move' ? 1 : 0 };
+    return o;
+  }
   const o = {};
   for (const a of CAST[who].anims) {
     const sp = a === 'walk' ? 1 : 0;
@@ -121,7 +136,7 @@ function animsFor(who) {
 }
 function ensureAnim() {
   const A = animsFor(state.who);
-  if (!A[state.anim]) state.anim = A.walk ? 'walk' : Object.keys(A)[0];
+  if (!A[state.anim]) state.anim = A.walk ? 'walk' : A.move ? 'move' : Object.keys(A)[0];
 }
 ensureAnim();
 
@@ -132,6 +147,16 @@ for (const [k, d] of Object.entries(CAST)) {
   const o = document.createElement('option');
   o.value = k; o.textContent = d.label;
   whoEl.appendChild(o);
+}
+{
+  const og = document.createElement('optgroup');
+  og.label = 'Wildlife (painted rigs)';
+  for (const [k, d] of Object.entries(ANIMALS)) {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = d.label;
+    og.appendChild(o);
+  }
+  whoEl.appendChild(og);
 }
 whoEl.value = state.who;
 whoEl.onchange = () => { state.who = whoEl.value; state.t = 0; buildAnims(); sync(); };
@@ -168,8 +193,11 @@ function sync() {
   playBtn.textContent = state.playing ? '❚❚ Pause' : '▶ Play';
   bonesBtn.setAttribute('aria-pressed', String(state.bones));
   smoothBtn.setAttribute('aria-pressed', String(state.smooth));
-  const d = CAST[state.who];
-  document.getElementById('foot').querySelector('b').textContent = d.note ? d.note + ' ' : 'How it works: ';
+  const note = isAnimal(state.who) ? ANIMAL_NOTE[state.who] : CAST[state.who].note;
+  document.getElementById('oldTag').innerHTML = isAnimal(state.who) ? 'Before <small>· procedural drawing (live game)</small>'
+    : CAST[state.who].carthage ? 'Painted source <small>· new character (live game: seated outline figure)</small>'
+    : 'Before <small>· sprite sheet (live game)</small>';
+  document.getElementById('foot').querySelector('b').textContent = note ? note + ' ' : 'How it works: ';
 }
 sync();
 
@@ -193,11 +221,71 @@ function sample(which, t) {
   if (which === 'old') return { frame: castOldFrame(who, state.anim, t, dist), air: 0, dist };
   return { pose, air: 0, dist };
 }
+const ANIMAL_SPEED = { snake: 34, bobcat: 34, bear: 26, crow: 60, owl: 50 };
+function animalScene(c, which, t, w, h, g) {
+  const who = state.who, def = ANIMALS[who];
+  const A = animsFor(who)[state.anim];
+  let s = 0.875 * def.drawScale * state.zoom;
+  const groundY = Math.round(h * 0.86);
+  s = Math.min(s, (groundY - 18) / 110);
+  const sky = g.createLinearGradient(0, 0, 0, groundY);
+  sky.addColorStop(0, '#b9cfe0'); sky.addColorStop(1, '#ece6cc');
+  g.fillStyle = sky; g.fillRect(0, 0, w, groundY);
+  g.fillStyle = '#7c6a43'; g.fillRect(0, groundY, w, h);
+  g.fillStyle = '#5c4a2c'; g.fillRect(0, groundY, w, Math.max(2, s * 1.2));
+  const dist = state.anim === 'move' ? ANIMAL_SPEED[who] * t : 0;
+  const tick = 16 * s;
+  const off = -((dist * s) % tick);
+  g.fillStyle = 'rgba(40,28,12,.55)';
+  for (let x = off - tick; x < w + tick; x += tick) g.fillRect(Math.round(x), groundY + 3, Math.max(2, s * 0.9), Math.max(5, s * 3));
+  const cx = Math.round(w / 2);
+  const oy = def.fly ? Math.round(groundY - 52 * s) : groundY;
+  if (!def.fly) {
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    g.beginPath(); g.ellipse(cx, groundY, (who === 'bear' ? 50 : who === 'bobcat' ? 32 : 46) * s * 0.9, 3.5 * s, 0, 0, Math.PI * 2); g.fill();
+  }
+  if (which === 'old') {
+    // the live game's procedural critter at the same beat (critters.js, t in frames)
+    const [bw, bh] = def.box.map((v) => v * 2);
+    const b = state.anim === 'attack' ? attackBeat(t) : { phase: 'none', k: 0 };
+    const st = b.phase === 'wind' ? 'wind' : b.phase === 'lunge' ? 'lunge' : 'none';
+    const k = b.phase === 'wind' ? b.k : b.phase === 'lunge' ? 1 : 0;
+    const gs = s / 0.875 / def.drawScale; // game px → CSS px
+    g.save();
+    g.translate(cx, oy); g.scale(gs * def.drawScale, gs * def.drawScale);
+    const bx = -bw / 2, by = def.fly ? -bh / 2 : -bh;
+    const tf = t * 60;
+    const moving = state.anim === 'move';
+    if (who === 'snake') drawSnake(g, bx, by, bw, bh, 1, tf, st, k, false);
+    else if (who === 'bobcat') drawBobcat(g, bx, by, bw, bh, 1, tf, st, k, false, moving, false);
+    else if (who === 'bear') drawBear(g, bx, by, bw, bh, 1, tf, st, k, false, moving);
+    else drawBird(g, bx, by, bw, bh, 1, tf, st, k, false, who === 'owl');
+    g.restore();
+  } else {
+    const pose = animalPose(who, state.anim === 'glide' ? 'glide' : state.anim, t, state.anim === 'move' ? { dist: ANIMAL_SPEED[who] * t / (who === 'crow' || who === 'owl' ? 1 : 1) } : {});
+    const lunge = state.anim === 'attack' ? attackBeat(t) : null;
+    let shift = 0;
+    if (lunge && lunge.phase === 'lunge') shift = (who === 'snake' ? 0 : 18) * smoothK(lunge.k) * s;
+    if (lunge && lunge.phase === 'recover') shift = (who === 'snake' ? 0 : 18) * (1 - smoothK(lunge.k)) * s;
+    drawAnimal(g, who, pose, cx + shift, oy - (pose.hop || 0) * s, s, { flip: false });
+  }
+  const notes = {
+    old: { idle: 'procedural shapes in game', move: 'procedural legs', glide: 'procedural', attack: 'procedural wind-up + lunge' },
+    new: { idle: 'painted parts · breathing · tail', move: who === 'snake' ? 'slither: body flows through fixed curves' : def.fly ? 'wingbeats about the body axis' : 'IK: planted paws locked to the ticks', glide: 'wings set, gentle bob', attack: who === 'snake' ? 'coil + rattle → strike → recoil' : who === 'bobcat' ? 'crouch + wiggle → pounce → land' : who === 'bear' ? 'rears + huffs → bluff charge, swipe' : 'hover → swoop, feet forward' },
+  };
+  const note = notes[which][state.anim] || '';
+  const label = `${note}  ·  t=${(t % A.dur).toFixed(2)}s  ·  ${state.speed}×`;
+  g.font = '600 12px "Source Sans 3", sans-serif';
+  g.fillStyle = 'rgba(18,14,8,.72)'; const tw = g.measureText(label).width;
+  g.fillRect(8, h - 24, tw + 14, 18); g.fillStyle = '#efe4c4'; g.fillText(label, 15, h - 10.5);
+}
+const smoothK = (k) => k * k * (3 - 2 * k);
 function scene(c, which, t) {
   const { w, h, dpr } = fit(c);
   const g = c.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, w, h);
+  if (isAnimal(state.who)) return animalScene(c, which, t, w, h, g);
   const who = state.who, def = CAST[who];
   const A = animsFor(who)[state.anim];
   const r = who === 'joseph' ? rig : rigFor(who);
@@ -238,12 +326,13 @@ function scene(c, which, t) {
     const o = def.old, img = sheets[o.src];
     if (img) { g.imageSmoothingEnabled = false; g.drawImage(img, smp.frame * o.fw, o.row * o.fh, o.fw, o.fh, x0, y0, o.fw * s, o.fh * s); }
   } else {
-    drawCast(g, who, smp.pose, x0 + shift, y0 - (def.yOff || 0) * s, s, { bones: state.bones, crisp: !state.smooth, t });
+    const rim = who === 'moroni' && state.anim === 'greet' ? { parts: ['fFore', 'fUpper'], color: [122, 84, 44] } : undefined;
+    drawCast(g, who, smp.pose, x0 + shift, y0 - (def.yOff || 0) * s, s, { bones: state.bones, crisp: !state.smooth, t, rim });
   }
   g.restore();
   const notes = {
-    old: { idle: 'one still frame in game', kneel: 'single crouch frame', jump: 'no anticipation · 3 frames + squash', throw: '2 frames for 10 game frames', walk: 'painted frames', speak: '2-frame sway', greet: 'single greet frame', attack: 'walk frames + lean', tell: 'still frame + glow' },
-    new: { idle: 'breathing · head bob · cloth sway', jump: 'anticipation → stretch → tuck → reach → squash', kneel: 'kneels, palms together, head bowed', throw: 'whip → release → follow-through', walk: 'IK: planted foot locked to the ticks', run: 'IK: ≈3 steps/s at game speed', attack: 'wind-up → lunge → recover', speak: 'open-hand preaching gesture', greet: 'hand raised in greeting', tell: 'gathers, then charges' },
+    old: { brace: 'painted source (new character)', idle: 'one still frame in game', kneel: 'single crouch frame', jump: 'no anticipation · 3 frames + squash', throw: '2 frames for 10 game frames', walk: 'painted frames', speak: '2-frame sway', greet: 'single greet frame', attack: 'walk frames + lean', tell: 'still frame + glow' },
+    new: { brace: 'steps in, braces, heaves with each knock', idle: 'breathing · head bob · cloth sway', jump: 'anticipation → stretch → tuck → reach → squash', kneel: 'kneels, palms together, head bowed', throw: 'whip → release → follow-through', walk: 'IK: planted foot locked to the ticks', run: 'IK: ≈3 steps/s at game speed', attack: 'wind-up → lunge → recover', speak: 'open-hand preaching gesture', greet: 'hand raised in greeting', tell: 'gathers, then charges' },
   };
   const note = notes[which][state.anim] || notes[which].walk;
   const label = `${note}  ·  t=${(t % A.dur).toFixed(2)}s  ·  ${state.speed}×`;
