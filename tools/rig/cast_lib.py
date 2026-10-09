@@ -493,6 +493,13 @@ class Cutter:
                         thigh[y, x] = tr[iy, ix]
         else:
             thigh = LA.copy(); thigh[~capsule(sh, (hip[0], hip[1] - 2), knee, lg['thighR'])] = 0
+        if lg.get('cleanCloth'):
+            # rough spot: the trouser cloth carries blotchy source noise. Repaint it as
+            # smooth cloth: luminance blurred inside the part (keeping a little of the
+            # painted folds), mapped back through the part's own colour ramp.
+            y_max = lg['cleanCloth']
+            thigh = clean_cloth(thigh)
+            shin = clean_cloth(shin, y_max)
         fk = lg.get('farShade', 0.8)
         for s, k in (('n', 1.0), ('f', fk)):
             parts[s + 'Thigh'] = shade(thigh, k) if k != 1 else thigh
@@ -672,3 +679,52 @@ class Cutter:
             d.line([(i * Z, 0), (i * Z, 8)], fill=(255, 0, 0))
             d.text((i * Z - 4, 10), str(i), fill=(200, 0, 0))
         sheet.save(out)
+
+
+def clean_cloth(L, y_max=None, keep=0.3):
+    import numpy as _np
+    L = L.copy()
+    m = L[..., 3] > 0
+    inner = m.copy()
+    inner[1:, :] &= m[:-1, :]; inner[:-1, :] &= m[1:, :]; inner[:, 1:] &= m[:, :-1]; inner[:, :-1] &= m[:, 1:]
+    if y_max is not None:
+        inner[int(y_max):, :] = False
+    rgb = L[..., :3].astype(float)
+    lum = 0.3 * rgb[..., 0] + 0.59 * rgb[..., 1] + 0.11 * rgb[..., 2]
+    if inner.sum() < 8:
+        return L
+    # the part's own cloth ramp: median colour of each luminance quintile
+    vals = lum[inner]
+    order = _np.argsort(vals)
+    cols = rgb[inner][order]
+    n = len(cols)
+    ramp = _np.stack([_np.median(cols[int(n * q0):max(int(n * q0) + 1, int(n * q1))], axis=0)
+                      for q0, q1 in ((0, .15), (.15, .4), (.4, .6), (.6, .85), (.85, 1.0))])
+    lo, hi = _np.percentile(vals, 4), _np.percentile(vals, 96)
+    s = _np.where(m, lum, 0.0)
+    w = m.astype(float)
+    for _ in range(3):
+        ps, pw = _np.pad(s, 1), _np.pad(w, 1)
+        s2 = sum(ps[1 + dy:ps.shape[0] - 1 + dy, 1 + dx:ps.shape[1] - 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1))
+        w2 = sum(pw[1 + dy:pw.shape[0] - 1 + dy, 1 + dx:pw.shape[1] - 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1))
+        s = _np.where(m, s2 / _np.maximum(w2, 1), 0.0)
+        w = m.astype(float)
+    t = keep * lum + (1 - keep) * s
+    v = _np.clip((t - lo) / max(1.0, hi - lo), 0, 1) * 4
+    i = _np.minimum(_np.floor(v).astype(int), 3)
+    f = (v - i)[..., None]
+    new = ramp[i] * (1 - f) + ramp[i + 1] * f
+    L[..., :3][inner] = _np.clip(_np.round(new[inner]), 0, 255).astype(L.dtype)
+    # ragged edge: drop 1px spurs, then give the silhouette one clean dark outline
+    rows = _np.ones(m.shape, bool) if y_max is None else (_np.arange(m.shape[0])[:, None] < int(y_max))
+    for _ in range(2):
+        a8 = (L[..., 3] > 0).astype(int)
+        nb = sum(_np.roll(_np.roll(a8, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)) - a8
+        spur = (a8 > 0) & (nb < 3) & rows
+        L[spur] = 0
+    m2 = L[..., 3] > 0
+    in2 = m2.copy()
+    in2[:, 1:] &= m2[:, :-1]; in2[:, :-1] &= m2[:, 1:]     # sides only: the knee/hip ends tuck under other parts
+    edge = m2 & ~in2 & rows
+    L[..., :3][edge] = _np.clip(ramp[0] * 0.9, 0, 255).astype(L.dtype)
+    return L

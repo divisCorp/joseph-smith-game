@@ -200,3 +200,103 @@ def finish(rgb, m, outline=0.42, warm=(26, 14, 8), out_mix=0.25, inner_dark=None
 
 def quant(v, levels=14):
     return np.round(np.clip(v, 0, 1) * levels) / levels
+
+
+# ---------------------------------------------------------------- hand-painted fur (v2)
+PAL_AT = (0.08, 0.28, 0.5, 0.72, 0.92)
+
+
+def palette(rp, at=PAL_AT):
+    """A fixed 5-colour palette sampled once from a ramp (no in-between colours)."""
+    return np.stack([np.asarray(rp(np.array(a)), float) for a in at])
+
+
+def fur_paint(m, base_rp, marks=(), R=None, flow=0.0, seed=0, tuft=3.2, light_bias=0.0, soft=None,
+              edge_tufts=True, outline=0.42, out_mix=0.25, warm=(26, 14, 8), planes=(0.30, 0.47, 0.63, 0.80),
+              tuft_amt=0.5, crease=True):
+    """
+    Fur painted the way the cast is painted: the form is cut into a few readable light
+    planes (shadow / mid / light / highlight, from the upper front), every colour comes
+    from a fixed 5-colour palette, and the planes are broken up by clustered tufts —
+    small pointed clumps laid along the fur flow, lit clumps on the lit side and dark
+    clumps in the shade, each with a dark crease under its tip — plus a few tuft tips
+    breaking the silhouette. `marks` = [(mask, ramp, dv)] become their own palettes
+    (dv shifts the plane index). flow = radians or f(y, x) in design units.
+    """
+    rng = np.random.default_rng(seed)
+    h, w = m.shape
+    v = shade_field(m, R=R) + light_bias
+    v = blur(v, 1)
+    idx = np.digitize(v, planes).astype(int)          # 0..4
+    pals = [palette(base_rp)]
+    mat = np.zeros((h, w), int)
+    for mm, rp, dv in marks:
+        pals.append(palette(rp))
+        k = len(pals) - 1
+        mm = mm & m
+        mat[mm] = k
+        idx[mm] = np.clip(idx[mm] + int(round(dv * 5)), 0, 4)
+    f = F[0]
+    s = tuft * f * 1.45
+    # jittered seeds, drawn upstream → downstream so clumps overlap like laid fur
+    seeds = []
+    for gy in np.arange(s * 0.5, h, s * 0.8):
+        for gx in np.arange(s * 0.5, w, s * 0.8):
+            y = int(gy + rng.uniform(-0.4, 0.4) * s)
+            x = int(gx + rng.uniform(-0.4, 0.4) * s)
+            if 0 <= y < h and 0 <= x < w and m[y, x]:
+                seeds.append((y, x))
+    def ang_at(y, x):
+        return flow((y + .5) / f - .5, (x + .5) / f - .5) if callable(flow) else flow
+    seeds.sort(key=lambda p: -(p[1] * math.cos(ang_at(*p)) + p[0] * math.sin(ang_at(*p))))
+    idx0, mat0 = idx.copy(), mat.copy()
+    for (y, x) in seeds:
+        if soft is not None and soft[y, x]:
+            continue
+        r = rng.random()
+        if r > tuft_amt:
+            continue
+        lit = v[y, x] > 0.56
+        delta = 1 if (lit and rng.random() < 0.7) or (not lit and rng.random() < 0.25) else -1
+        a = ang_at(y, x) + rng.normal(0, 0.28)
+        ca, sa = math.cos(a), math.sin(a)
+        L = s * rng.uniform(0.9, 1.35)
+        w0 = s * rng.uniform(0.32, 0.48)
+        ri, ci = idx0[y, x], mat0[y, x]
+        rr = int(L + 2)
+        for dy in range(-rr, rr + 1):
+            for dx in range(-rr, rr + 1):
+                yy, xx = y + dy, x + dx
+                if not (0 <= yy < h and 0 <= xx < w) or not m[yy, xx]:
+                    continue
+                al = dx * ca + dy * sa
+                ac = -dx * sa + dy * ca
+                if 0 <= al <= L:
+                    half = w0 * (1 - al / L) ** 0.8
+                    if abs(ac) <= half:
+                        idx[yy, xx] = int(np.clip(idx0[yy, xx] + delta, 0, 4)) if mat0[yy, xx] != ci else int(np.clip(ri + delta, 0, 4))
+                    elif crease and half < ac <= half + 1.0 and al > L * 0.3 and mat0[yy, xx] == ci:
+                        idx[yy, xx] = int(np.clip(ri - 1, 0, 4))      # the shadow under the clump
+    # silhouette: a few tuft tips poking out along the flow
+    mm = m.copy()
+    if edge_tufts:
+        edge = m & ~erode(m)
+        ys, xs = np.nonzero(edge)
+        for i in rng.permutation(len(xs))[: max(1, len(xs) // 5)]:
+            y, x = ys[i], xs[i]
+            if soft is not None and soft[y, x]:
+                continue
+            a = ang_at(y, x)
+            for step in (1, 2):
+                yy, xx = int(round(y + math.sin(a) * step)), int(round(x + math.cos(a) * step))
+                if 0 <= yy < h and 0 <= xx < w and not m[yy, xx]:
+                    if step == 2 and rng.random() < 0.6:
+                        break
+                    mm[yy, xx] = True
+                    idx[yy, xx] = idx[y, x]
+                    mat[yy, xx] = mat[y, x]
+    rgb = np.zeros((h, w, 3))
+    for k, pal in enumerate(pals):
+        sel = mm & (mat == k)
+        rgb[sel] = pal[idx[sel]]
+    return finish(rgb, mm, outline=outline, warm=warm, out_mix=out_mix, soft=soft), mm

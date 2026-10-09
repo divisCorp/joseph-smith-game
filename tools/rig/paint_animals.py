@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from paint_lib import (Canvas, setF, G, F as FF, ramp_fn, hexc, shade_field, fur_strokes, finish, value_noise, quant,
-                       erode, dist_in, blur)
+                       erode, dist_in, blur, fur_paint, palette)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 UP = 4
@@ -176,22 +176,28 @@ def spots(m, rng, n, rmin=0.7, rmax=1.4, region=None):
     return out
 
 
+TUFT = {'bobcat': 2.6, 'bear': 3.4, 'crow': 2.2, 'owl': 2.3, 'snake': 2.0}
+
+
 def furpart(animal, name, w, h, draw, pivot, ramp, rng, ang=0.0, nstrokes=None, R=None, marks_fn=None,
-            amt=0.13, outline=0.42, out_mix=0.25, flow=None, light_bias=0.0, soft=None, **pts):
+            amt=0.13, outline=0.42, out_mix=0.25, flow=None, light_bias=0.0, soft=None, tuft=None, edge=True, **pts):
+    """A furred part: shape → readable light planes in a fixed palette, broken by clustered
+    tufts laid along the fur (fur_paint); marks (spots, bars, pale belly) are their own palettes."""
     c = Canvas(w, h)
     draw(c)
     m = c.mask()
     v = shade_field(m, R=R) + light_bias
-    v += (value_noise(m.shape[1], m.shape[0], 4, rng) - 0.5) * 0.12
-    v = fur_strokes(v, m, rng, nstrokes if nstrokes is not None else int(m.sum() * 0.35), ang, amt=amt, flow=flow)
     marks = marks_fn(m, v) if marks_fn else []
     sm = None
     if soft is not None:
         ys, xs = G(m)
         sm = soft(ys, xs)
-    rgba = render(m, v, ramp, rng, marks, outline=outline, out_mix=out_mix, soft=sm)
+    seed = int(rng.integers(1 << 30))
+    rgba, mm = fur_paint(m, ramp, marks, R=R, flow=flow if flow is not None else ang, seed=seed,
+                         tuft=tuft or TUFT.get(animal, 3.0), light_bias=light_bias, soft=sm, outline=outline,
+                         out_mix=out_mix, edge_tufts=edge)
     add(animal, name, rgba, pivot, **pts)
-    return rgba, m
+    return rgba, mm
 
 
 def bobcat():
@@ -342,12 +348,22 @@ def bear():
                 ang=math.pi / 2, R=6, amt=0.16, outline=0.5, end=(12, 32), soft=lambda ys, xs: ys < 12)
         furpart('bear', side + 'HindLo', 16, 24, lambda c: c.cap(8, 4.5, 8.4, 20, 7, 6.2), (8, 4.5), rp, rng,
                 ang=math.pi / 2, R=4, amt=0.16, outline=0.5, end=(8.4, 20), soft=lambda ys, xs: ys < 3.5)
-        rgba, m = furpart('bear', side + 'Paw', 24, 11, lambda c: (c.ell(12, 6.4, 10.5, 4.4), c.ell(6, 4, 5, 4)), (6, 3), rp, rng,
+        rgba, m = furpart('bear', side + 'Paw', 28, 13, lambda c: (c.ell(12, 6.4, 10.5, 4.4), c.ell(6, 4, 5, 4)), (6, 3), rp, rng,
                           ang=0, R=3, amt=0.12, outline=0.5)
-        # short claws (blunt, dark horn — no gore)
-        for x in (18, 20, 22):
-            px_set(rgba, x, 9, (70, 60, 52)) if rgba[int(round(9.5 * FF[0] - .5)), int(round((x + .5) * FF[0] - .5)), 3] else None
+        # claws: long, curved, pale horn (black bears' are short and dark, but these read at
+        # game scale and on the swipe; blunt tips — nothing sharp-looking, no gore)
+        lay = []
+        for (bx, by) in ((20.4, 9.0), (21.8, 6.9), (22.4, 4.8)):
+            lay.append((lambda c, bx=bx, by=by: (c.cap(bx, by, bx + 2.4, by + 0.4, 1.35, 1.1),
+                                                 c.cap(bx + 2.4, by + 0.4, bx + 4.0, by + 1.9, 1.1, 0.75)),
+                        CLAW if side == 'n' else CLAW_FAR, 0.3, None, dict(R=0.9, seed=int(bx * 10), outline=0.6, amt=0.0)))
+        cl, cm = layered(28, 13, lay)
+        rgba = over(rgba, cl)
         add('bear', side + 'Paw', rgba, (6, 3), toe=(23, 10))
+
+
+CLAW = ramp_fn(['#54483a', '#86785f', '#b0a284', '#cec2a4', '#e2d8bc'])
+CLAW_FAR = ramp_fn(['#4a4034', '#766a56', '#9a8e74', '#b4a88c', '#c8bea4'])
 
 
 # ======================================================================= birds
@@ -434,7 +450,9 @@ def bird(animal, ramp, far_ramp, sheen, owl):
     # wings: painted fully spread and seen from the side at the top of the upstroke (span
     # straight up from the shoulder, chord along the body). The rig flaps them about the
     # body's long axis, so the side view foreshortens them exactly: up, edge-on, down.
-    for side, rp in (('n', ramp), ('f', far_ramp)):
+    if not owl:
+        two_part_wings(animal, (('n', ramp, sheen, sheen), ('f', far_ramp, CR, CR)), crow=True)
+    for side, rp in (() if not owl else (('n', ramp), ('f', far_ramp))):
         if not owl:
             Ww, Hw = 22, 34
             def wing(c):
@@ -478,6 +496,297 @@ def bird(animal, ramp, far_ramp, sheen, owl):
         add(animal, nm, A, (0.5, 0.5))
 
 
+# ======================================================================= owl (v2)
+def over(dst, src):
+    """Alpha-over two RGBA uint8 layers of the same size (binary alpha)."""
+    a = src[..., 3:4] > 0
+    return np.where(a, src, dst)
+
+
+def layered(w, h, layers, outline=0.5, out_mix=0.3, warm=(26, 14, 8), sil=False):
+    """
+    Feathers painted one by one, back to front: each layer = (draw, ramp, flow, marks_fn, kw).
+    Every feather gets its own planes, tufts and outline, so overlapping feathers read as
+    separate layered shapes (not one texture).
+    """
+    out = None
+    union = None
+    for draw, rp, flow, mk, kw in layers:
+        c = Canvas(w, h)
+        draw(c)
+        m = c.mask()
+        if not m.any():
+            continue
+        marks = mk(m) if mk else []
+        rgba, mm = fur_paint(m, rp, marks, R=kw.get('R', 2), flow=flow, seed=kw.get('seed', 1), tuft=kw.get('tuft', 2.0),
+                             light_bias=kw.get('bias', 0.0), edge_tufts=kw.get('edge', False), outline=kw.get('outline', outline),
+                             out_mix=out_mix, warm=warm, tuft_amt=kw.get('amt', 0.35), soft=kw.get('soft'))
+        out = rgba if out is None else over(out, rgba)
+        union = mm if union is None else (union | mm)
+    if sil:
+        e = union & ~erode(union)
+        out[e, :3] = (out[e, :3] * 0.55).astype(np.uint8)
+    return out, union
+
+
+OW_BRANCH = ramp_fn(['#1e160e', '#34261a', '#4a3a2a', '#625040', '#7a6a58', '#948670'])
+OW_CLAW = ramp_fn(['#141210', '#24201c', '#38322c', '#4c4640', '#625a52'])
+OW_IRIS = ramp_fn(['#a86a08', '#d8960c', '#f0b818', '#f8d040', '#fce480'])
+
+
+def bars_across(ax, ay, bx, by, period, width, phase=0.0):
+    """Bands across a feather from (ax, ay) to (bx, by): a mark function in design units."""
+    L = math.hypot(bx - ax, by - ay) or 1
+    ux, uy = (bx - ax) / L, (by - ay) / L
+    def f(m):
+        ys, xs = G(m)
+        u = (xs - ax) * ux + (ys - ay) * uy
+        return ((u / period + phase) % 1.0) < width / period
+    return f
+
+
+def two_part_wings(A, sides, crow=False):
+    """
+    Each wing = inner wing (secondaries pointing back, greater coverts, marginal band) +
+    hand (primaries fanned from the wrist, inner first so the leading feather is on top,
+    primary coverts over the bases). Owl: broad, round-tipped, barred. Crow: glossy black,
+    narrower, with the separated "fingers" at the tip.
+    """
+    sp_sec = 2.45 if crow else 2.75
+    nsec = 7
+    for side, rp, pale, bar in sides:
+        sd = 60 if side == 'n' else 80
+        top = 19.4 - (nsec - 1) * sp_sec
+        lay = []
+        for i in range(nsec):
+            y = 19.4 - i * sp_sec
+            tipx = 2.6 + (8.0 if i > 2.8 else 2.6) * ((i - 2.8) / 3.4) ** 2 + (2.5 if crow else 0)
+            if crow:
+                mk = lambda m, y=y: [((G(m)[0] < y - 0.6) & (G(m)[1] < 17), pale, -0.1)]
+            else:
+                mk = lambda m, y=y, i=i: [(bars_across(19, y, 3, y, 3.6, 1.0, 0.25 * (i % 2))(m) & (G(m)[1] < 13), bar, -0.1)]
+            lay.append((lambda c, y=y, tipx=tipx: c.cap(19, y, tipx, y + 0.5, 1.75 if crow else 1.9, 1.7 if crow else 2.05), rp, math.pi,
+                        mk, dict(R=1.6, seed=sd + i, outline=0.3)))
+        for i in range(6):
+            y = 18.2 - i * (sp_sec + 0.3)
+            if y < top - 0.5:
+                continue
+            lay.append((lambda c, y=y: c.cap(19.4, y, 12.4 if crow else 11.6, y + 0.6, 1.9, 1.6), rp, math.pi,
+                        lambda m: [((G(m)[1] < 13.6) if not crow else (G(m)[1] > 16), pale, -0.05)],
+                        dict(R=1.6, seed=sd + 10 + i, bias=0.05, outline=0.3)))
+        lay.append((lambda c: c.cap(19.6, 21, 19.0, top - 0.6, 2.6, 2.1), rp, -math.pi / 2,
+                    (lambda m: [((((G(m)[0]) % 3.4) < 0.9), bar, -0.05)]) if not crow else (lambda m: [((G(m)[1] > 19.4), pale, -0.1)]),
+                    dict(R=2, seed=sd + 20, bias=0.08, outline=0.3)))
+        rgba, mm = layered(23, 23, lay, sil=True)
+        add(A, side + 'WingIn', rgba, (19.2, 21.5), wrist=(19.2, top - 0.4))
+        lay = []
+        n = 6 if crow else 7
+        for i in reversed(range(n)):
+            a = math.radians((-93 - i * 8.0) if crow else (-97 - i * 7.0))
+            L = (20 - i * 1.3) if crow else (20 - i * 0.9)
+            bx, by = 17.5 - i * 0.7, 26.2
+            tx, ty = bx + math.cos(a) * L, by + math.sin(a) * L
+            if crow:
+                mk = lambda m, bx=bx, by=by, tx=tx, ty=ty: [((np.hypot(G(m)[1] - bx, G(m)[0] - by) > 5) &
+                                                             (((G(m)[1] - bx) * (ty - by) - (G(m)[0] - by) * (tx - bx)) > 0), pale, -0.1)]
+            else:
+                mk = lambda m, bx=bx, by=by, tx=tx, ty=ty, i=i: [(bars_across(bx, by, tx, ty, 3.3, 1.1, 0.2 * i)(m) &
+                                                                  (np.hypot(G(m)[1] - bx, G(m)[0] - by) > 7), bar, -0.1)]
+            lay.append((lambda c, bx=bx, by=by, tx=tx, ty=ty: c.cap(bx, by, tx, ty, 1.8 if crow else 2.0, 1.05 if crow else 1.7), rp, a,
+                        mk, dict(R=1.5, seed=sd + 30 + i, outline=0.34)))
+        for i in range(4):
+            a = math.radians(-100 - i * 12)
+            bx, by = 18 - i * 0.6, 26
+            lay.append((lambda c, bx=bx, by=by, a=a: c.cap(bx, by, bx + math.cos(a) * 8, by + math.sin(a) * 8, 1.8, 1.3), rp, a,
+                        lambda m: [((G(m)[0] < 20.5), pale, -0.05)], dict(R=1.5, seed=sd + 40 + i, bias=0.05, outline=0.3)))
+        rgba, mm = layered(22, 28, lay, sil=True)
+        add(A, side + 'WingOut', rgba, (17.8, 26.6))
+
+
+def owl():
+    """
+    Great horned owl, painted feather group by feather group.
+      perch*: upright on a branch, facing out — facial disc with dark rim, ear tufts,
+              yellow eyes, pale throat bib, barred breast, folded wing, feathered feet.
+      flight: barrel body, 3/4 head, and each wing in two layered parts — inner wing
+              (secondaries + coverts) and hand (separately painted primaries) that folds
+              at the wrist.
+    """
+    rng = np.random.default_rng(51)
+    A = 'owl'
+    setF(AF[A])
+    ang = math.atan2
+    # ---------------------------------------------------------------- perch
+    def br(c):
+        c.cap(1.5, 5.6, 45, 4.6, 3.4, 2.7)
+        c.cap(9, 4, 4.5, 0.8, 1.1, 0.7)          # twig stub
+        c.ell(30, 6.2, 2.2, 1.8)                 # knot
+    def brm(m, v):
+        ys, xs = G(m)
+        groove = (np.abs(((ys - 0.06 * xs) % 2.2) - 1.1) < 0.28) & (ys > 3.5)
+        knot = (xs - 30) ** 2 / 3 + (ys - 6.2) ** 2 / 2 < 1
+        return [(groove, OW_BRANCH, -0.25), (knot, OW_BRANCH, -0.35)]
+    furpart(A, 'branch', 47, 10, br, (23, 3.4), OW_BRANCH, rng, ang=0.0, R=3, marks_fn=brm, tuft=3.0, edge=False,
+            outline=0.5)
+
+    def pbody(c):
+        c.ell(11, 15.5, 9.4, 13.4)
+        c.poly([(6, 25), (8.4, 31.6), (12.6, 31.6), (15, 25)])      # tail just showing below the folded wings
+    def pbm(m, v):
+        ys, xs = G(m)
+        breast = ((xs - 13.2) ** 2 / 46 + (ys - 15) ** 2 / 150 <= 1) & (ys > 2.5)
+        bars = breast & (((ys + 0.55 * np.sin(xs * 1.3 + ys * 0.7)) % 2.3) < 0.55) & (((xs + ys * 0.5) % 5.3) < 4.1)
+        bib = (xs - 12) ** 2 / 20 + (ys - 3.4) ** 2 / 4 <= 1
+        tail_b = (ys > 27) & (((ys) % 2.2) < 0.8)
+        return [(breast, OW_PALE, -0.05), (bars, OW_BAR, 0.15), (bib, ramp_fn(['#b0a088', '#d8ccb4', '#eee6d4', '#f8f4ea', '#ffffff']), 0.1),
+                (tail_b, OW_BAR, 0.1)]
+    furpart(A, 'perchBody', 22, 34, pbody, (11, 16), OW, rng, ang=math.pi / 2, R=6, marks_fn=pbm, tuft=2.2,
+            neck=(11, 3.5), wing=(5.5, 6), feet=(11, 28.5))
+
+    # folded wing on the near side: coverts, then the stacked primaries at the tip
+    lay = []
+    lay.append((lambda c: c.poly([(6, 0.5), (11, 4), (10.4, 15), (7.5, 24), (4.6, 27), (2.4, 20), (1.4, 9), (2.6, 2)]),
+                OW, math.pi / 2, lambda m: [(bars_across(6, 6, 4, 26, 3.2, 1.0)(m) & (G(m)[0] > 13), OW_BAR, 0.1)],
+                dict(R=3, seed=3)))
+    for i, (x0, y0) in enumerate([(3.6, 14), (5, 15.5), (6.6, 16.6)]):
+        lay.append((lambda c, x0=x0, y0=y0: c.cap(x0 + 2, y0, x0 - 0.6, y0 + 11 - i, 1.9, 1.3), OW_FAR, math.pi / 2,
+                    lambda m, x0=x0, y0=y0: [(bars_across(x0 + 2, y0, x0, y0 + 11, 2.6, 0.9, 0.3 * i)(m), OW_PALE, -0.1)],
+                    dict(R=1.6, seed=10 + i)))
+    for i in range(4):     # scapular / covert scallops with pale tips
+        y = 3 + i * 3.1
+        lay.append((lambda c, y=y: c.ell(7.4 - i * 0.3, y + 1.6, 3.2, 2.0, 0.5), OW, math.pi / 2,
+                    lambda m, y=y: [((G(m)[0] > y + 2.3), OW_PALE, 0.0)], dict(R=1.6, seed=20 + i)))
+    rgba, mm = layered(13, 28, lay)
+    add(A, 'perchWing', rgba, (6.5, 1.5))
+
+    for nm, blink in (('perchHead', 0), ('perchHeadBlink', 1)):
+        def phead(c):
+            c.ell(12, 12.4, 10.6, 9)
+            c.poly([(3.2, 7), (1.6, 0.2), (5.2, 2.2), (8.4, 4.6)])      # ear tufts (feather horns)
+            c.poly([(20.8, 7), (22.4, 0.2), (18.8, 2.2), (15.6, 4.6)])
+        def phm(m, v):
+            ys, xs = G(m)
+            dl = (xs - 8.2) ** 2 / 26 + (ys - 13) ** 2 / 30
+            dr = (xs - 15.8) ** 2 / 26 + (ys - 13) ** 2 / 30
+            disc = (dl <= 1) | (dr <= 1)
+            rim = disc & ~((dl <= 0.6) | (dr <= 0.6)) & (ys > 8.0) & ~((np.abs(xs - 12) < 1.6) & (ys > 15))
+            brow = ((np.abs(ys - (8.6 + np.abs(xs - 12) * 0.32)) < 0.7) & (np.abs(xs - 12) < 6.2)) | \
+                   ((np.abs(xs - 12) < 1.0) & (ys > 8) & (ys < 13.5))
+            tuft_dark = (ys < 5.5) & ((xs < 6) | (xs > 18))
+            return [(disc, OW_DISC, 0.05), (rim, OW_BAR, -0.4), (brow, ramp_fn(['#b0a088', '#d8ccb4', '#eee6d4', '#f8f4ea', '#ffffff']), 0.0),
+                    (tuft_dark, OW_BAR, 0.1)]
+        rgba, mm = furpart(A, nm, 24, 22, phead, (12, 20), OW, rng, ang=math.pi / 2, R=6, marks_fn=phm, tuft=1.8)
+        f = FF[0]
+        ys, xs = G(rgba[..., 3] > 0)
+        for ex in (8.3, 15.7):
+            d = np.hypot(xs - ex, ys - 11.8)
+            if blink:
+                lid = (d < 2.3)
+                rgba[lid, :3] = palette(OW_DISC)[1]
+                slit = (np.abs(ys - 12.2 - 0.12 * (xs - ex) ** 2) < 0.45) & (np.abs(xs - ex) < 2.2)
+                rgba[slit, :3] = hexc('#2a1606')
+            else:
+                rgba[d < 2.45, :3] = hexc('#2a1606')
+                iris = d < 2.0
+                rgba[iris, :3] = palette(OW_IRIS)[np.clip((2 + (ys[iris] - 11.8) * -0.8 + 0.5).astype(int), 0, 4)]
+                rgba[d < 1.05, :3] = hexc('#0c0604')
+                px_set(rgba, ex + 0.7, 11, '#fff8e0')
+        # hooked beak between the eyes
+        bk = np.zeros(rgba.shape[:2], bool)
+        bk |= (np.abs(xs - 12) < 1.5 - (ys - 13.0) * 0.36) & (ys > 13.0) & (ys < 17.4)
+        rgba[bk, :3] = hexc('#3a3632')
+        rgba[bk & (xs > 12.1), :3] = hexc('#6a645c')
+        rgba[bk, 3] = 255
+        add(A, nm, rgba, (12, 20))
+
+    def feet(c):
+        c.ell(4.6, 2.6, 2.6, 2.4)
+        c.ell(10.4, 2.6, 2.6, 2.4)
+    def fm(m, v):
+        ys, xs = G(m)
+        return [((ys > 0), OW_PALE, 0.0)]
+    rgba, mm = furpart(A, 'perchFeet', 15, 8, feet, (7.5, 4), OW, rng, ang=math.pi / 2, R=2, marks_fn=fm, tuft=1.5, edge=False)
+    ys, xs = G(np.ones(rgba.shape[:2], bool))
+    for cx in (2.8, 4.6, 6.4, 8.6, 10.4, 12.2):     # talons curled over the front of the branch
+        cl = (np.hypot(xs - cx - 0.6, ys - 4.6) < 1.5) & (np.hypot(xs - cx - 0.6, ys - 4.6) > 0.55) & (xs < cx + 1.2) & (ys > 4.2)
+        rgba[cl, :3] = hexc('#1a1612'); rgba[cl, 3] = 255
+    add(A, 'perchFeet', rgba, (7.5, 4))
+
+    # ---------------------------------------------------------------- flight body / head / tail
+    def body(c):
+        c.ell(13, 12, 11, 10.5)
+        c.ell(16, 16, 9, 7.5)
+    def bm(m, v):
+        ys, xs = G(m)
+        breast = (xs > 12) & (ys > 8.5 - (xs - 12) * 0.2)
+        bars = breast & (((ys + 0.6 * np.sin(xs * 1.7)) % 2.6) < 0.75)
+        chev = (~breast) & ((((xs * 0.7 + ys) % 4.2) < 0.9) & (((xs * 0.9 - ys * 0.4) % 5.0) < 2.2))
+        return [(breast, OW_PALE, 0.0), (bars, OW_BAR, 0.15), (chev, OW_BAR, 0.15)]
+    furpart(A, 'body', 26, 24, body, (13, 12), OW, rng, ang=math.pi / 2, R=6, marks_fn=bm, tuft=2.2,
+            neck=(18, 4), tail=(3, 15), shoulder=(14, 7), hip=(15, 20))
+
+    def head(c):
+        c.ell(11, 12, 9.4, 8.8)
+        c.poly([(3.4, 6.6), (2.0, 0.2), (7.8, 4.4)])      # far tuft
+        c.poly([(10, 4.2), (13.0, -0.2), (15.0, 5.2)])    # near tuft
+    def hm(m, v):
+        ys, xs = G(m)
+        dn = (xs - 14.6) ** 2 / 22 + (ys - 12.6) ** 2 / 34
+        dfar = (xs - 19.2) ** 2 / 6 + (ys - 12.6) ** 2 / 28
+        disc = (dn <= 1) | (dfar <= 1)
+        rim = disc & ~((dn <= 0.62) | (dfar <= 0.5)) & (xs < 19.5)
+        throat = (ys > 18.2) & (xs > 10) & (xs < 18)
+        return [(disc, OW_DISC, 0.0), (rim, OW_BAR, -0.05), (throat, OW_PALE, 0.2)]
+    rgba, mm = furpart(A, 'head', 22, 22, head, (8, 16), OW, rng, ang=math.pi / 2, R=5, marks_fn=hm, tuft=1.8)
+    ys, xs = G(np.ones(rgba.shape[:2], bool))
+    for ex, ey, rx in ((14.4, 11.6, 2.2), (19.4, 11.6, 1.2)):        # near eye round, far eye foreshortened
+        d = np.hypot((xs - ex) / rx * 2.2, ys - ey)
+        sel = (d < 2.45) & (rgba[..., 3] > 0)
+        rgba[sel, :3] = hexc('#2a1606')
+        iris = (d < 1.95) & sel
+        rgba[iris, :3] = palette(OW_IRIS)[np.clip((2 + (ys[iris] - ey) * -0.8 + 0.5).astype(int), 0, 4)]
+        rgba[(np.hypot((xs - ex - 0.2) / rx * 2.2, ys - ey) < 1.0) & sel, :3] = hexc('#0c0604')
+    px_set(rgba, 15, 11, '#fff8e0')
+    bk = (np.abs(xs - 17.4) < 1.1 - (ys - 13.4) * 0.3) & (ys > 13.4) & (ys < 16.6)
+    rgba[bk, :3] = hexc('#3a3632'); rgba[bk, 3] = 255
+    add(A, 'head', rgba, (8, 16), eye=(14, 11))
+
+    lay = []
+    for i, ty in enumerate([1.2, 7.8, 2.4, 6.6, 4.4]):       # tail fan: outer feathers first, centre on top
+        lay.append((lambda c, ty=ty: c.cap(12.4, 4.4 + (ty - 4.4) * 0.2, 2.4, ty, 1.1, 1.6), OW, math.pi,
+                    lambda m: [(bars_across(13, 4, 1, 4, 4.4, 0.8, 0.5)(m) & (G(m)[1] < 8), OW_BAR, -0.1),
+                               ((G(m)[0] > 6.4), OW_PALE, -0.1)],
+                    dict(R=1.4, seed=40 + i, outline=0.3, bias=0.08)))
+    rgba, mm = layered(14, 10, lay, sil=True)
+    add(A, 'tail', rgba, (12.5, 4.4))
+
+    # ---------------------------------------------------------------- wings, two parts each
+    # Painted fully raised, seen from the side (span straight up, chord along the body);
+    # the rig foreshortens them vertically to flap, and folds the hand at the wrist.
+    two_part_wings(A, (('n', OW, OW_PALE, OW_BAR), ('f', OW_FAR, OW, OW_BAR)))
+
+    # feet: feathered legs with dark talons, tucked or reaching
+    for nm, reach in (('feetTuck', 0), ('feetReach', 1)):
+        lay = []
+        if reach:
+            lay.append((lambda c: c.cap(2, 2, 6.4, 6.4, 1.9, 1.6), OW_PALE, math.pi / 4, None, dict(R=1.2, seed=90)))
+        else:
+            lay.append((lambda c: c.ell(3, 2.4, 2.6, 2.0), OW_PALE, math.pi / 4, None, dict(R=1.2, seed=91)))
+        rgba, mm = layered(11, 10, lay, outline=0.45)
+        ys, xs = G(np.ones(rgba.shape[:2], bool))
+        tal = []
+        if reach:
+            for a in (-0.5, 0.25, 1.0):
+                cx, cy = 7 + math.cos(a) * 2, 7 + math.sin(a) * 2
+                tal.append((np.hypot(xs - cx, ys - cy) < 1.6) & (np.hypot(xs - cx - math.cos(a) * 0.9, ys - cy - math.sin(a) * 0.9) < 2.2) &
+                           (np.hypot(xs - 7, ys - 7) > 1.2) & (np.hypot(xs - 7, ys - 7) < 4.2))
+        else:
+            tal.append((np.abs(ys - 4.2) < 0.6) & (xs > 2) & (xs < 6.2))
+        for t in tal:
+            rgba[t, :3] = hexc('#1a1612'); rgba[t, 3] = 255
+        add(A, nm, rgba, (1.6, 1.6))
+
+
 def pack(sheet_out=None):
     meta = {}
     imgs = []
@@ -516,5 +825,5 @@ def pack(sheet_out=None):
 
 
 if __name__ == '__main__':
-    snake(); bobcat(); bear(); bird('crow', CR, CR_FAR, CR_SHEEN, False); bird('owl', OW, OW_FAR, OW_PALE, True)
+    snake(); bobcat(); bear(); bird('crow', CR, CR_FAR, CR_SHEEN, False); owl()
     pack(sys.argv[sys.argv.index('--sheet') + 1] if '--sheet' in sys.argv else None)

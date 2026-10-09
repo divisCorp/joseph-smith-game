@@ -90,12 +90,14 @@ CAST_TALL = {
                  # hip joint sits up under the coat (waist 117), so the thigh is as long as
                  # the shin instead of the short stub the visible trouser suggested
                  hip=(51, 113), knee=(52.5, 133), ankle=(54, 149), heel=(47.5, 158), toe=(62, 157),
-                 shinR=7, thighR=7, thighFromShin=True, thighFrac=0.7, despeckle=True,
+                 shinR=7, thighR=7, thighFromShin=True, thighFrac=0.7, despeckle=True, cleanCloth=143,
                  footPoly=[(43, 145), (67, 145), (67, 160), (43, 160)]),
         hipN=(42, 113), hipF=(51, 113), restN=(40, 0), restF=(53, 0)),
-    'warden': tall('bosses.png', (0, 480, 80, 160), ground=155,
-        head=[(16, 14), (70, 14), (72, 64), (66, 74), (54, 78), (40, 79), (26, 78), (16, 70)],
-        neck=(44, 77), pelvis=(45, 103), waist=103,
+    # repainted for the 1830s by tools/rig/paint_warden.py (top hat, stock, coat shoulders,
+    # keys; the mail coif and mace are gone) — cut exactly like his painted frame 0 was
+    'warden': tall('warden_1830s.png', (0, 0, 80, 160), ground=155,
+        head=[(14, 0), (74, 0), (74, 58), (64, 62), (56, 64), (44, 65), (34, 66), (26, 64), (14, 60)],
+        neck=(46, 66), pelvis=(45, 103), waist=103,
         nArm=dict(poly=[(12, 78), (26, 78), (28, 90), (27, 100), (26, 110), (24, 118), (8, 118), (6, 108), (7, 95), (9, 84)],
                   shoulder=(18, 84), elbow=(17, 97), wrist=(17, 106), hand=(16, 111), split=[(4, 97), (30, 97)],
                   back=[(78, 12), (90, 9), (100, 8), (110, 8), (118, 9)], tex=4),
@@ -202,5 +204,4 @@ def cut_warden_mace():
     return meta
 
 
-if __name__ == '__main__' and ('warden' in sys.argv[1:] or len([a for a in sys.argv[1:] if not a.startswith('--')]) == 0):
-    print('warden mace', cut_warden_mace())
+# (the mace prop is retired: the 1830s warden carries a painted wooden staff, see paint_warden.py)

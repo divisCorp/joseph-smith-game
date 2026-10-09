@@ -290,9 +290,9 @@ function snakeCurve(pose) {
     else if (s < 26) a1 = lerp(0.1, -1.55, smooth(clamp((s - 4) / 8, 0, 1)));
     else if (s < 36) a1 = lerp(-1.55, 0.9, smooth((s - 26) / 10));
     else {
-      // one and a bit loops, tighter near the neck, widening toward the tail
+      // one loose loop, a little tighter near the neck, opening toward the tail
       const u = (s - 36) / (L - 36);
-      a1 = 0.9 + 2 * Math.PI * 1.2 * (1.3 * u - 0.3 * u * u);
+      a1 = 0.9 + 2 * Math.PI * 0.95 * (1.2 * u - 0.2 * u * u);
     }
     // strike: the neck section straightens forward, slightly down to the target
     if (strike > 0 && s < 40) a1 = lerp(a1, 0.18 + 0.1 * (s / 40), smooth(clamp(strike * 1.25 - s / 160, 0, 1)));
@@ -303,7 +303,7 @@ function snakeCurve(pose) {
   pts[L] = [0, 0];
   for (let s = L - 1; s >= 0; s--) pts[s] = [pts[s + 1][0] + Math.cos(th[s]), pts[s + 1][1] + Math.sin(th[s])];
   // loops of the coil seen in perspective: flatten them vertically
-  const sq = lerp(1, 0.5, coil);
+  const sq = lerp(1, 0.64, coil);
   if (sq < 1) {
     let my = 0, n = 0;
     for (let s = 36; s <= L; s++) { my += pts[s][1]; n++; }
@@ -344,11 +344,13 @@ function snakeOps(pose) {
 
 // --------------------------------------------------------------------- birds
 function birdOps(sp, pose) {
+  if (pose.perch) return perchOps(sp, pose);
   const body = P(sp, 'body');
   const bpos = [0, pose.bob || 0];
   const brot = pose.pitch || 0;
   const at = (pt) => xf(bpos, brot, body.pivot, pt);
   const ops = [];
+  const layeredWing = !!P(sp, 'nWingIn');
   const wing = (side) => {
     // flap = rotation about the body's long axis, seen from the side: the painted
     // (fully raised) wing is foreshortened vertically; below zero it shows under the body
@@ -356,11 +358,21 @@ function birdOps(sp, pose) {
     const s = side === 'f' ? [sh[0] + 2.5, sh[1] - 1] : sh;
     const e = clamp(pose.wing * (side === 'f' ? 0.92 : 1), -1, 1);
     const sy = Math.abs(e) < 0.12 ? 0.12 * Math.sign(e || 1) : e;
-    ops.push({ p: side + 'Wing', pos: s, rot: brot + (pose.sweep || 0), sp, sy, dark: e < 0 ? 0.75 : 1 });
+    const dark = e < 0 ? 0.75 : 1;
+    const rot = brot + (pose.sweep || 0) + (side === 'f' ? 0.06 : 0);
+    if (!layeredWing) { ops.push({ p: side + 'Wing', pos: s, rot, sp, sy, dark }); return; }
+    // two parts: the inner wing (secondaries) and the hand (primaries), which folds back
+    // at the wrist inside the wing plane before the side-view foreshortening
+    const inner = P(sp, side + 'WingIn');
+    const fold = (pose.fold || 0) * (side === 'f' ? 0.9 : 1);
+    const wx = inner.wrist[0] - inner.pivot[0], wy = inner.wrist[1] - inner.pivot[1];
+    const base = [s[0], s[1], rot, 1, sy];
+    ops.push({ p: side + 'WingOut', sp, dark, chain: [base, [wx, wy, fold, 1, 1]] });
+    ops.push({ p: side + 'WingIn', sp, dark, chain: [base] });
   };
   wing('f');
-  ops.push({ p: 'tail', pos: at(body.tail), rot: brot + (pose.tailRot || 0), sp });
-  ops.push({ p: pose.reach ? 'feetReach' : 'feetTuck', pos: at(body.hip), rot: brot + (pose.reach ? -0.6 : 0.3), sp });
+  ops.push({ p: 'tail', pos: at(body.tail), rot: brot + (pose.tailRot || 0), sp, sy: pose.tailFan || 1 });
+  ops.push({ p: pose.reach ? 'feetReach' : 'feetTuck', pos: at(body.hip), rot: brot + (pose.reach ? (pose.reachRot ?? -0.6) : 0.3), sp });
   ops.push({ p: 'body', pos: bpos, rot: brot, sp });
   const neck = at(body.neck);
   ops.push({ p: 'head', pos: neck, rot: brot * 0.5 + (pose.headRot || 0), sp });
@@ -368,32 +380,71 @@ function birdOps(sp, pose) {
   return ops;
 }
 
+/** Perched upright on a branch, facing out (great horned owl idle). */
+function perchOps(sp, pose) {
+  const body = P(sp, 'perchBody');
+  const bpos = [0, -4];
+  const at = (pt) => [bpos[0] + pt[0] - body.pivot[0], bpos[1] + (pt[1] - body.pivot[1])];
+  const feet = at(body.feet);
+  const ops = [];
+  ops.push({ p: 'branch', pos: [feet[0] - 2, feet[1] + 2.2], rot: -0.03, sp });
+  ops.push({ p: 'perchBody', pos: bpos, rot: 0, sp, sy: pose.breath || 1 });
+  ops.push({ p: 'perchWing', pos: at(body.wing), rot: pose.wingRot || 0, sp });
+  ops.push({ p: 'perchFeet', pos: [feet[0], feet[1] + 0.6], rot: 0, sp });
+  const neck = at(body.neck);
+  ops.push({ p: pose.blink ? 'perchHeadBlink' : 'perchHead', pos: [neck[0] + (pose.headDx || 0), neck[1] + 1.5 - (1 - (pose.breath || 1)) * 30], rot: pose.headRot || 0, sp });
+  return ops;
+}
+
 function birdPose(sp, mode, t, k = 0) {
   const owl = sp === 'owl';
-  const p = { wing: 0, sweep: 0, pitch: 0, bob: 0, headRot: 0, reach: false, tailRot: 0 };
+  const p = { wing: 0, sweep: 0, fold: 0, pitch: 0, bob: 0, headRot: 0, reach: false, tailRot: 0, tailFan: 1 };
+  if (mode === 'perch') {
+    // upright on the branch: slow breathing, the head swivels and tilts, a blink now and then
+    p.perch = true;
+    const u = wrap(t / 4), TAU = Math.PI * 2;      // loops with the 4 s idle
+    p.breath = 1 + 0.012 * Math.sin(TAU * 2 * u);
+    p.headRot = 0.07 * (Math.sin(TAU * u) + 0.35 * Math.sin(TAU * 3 * u)) + 0.15 * Math.sin(Math.PI * clamp((u - 0.62) / 0.2, 0, 1));
+    p.headDx = 0.6 * Math.sin(TAU * u);
+    p.blink = (u > 0.30 && u < 0.335) || (u > 0.9 && u < 0.935);
+    p.wingRot = 0.02 * Math.sin(TAU * 2 * u);
+    return p;
+  }
   if (mode === 'glide') {
     p.wing = 0.22 + 0.06 * Math.sin(t * 2);
     p.sweep = -0.15;
+    p.fold = -0.12;
     p.bob = Math.sin(t * 2) * 1.5;
     p.pitch = 0.04;
   } else if (mode === 'swoop') {
-    const a = smooth(clamp(k * 2, 0, 1));
-    p.pitch = 0.45 * a;
-    p.wing = 0.62; p.sweep = -1.05 * a - 0.2; // wings swept back
-    p.reach = a > 0.3;
-    p.headRot = -0.3 * a;
-    p.tailRot = -0.2 * a;
+    // dive with the wings half folded and swept back (hands tucked), talons come forward,
+    // then a flare: body pitches up, wings open wide and brake, feet thrust at the target
+    const dive = smooth(clamp(k / 0.35, 0, 1));
+    const flare = smooth(clamp((k - 0.62) / 0.3, 0, 1));
+    p.pitch = lerp(0.5 * dive, -0.38, flare);
+    p.wing = lerp(0.55, 0.98, flare);
+    p.sweep = lerp(-0.95 * dive - 0.2, -0.05, flare);
+    p.fold = lerp(-1.05 * dive, 0.12, flare);
+    p.reach = k > 0.3;
+    p.reachRot = lerp(-0.4, -1.3, flare);
+    p.headRot = lerp(-0.35 * dive, 0.3, flare);   // eyes stay on the target
+    p.tailRot = lerp(-0.15 * dive, 0.35, flare);
+    p.tailFan = lerp(1, 1.35, flare);
   } else {
-    // flap: quick downstroke, slower recovery (the owl slower and deeper)
-    const rate = (owl ? 1.5 : 2.3) * (mode === 'hover' ? 1.6 : 1);
+    // flap: full downstroke with the hand spread, upstroke with the hand folded back at the
+    // wrist (the owl slower and deeper; hover = quick beats, body pitched up, talons down)
+    const rate = (owl ? 1.5 : 2.3) * (mode === 'hover' ? 1.7 : 1);
     const ph = wrap(t * rate);
     const s = ph < 0.4 ? Math.cos((ph / 0.4) * Math.PI) : -Math.cos(((ph - 0.4) / 0.6) * Math.PI);
     p.wing = 0.15 + s * 0.8;
     p.sweep = -0.18 - 0.22 * Math.max(0, -s) + 0.1 * Math.sin(ph * 2 * Math.PI);
+    p.fold = ph < 0.4 ? 0.06 : -0.95 * Math.sin(((ph - 0.4) / 0.6) * Math.PI);
     p.bob = s * 1.8;
-    p.pitch = mode === 'hover' ? -0.2 : 0;
+    p.pitch = mode === 'hover' ? -0.3 : 0;
     p.headRot = -p.pitch * 0.8;
-    p.tailRot = mode === 'hover' ? 0.25 : 0.05 * s;
+    p.tailRot = mode === 'hover' ? 0.3 : 0.05 * s;
+    p.tailFan = mode === 'hover' ? 1.25 : 1;
+    if (mode === 'hover' && owl) { p.reach = true; p.reachRot = 0.4; }
   }
   return p;
 }
@@ -431,9 +482,14 @@ function drawOps(g, ops) {
     const part = P(o.sp, o.p);
     if (!part) continue;
     g.save();
-    g.translate(o.pos[0], o.pos[1]);
-    if (o.rot) g.rotate(o.rot);
-    if (o.sx || o.sy) g.scale(o.sx || 1, o.sy || 1);
+    if (o.chain) {
+      // nested joints (inner wing → hand): each step = [x, y, rot, sx, sy] in the previous frame
+      for (const [x, y, r, sx, sy] of o.chain) { g.translate(x, y); if (r) g.rotate(r); if (sx !== 1 || sy !== 1) g.scale(sx, sy); }
+    } else {
+      g.translate(o.pos[0], o.pos[1]);
+      if (o.rot) g.rotate(o.rot);
+      if (o.sx || o.sy) g.scale(o.sx || 1, o.sy || 1);
+    }
     g.translate(-part.pivot[0], -part.pivot[1]);
     if (o.dark && o.dark < 1) g.filter = `brightness(${o.dark})`;
     g.drawImage(img, part.x, part.y, part.w, part.h, 0, 0, part.w / up, part.h / up);
@@ -537,6 +593,7 @@ export function animalPose(sp, anim, t, extra = {}) {
     if (b.phase === 'lunge') return birdPose(sp, 'swoop', t, b.k);
     if (b.phase === 'recover') return birdPose(sp, 'flap', t);
   }
+  if (anim === 'idle' && P(sp, 'perchBody') && !extra.fly) return birdPose(sp, 'perch', t);
   return birdPose(sp, anim === 'idle' && extra.perch ? 'glide' : 'flap', t);
 }
 

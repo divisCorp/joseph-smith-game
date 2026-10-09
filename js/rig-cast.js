@@ -39,19 +39,22 @@ export const CAST = {
     old: { src: 'tools/rig/src/moroni.png', fw: 64, fh: 128, row: 0, frames: [0, 1, 2, 1], greet: 3 } },
   captain: { label: 'Captain (ch. 4 boss)', rig: 'captain', gameK: 0.7, arm: 'f', style: 'punch', seed: 11, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(2),
     note: 'His long coat hides most of the legs, so the thighs are short. The coat side under the sleeve is repainted as plain cloth.' },
-  warden: { label: 'Warden (ch. 5 boss)', rig: 'warden', gameK: 0.7, bodyK: 0.8, arm: 'f', style: 'club', prop: 'mace', seed: 12, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(3),
-    note: 'Body cut from his painted frame 0, drawn at the size of his painted walk frames (frame 0 is painted larger); the mace is cut from his painted frame 1 (shaft under the fist painted in). Coif and mace are the existing live art, unchanged.' },
-  // Carthage, June 27, 1844 (ch. 7). Hand-painted on the house template in 1840s dress;
-  // heights by uniform rig scale only (Hyrum tall, Richards tallest and heavy-set).
-  hyrum: { label: 'Hyrum Smith (Carthage)', rig: 'hyrum', gameK: 0.875 * 1.04, yOff: 2, arm: 'f', seed: 14, anims: ['idle', 'walk', 'brace'], carthage: true,
+  warden: { label: 'Warden (ch. 5 boss)', rig: 'warden', gameK: 0.7, bodyK: 0.8, arm: 'f', style: 'staff', prop: 'staff', seed: 12, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(3),
+    note: 'Repainted for the 1830s (tools/rig/paint_warden.py): a jailer in a top hat, black stock and a buttoned blue coat, with a ring of jail keys on his belt and a plain wooden staff in place of the medieval coif and mace. His attack is a staff prod. Drawn at the size of his painted walk frames (frame 0 is painted larger).' },
+  // Carthage, June 27, 1844 (ch. 7). Each man is his own hand painting (tools/rig/paint_men.py):
+  // own face, own build; heights by uniform rig scale only. walk = gait overrides, posture = degrees.
+  hyrum: { label: 'Hyrum Smith (Carthage)', rig: 'hyrum', gameK: 0.875 * 1.06, yOff: 2, arm: 'f', seed: 14, anims: ['idle', 'walk', 'brace'], carthage: true,
+    walk: { cycle: 68, arm: 14, lean: 3.5 }, posture: { torso: 1, head: -1 },
     old: { src: 'tools/rig/src/carthage_hyrum.png', fw: 64, fh: 128, row: 0, frames: [0] },
-    note: 'New hand-painted character (no AI imagery): tall, dark hair with a side parting, charcoal frock coat, black silk stock. Braces the door with Joseph; no weapons, no harm shown.' },
-  taylor: { label: 'John Taylor (Carthage)', rig: 'taylor', gameK: 0.875, yOff: 2, arm: 'f', seed: 15, anims: ['idle', 'walk', 'brace'], carthage: true,
+    note: 'Hand-painted (no AI imagery, nothing traced): tall and lean, long face, dark hair from a side parting, heavy sideburns and the mole on his right cheek (Maudsley likeness), dark frock coat, black silk stock. Long, easy stride.' },
+  taylor: { label: 'John Taylor (Carthage)', rig: 'taylor', gameK: 0.875 * 1.02, yOff: 2, arm: 'f', seed: 15, anims: ['idle', 'walk', 'brace'], carthage: true,
+    walk: { lean: 1.2, arm: 15 }, posture: { torso: -2, head: -2.5 },
     old: { src: 'tools/rig/src/carthage_taylor.png', fw: 64, fh: 128, row: 0, frames: [0] },
-    note: 'New hand-painted character (no AI imagery): English-born, dark hair combed back, black frock coat, burgundy waistcoat, white cravat.' },
-  richards: { label: 'Willard Richards (Carthage)', rig: 'richards', gameK: 0.875 * 1.075, yOff: 2, arm: 'f', seed: 16, anims: ['idle', 'walk', 'brace'], carthage: true,
+    note: 'Hand-painted (no AI imagery, nothing traced): erect posture, oval face, high forehead, deep-set grey eyes, curly dark-brown hair and short side-whiskers; black coat, burgundy waistcoat (watch pocket), white cravat, dove-grey trousers.' },
+  richards: { label: 'Willard Richards (Carthage)', rig: 'richards', gameK: 0.875 * 1.01, yOff: 2, arm: 'f', seed: 16, anims: ['idle', 'walk', 'brace'], carthage: true,
+    walk: { cycle: 52, bob: 1.9, lean: 1.2, arm: 10, lift: 4.5, duty: 0.63 }, posture: { torso: -1.5, head: -1 },
     old: { src: 'tools/rig/src/carthage_richards.png', fw: 64, fh: 128, row: 0, frames: [0] },
-    note: 'New hand-painted character (no AI imagery): taller and heavy-set (fuller face, second chin), receding hair, brown frock coat, buff waistcoat with a watch chain.' },
+    note: 'Hand-painted (no AI imagery, nothing traced): heavy-set and broad (wide back, round belly, thick limbs), large round clean-shaven face with a double chin, high receding hairline with the hair kept curled at the sides; brown frock coat, tan waistcoat and watch chain. Shorter, heavier steps.' },
   overseer: { label: 'Overseer (ch. 6 boss)', rig: 'overseer', gameK: 0.7, arm: 'f', style: 'punch', seed: 13, anims: ['idle', 'walk', 'tell'], old: BOSS_OLD(4) },
 };
 
@@ -64,7 +67,7 @@ export const ANIM_DUR = { idle: 6.8, walk: 2, attack: 1.8, throw: 1.2, speak: 6,
 let CAST_RIGS = null;
 let castLoading = null;
 /** Painted props cut from the same frames as their owners (grip = hand point, art px). */
-const IMG_PROPS = { mace: { file: 'warden-mace', img: null, meta: null } };
+const IMG_PROPS = { staff: { file: 'warden-staff', img: null, meta: null } };
 function loadImgProp(base, v, p) {
   return Promise.all([
     fetch(`${base}${p.file}.json?v=${v}`).then((r) => r.json()),
@@ -86,6 +89,15 @@ export function rigFor(key) {
   return d && CAST_RIGS ? CAST_RIGS[d.rig] || null : null;
 }
 
+/** Per-character gait (walk overrides) and posture (standing lean / chin). */
+export function walkOf(def) {
+  return def && def.walk ? { ...WALK, ...def.walk } : WALK;
+}
+function posture(def, p) {
+  if (!def || !def.posture) return p;
+  return { ...p, torsoRot: (p.torsoRot || 0) + (def.posture.torso || 0), headRot: (p.headRot || 0) + (def.posture.head || 0) };
+}
+
 const smooth = (t) => t * t * (3 - 2 * t);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -93,7 +105,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function withProp(def, pose, t) {
   if (def.prop === 'torch') return applyHold(pose, 'f', -54, -58);
   if (def.prop === 'club') return applyHold(pose, 'f', -10, -48);
-  if (def.prop === 'mace') return applyHold(pose, 'f', -14, -58); // mace carried upright, as painted
+  if (def.prop === 'staff') return { ...applyHold(pose, 'f', -12, -56), propAng: 0, propSlide: 0 }; // staff carried upright
   if (def.prop === 'musket') {
     // shoulder arms: near hand at the stock; the far arm swings free
     return { ...pose, nArm: -6 + pose.nArm * 0.2, nFore: -100 };
@@ -106,13 +118,18 @@ function withProp(def, pose, t) {
  * Returns { pose, dist } where dist = model px travelled (preview ground scroll).
  */
 export function castPose(key, rig, anim, t) {
+  const r = castPose0(key, rig, anim, t);
+  return { ...r, pose: posture(CAST[key], r.pose) };
+}
+function castPose0(key, rig, anim, t) {
   const def = CAST[key];
   const sk = skelOf(rig.meta);
   const seed = def.seed || 0;
   if (anim === 'walk') {
-    const L = strideLen(sk, WALK);
+    const WP = walkOf(def);
+    const L = strideLen(sk, WP);
     const dist = t * L; // one cycle per second: a calm walk
-    return { pose: withProp(def, poseWalk(dist / L, WALK, sk), t), dist };
+    return { pose: withProp(def, poseWalk(dist / L, WP, sk), t), dist };
   }
   if (anim === 'attack') {
     // wait → wind-up (telegraph) → lunge → recover, matching the game's melee beats
@@ -198,7 +215,7 @@ function blend(a, b, k) {
 }
 
 /** Draw a cast member's prop at its hand (screen space). `under` = before the body. */
-function drawProp(ctx, def, rig, B, toScreen, gs, flip, t, state) {
+function drawProp(ctx, def, rig, B, toScreen, gs, flip, t, state, pose) {
   if (!def.prop) return;
   const meta = rig.meta;
   const side = def.prop === 'musket' ? 'n' : 'f';
@@ -244,6 +261,16 @@ function drawProp(ctx, def, rig, B, toScreen, gs, flip, t, state) {
     const lift = clamp((rig._muskRef - (B.nUpper.rot - B.torso.rot)) / (72 * Math.PI / 180), 0, 1);
     ctx.rotate(B.torso.rot - lift * 0.95);
     drawMusketProp(ctx, 0, 0, 1);
+  } else if (IMG_PROPS[def.prop] && IMG_PROPS[def.prop].img && IMG_PROPS[def.prop].meta.bodyScale) {
+    // painted staff (body-frame px): upright when carried, levelled for the prod; the grip
+    // slides toward its lower end so most of the staff leads when it is thrust
+    const P = IMG_PROPS[def.prop];
+    ctx.scale(1 / gs * state, 1 / gs * state);
+    ctx.rotate(((pose && pose.propAng) || 0) * Math.PI / 180 + B.torso.rot * 0.6);
+    const sl = clamp((pose && pose.propSlide) || 0, 0, 1);
+    const gy = P.meta.grip[1] + (P.meta.gripLow[1] - P.meta.grip[1]) * sl;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(P.img, -P.meta.grip[0], -gy);
   } else if (IMG_PROPS[def.prop] && IMG_PROPS[def.prop].img) {
     // painted prop: upright as painted when the arm is in its carry pose, then turns with the forearm
     const P = IMG_PROPS[def.prop];
@@ -283,12 +310,12 @@ export function drawCast(ctx, key, pose, x, y, scale, opts = {}) {
   const gs = scale / 0.875 * (opts.propK ?? 1); // props are authored in game px for a 0.875 cell
   const { B } = solve(meta, pose);
   const side = def.prop === 'musket' ? 'n' : 'f';
-  if (def.prop && side === 'f' && def.prop !== 'torch') drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale);
+  if (def.prop && side === 'f' && def.prop !== 'torch') drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale, pose);
   const r = drawRig(ctx, rig, pose, {
     x, y: y0, scale, flip, bones: opts.bones, crisp: opts.crisp, rim: opts.rim,
     filter: opts.flash ? 'brightness(2.1) sepia(0.7) hue-rotate(-35deg) saturate(2.8) contrast(1.15)' : undefined,
   });
-  if (def.prop && (side === 'n' || def.prop === 'torch')) drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale);
+  if (def.prop && (side === 'n' || def.prop === 'torch')) drawProp(ctx, def, rig, B, toScreen, gs, flip, opts.t, scale, pose);
   return r;
 }
 
@@ -449,13 +476,15 @@ export function drawCarthageRig(ctx, f, base, camX, tick, W) {
     }
     const moving = Math.abs(moved) > 0.01;
     m.moveK = Math.max(0, Math.min(1, m.moveK + (moving ? dt / 0.15 : -dt / 0.25)));
-    const L = strideLen(sk, WALK);
+    const WP = walkOf(def);
+    const L = strideLen(sk, WP);
     if (moving) m.phase += Math.abs(moved) / def.gameK / L;
     const arrived = engaged && Math.abs(target - m.cx) < 1;
     const want = !arrived ? 0 : f.mode === 'calm' ? 0.55 : 1;
     m.braceK += Math.max(-dt / 0.4, Math.min(dt / 0.3, want - m.braceK));
     let p = poseIdle(m.t, sk, def.seed || 0);
-    if (m.moveK > 0) p = blend(p, poseWalk(m.phase, WALK, sk), smooth(m.moveK));
+    if (m.moveK > 0) p = blend(p, poseWalk(m.phase, WP, sk), smooth(m.moveK));
+    p = posture(def, p);
     if (m.braceK > 0) p = applyBrace(p, m.braceK, f.mode === 'push' && arrived ? 1 : 0, m.t + i * 0.4, sk);
     const x = m.cx - camX;
     if (x < -80 || x > W + 80) continue;

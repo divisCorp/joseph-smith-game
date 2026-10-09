@@ -388,6 +388,12 @@ export function applyWind(base, k, arm = 'f', style = 'punch') {
   if (style === 'club') {
     p[arm + 'Arm'] = lerp(base[arm + 'Arm'], 165, a); // club raised high over the head
     p[arm + 'Fore'] = lerp(base[arm + 'Fore'], -95, a);
+  } else if (style === 'staff') {
+    // constable's staff: brought down level at chest height and drawn back for a prod
+    p[arm + 'Arm'] = lerp(base[arm + 'Arm'], 26, a);
+    p[arm + 'Fore'] = lerp(base[arm + 'Fore'], -104, a);
+    p.propAng = lerp(base.propAng || 0, 84, a);
+    p.propSlide = lerp(base.propSlide || 0, 0.75, a);
   } else if (style === 'shove') {
     p.nArm = lerp(base.nArm, -38, a); p.nFore = lerp(base.nFore, -52, a);
     p.fArm = lerp(base.fArm, -28, a); p.fFore = lerp(base.fFore, -60, a);
@@ -409,6 +415,12 @@ export function applyStrike(base, k, arm = 'f', style = 'punch') {
   if (style === 'club') {
     p[arm + 'Arm'] = lerp(165, -70, a);
     p[arm + 'Fore'] = lerp(-95, -6, a);
+  } else if (style === 'staff') {
+    // the prod: arm drives the staff straight forward, level (blunt end first)
+    p[arm + 'Arm'] = lerp(26, -78, a);
+    p[arm + 'Fore'] = lerp(-104, -10, a);
+    p.propAng = 88;
+    p.propSlide = 0.75;
   } else if (style === 'shove') {
     // musket held level in both hands, butt pushed forward (it is never fired)
     p.nArm = -78; p.nFore = -20; p.fArm = -70; p.fFore = -24;

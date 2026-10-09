@@ -103,7 +103,7 @@ const ANIMAL_NOTE = {
   bobcat: 'Bobcat, painted as parts. Four planted-foot legs (2-bone IK, each paw stays put while it bears weight); crouches, wiggles and pounces.',
   bear: 'American black bear, painted as parts. Heavy planted-foot walk; rears up and huffs, then a short bluff charge with a forepaw swipe. No harm shown.',
   crow: 'American crow, painted as parts. Wings flap about the body axis (seen from the side: raised, edge-on, lowered); glide; swoops with feet forward.',
-  owl: 'Great horned owl, painted as parts. Slow deep wingbeats, glide, swoop with talons forward. No harm shown.',
+  owl: 'Great horned owl, painted feather group by feather group. Idle: perched upright on a branch (facial disc, ear tufts, yellow eyes; head swivels, blinks). Flight: each wing is an inner wing plus a separately painted hand of primaries that folds at the wrist on the upstroke. Swoop: wings half folded and swept back, talons forward, then a braking flare. No harm shown.',
 };
 
 const qs = new URLSearchParams(location.search);
@@ -267,11 +267,16 @@ function animalScene(c, which, t, w, h, g) {
     let shift = 0;
     if (lunge && lunge.phase === 'lunge') shift = (who === 'snake' ? 0 : 18) * smoothK(lunge.k) * s;
     if (lunge && lunge.phase === 'recover') shift = (who === 'snake' ? 0 : 18) * (1 - smoothK(lunge.k)) * s;
+    if (pose.perch) {
+      // a plain trunk so the branch has something to grow from
+      g.fillStyle = '#3b2c1e'; g.fillRect(Math.round(cx - 34 * s), 0, Math.round(7 * s), groundY);
+      g.fillStyle = '#2a1f15'; g.fillRect(Math.round(cx - 34 * s), 0, Math.round(2 * s), groundY);
+    }
     drawAnimal(g, who, pose, cx + shift, oy - (pose.hop || 0) * s, s, { flip: false });
   }
   const notes = {
     old: { idle: 'procedural shapes in game', move: 'procedural legs', glide: 'procedural', attack: 'procedural wind-up + lunge' },
-    new: { idle: 'painted parts · breathing · tail', move: who === 'snake' ? 'slither: body flows through fixed curves' : def.fly ? 'wingbeats about the body axis' : 'IK: planted paws locked to the ticks', glide: 'wings set, gentle bob', attack: who === 'snake' ? 'coil + rattle → strike → recoil' : who === 'bobcat' ? 'crouch + wiggle → pounce → land' : who === 'bear' ? 'rears + huffs → bluff charge, swipe' : 'hover → swoop, feet forward' },
+    new: { idle: who === 'owl' ? 'perched on a branch · head swivels · blinks' : 'painted parts · breathing · tail', move: who === 'snake' ? 'slither: body flows through fixed curves' : def.fly ? 'wingbeats about the body axis' : 'IK: planted paws locked to the ticks', glide: 'wings set, gentle bob', attack: who === 'snake' ? 'coil + rattle → strike → recoil' : who === 'bobcat' ? 'crouch + wiggle → pounce → land' : who === 'bear' ? 'rears + huffs → bluff charge, swipe' : 'hover → swoop, feet forward' },
   };
   const note = notes[which][state.anim] || '';
   const label = `${note}  ·  t=${(t % A.dur).toFixed(2)}s  ·  ${state.speed}×`;
