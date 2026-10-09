@@ -735,7 +735,7 @@ function bakeKey(rig, lp, B, opts) {
   for (const name of meta.order || DRAW_ORDER) {
     const b = B[name];
     if (!b) continue;
-    k += '|' + Math.round(b.pos[0] * 4) + ',' + Math.round(b.pos[1] * 4) + ',' + Math.round((b.rot || 0) * 90);
+    k += '|' + Math.round(b.pos[0] * 2) + ',' + Math.round(b.pos[1] * 2) + ',' + Math.round((b.rot || 0) * 60);
   }
   return k;
 }
@@ -746,9 +746,38 @@ function bakeGet(key) {
   bakeStats.hit++;
   return v;
 }
+const POOL = [];
+/** A canvas for a baked frame, recycled from evicted entries (no per-miss allocation). */
+export function bakeCanvas(w, h) {
+  const c = POOL.pop() || (typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(w, h));
+  if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
+  else c.getContext('2d').clearRect(0, 0, w, h);
+  return c;
+}
+export function bakeRecycle(c) { if (c) c._f = null; if (c && POOL.length < 64) POOL.push(c); }
+/** A baked frame with a CSS filter (hit flash) applied once and kept with the frame. */
+export function filteredFrame(src, sx, sy, w, h, filter) {
+  const f = src._f || (src._f = {});
+  const k = filter + '|' + sx + ',' + sy + ',' + w + ',' + h;
+  let c = f[k];
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.filter = filter;
+    g.drawImage(src, sx, sy, w, h, 0, 0, w, h);
+    f[k] = c;
+  }
+  return c;
+}
+export function bakeBytes() {
+  let b = 0;
+  for (const v of BAKE.values()) b += v.c.width * v.c.height * 4;
+  return b;
+}
 function bakePut(key, v) {
   BAKE.set(key, v);
-  if (BAKE.size > BAKE_MAX) BAKE.delete(BAKE.keys().next().value);
+  if (BAKE.size > BAKE_MAX) { const k = BAKE.keys().next().value; bakeRecycle(BAKE.get(k).c); BAKE.delete(k); }
 }
 /** Blit a composited region (source px sx..sx+w at scratch coords rx, ry) to the screen. */
 function blitComposite(ctx, src, sx, sy, w, h, rx, ry, ix, iy, s, cw, opts) {
@@ -756,10 +785,14 @@ function blitComposite(ctx, src, sx, sy, w, h, rx, ry, ix, iy, s, cw, opts) {
   ctx.save();
   ctx.translate(opts.x ?? 0, opts.y ?? 0);
   if (opts.flip) { ctx.translate(cw * s, 0); ctx.scale(-1, 1); }
-  if (opts.filter) ctx.filter = opts.filter;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, sx, sy, w, h, (ix - PAD + rx) * s, (iy - PAD + ry) * s, w * s, h * s);
-  ctx.filter = 'none';
+  if (opts.filter && src !== SCRATCH) {
+    ctx.drawImage(filteredFrame(src, sx, sy, w, h, opts.filter), 0, 0, w, h, (ix - PAD + rx) * s, (iy - PAD + ry) * s, w * s, h * s);
+  } else {
+    if (opts.filter) ctx.filter = opts.filter;
+    ctx.drawImage(src, sx, sy, w, h, (ix - PAD + rx) * s, (iy - PAD + ry) * s, w * s, h * s);
+    if (opts.filter) ctx.filter = 'none';
+  }
   ctx.restore();
 }
 function drawBonesAt(ctx, B, legs, s, meta, ix, iy, cw, opts) {
@@ -800,7 +833,10 @@ export function drawRig(ctx, rig, pose, opts = {}) {
   }
   // integer part of the root offset moves the blit; only the fraction is resampled
   const ix = Math.floor(pose.rootX), iy = Math.floor(pose.rootY);
-  const lp = { ...pose, rootX: pose.rootX - ix, rootY: pose.rootY - iy };
+  // baked callers: snap the sub-pixel root to half pixels so a moving rig reuses frames
+  // instead of re-compositing (and reading back) a new one nearly every frame
+  const fx = pose.rootX - ix, fy = pose.rootY - iy;
+  const lp = { ...pose, rootX: opts.bake ? Math.round(fx * 2) / 2 : fx, rootY: opts.bake ? Math.round(fy * 2) / 2 : fy };
   const { B, legs } = solve(meta, lp);
   const W = cw + PAD * 2, H = ch + PAD * 2;
   // baked frames: game callers that step their clocks (opts.bake) reuse a composite
@@ -859,8 +895,7 @@ export function drawRig(ctx, rig, pose, opts = {}) {
   }
   g.putImageData(id, rx, ry);
   if (key && rw > 0 && rh > 0) {
-    const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(rw, rh);
-    c.width = rw; c.height = rh;
+    const c = bakeCanvas(rw, rh);
     c.getContext('2d').drawImage(sc, rx, ry, rw, rh, 0, 0, rw, rh);
     bakePut(key, { c, w: rw, h: rh, rx, ry });
   }

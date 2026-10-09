@@ -29,20 +29,36 @@ export const LOOK = {
 };
 
 // ── quality ─────────────────────────────────────────────────
-const perf = { avg: 16.7, low: false, last: 0, n: 0 };
+// Tiers: 'high' (full effects) and 'lite' (fewer particles / shafts). Decided from measured
+// main-thread work per rendered frame (update + draw), plus the frame interval as a backstop.
+// iPhone / iPad Safari start in lite and are promoted only after a sustained light load.
+export const IS_IOS = typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Mac/.test(navigator.platform || '') && navigator.maxTouchPoints > 1));
+const perf = { avg: 16.7, work: 4, low: IS_IOS, n: 0, good: 0, bad: 0 };
 export function fxLow() {
   return reduceFlash() || perf.low;
 }
-/** Adaptive quality: call once per rendered frame with the frame interval in ms. */
-export function fxFrameTime(ms) {
+/** Call once per rendered frame: ms = interval since the last rendered frame, work = ms of update+draw. */
+export function fxFrameTime(ms, work) {
   if (!(ms > 0) || ms > 250) return;
-  perf.avg = perf.avg * 0.97 + ms * 0.03;
+  perf.avg = perf.avg * 0.95 + ms * 0.05;
+  if (work >= 0) perf.work = perf.work * 0.95 + work * 0.05;
   perf.n++;
-  if (perf.n > 120 && perf.avg > 21) perf.low = true; // sustained < ~48 fps → lighter effects
-  if (perf.low && perf.avg < 15.5) perf.low = false;
+  if (perf.n < 90) return;
+  const heavy = perf.work > 9 || perf.avg > 21; // > ~half a 60 Hz frame of JS, or < ~48 fps
+  const light = perf.work < 4.5 && perf.avg < 17.6;
+  perf.bad = heavy ? perf.bad + 1 : 0;
+  perf.good = light ? perf.good + 1 : 0;
+  if (!perf.low && perf.bad > 45) { perf.low = true; perf.bad = 0; }
+  if (perf.low && perf.good > (IS_IOS ? 600 : 240)) { perf.low = false; perf.good = 0; }
+  if (typeof document !== 'undefined') document.documentElement.classList.toggle('pq-lite', perf.low);
 }
 export function fxPerf() {
-  return { avg: +perf.avg.toFixed(2), low: perf.low, particles: pool.length };
+  return { avg: +perf.avg.toFixed(2), work: +perf.work.toFixed(2), low: perf.low, tier: perf.low ? 'lite' : 'high', particles: pool.length };
+}
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.toggle('pq-ios', IS_IOS);
+  document.documentElement.classList.toggle('pq-lite', perf.low);
 }
 
 // ── cached sprites ──────────────────────────────────────────

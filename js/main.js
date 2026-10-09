@@ -9,7 +9,9 @@ import { isStandalone } from './fullscreen.js?v=76';
 import { initVirtualControls, setAction } from './input.js?v=76';
 import { initOverlays, syncOverlays } from './ui.js?v=76';
 import { preloadSprites } from './sprites.js?v=76';
-import { fxFrameTime } from './fx.js?v=76';
+import { fxFrameTime, fxPerf } from './fx.js?v=76';
+import { bakeBytes, bakeStats } from './rig.js?v=76';
+import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=76';
 import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=76';
 import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=76';
 
@@ -76,6 +78,7 @@ canvas.addEventListener('lostpointercapture', releaseCanvasStart);
 let last = performance.now();
 const STEP = 1000 / 60; // fixed-ish timestep ms
 let acc = 0;
+let lastDraw = performance.now();
 
 // Gamepad: a short toast confirms the pad and its buttons
 let toastTimer = 0;
@@ -100,7 +103,6 @@ function frame(now) {
   const interval = now - last;
   acc += interval;
   last = now;
-  fxFrameTime(interval);
   const t0 = performance.now();
   // catch-up capped
   let steps = 0;
@@ -114,11 +116,15 @@ function frame(now) {
     requestAnimationFrame(frame);
     return;
   }
+  animalBakeFrame();
   drawGame(ctx, game);
   syncOverlays(game);
   // work time per frame (update + draw + overlays), read by the perf QA
   const work = performance.now() - t0;
   game.workMs = game.workMs == null ? work : game.workMs * 0.95 + work * 0.05;
+  fxFrameTime(now - lastDraw, work);
+  lastDraw = now;
+  if (perfHud) perfHud(now, work);
   requestAnimationFrame(frame);
 }
 
@@ -154,3 +160,26 @@ window.visualViewport?.addEventListener('resize', onRotate);
 document.querySelector('[data-gate-dismiss]')?.addEventListener('click', () => {
   document.documentElement.classList.add('gate-dismissed');
 });
+
+// ?perf=1: small read-out of fps, ms of work per frame, quality tier and frame-cache size
+let perfHud = null;
+if (new URLSearchParams(location.search).get('perf') === '1') {
+  const el = document.createElement('pre');
+  el.style.cssText = 'position:fixed;right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));z-index:2147483646;margin:0;padding:6px 8px;font:11px/1.35 ui-monospace,Menlo,monospace;color:#cfe;background:rgba(0,0,0,.72);border-radius:6px;pointer-events:none;white-space:pre';
+  document.body.appendChild(el);
+  let n = 0, t0 = performance.now(), wsum = 0, wmax = 0, h0 = 0, m0 = 0;
+  perfHud = (now, work) => {
+    n++; wsum += work; wmax = Math.max(wmax, work);
+    if (now - t0 < 1000) return;
+    const p = fxPerf();
+    const hits = bakeStats.hit + animalBakeStats.hit, miss = bakeStats.miss + animalBakeStats.miss;
+    const mb = (bakeBytes() + animalBakeBytes()) / 1048576;
+    const c = document.getElementById('game');
+    el.textContent =
+      `fps ${(n * 1000 / (now - t0)).toFixed(0)}  work ${(wsum / n).toFixed(1)}ms (max ${wmax.toFixed(1)})\n` +
+      `tier ${p.tier}${document.documentElement.classList.contains('pq-ios') ? ' (iOS)' : ''}  particles ${p.particles}\n` +
+      `cache ${mb.toFixed(1)}MB  miss ${((miss - m0) / n).toFixed(2)}/f  hit ${hits - h0 + miss - m0 ? Math.round(100 * (hits - h0) / (hits - h0 + miss - m0)) : 100}%\n` +
+      `canvas ${c.width}x${c.height}  dpr ${devicePixelRatio}  ${innerWidth}x${innerHeight}`;
+    n = 0; wsum = 0; wmax = 0; t0 = now; h0 = hits; m0 = miss;
+  };
+}

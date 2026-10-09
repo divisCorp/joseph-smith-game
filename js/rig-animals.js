@@ -17,7 +17,8 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (v) => ((v % 1) + 1) % 1;
 const angDown = (a, b) => Math.atan2(-(b[0] - a[0]), b[1] - a[1]);
 
-import { halfAtlas } from './rig.js?v=76';
+import { halfAtlas, bakeCanvas, bakeRecycle, filteredFrame } from './rig.js?v=76';
+import { fxLow } from './fx.js?v=76';
 
 let RIG = null;
 let loading = null;
@@ -463,8 +464,12 @@ const BOX = 260, OX = 130, OY = 170;
 // baked frames for in-game critters (their clocks are stepped, so poses repeat)
 const BAKE = new Map();
 const BAKE_MAX = 240;
-export const animalBakeStats = { hit: 0, miss: 0 };
-const r4 = (v) => Math.round((v || 0) * 4);
+export const animalBakeStats = { hit: 0, miss: 0, deferred: 0 };
+let missesThisFrame = 0;
+const missBudget = () => (fxLow() ? 1 : 3);
+/** Call once per rendered frame. */
+export function animalBakeFrame() { missesThisFrame = 0; }
+const r4 = (v) => Math.round((v || 0) * 2); // half-px key: moving animals reuse frames
 function opsKey(ops) {
   let k = '';
   for (const o of ops) {
@@ -475,6 +480,23 @@ function opsKey(ops) {
     if (o.dark) k += 'd' + o.dark;
   }
   return k;
+}
+
+const DARK = new Map();
+/** The atlas with brightness(d) baked in: rgb × d, alpha kept (same as the CSS filter). */
+function darkAtlas(img, d) {
+  const key = Math.round(d * 100);
+  let c = DARK.get(key);
+  if (c && c.src === img) return c;
+  c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height; c.src = img;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = `rgba(0,0,0,${1 - d})`;
+  g.fillRect(0, 0, c.width, c.height);
+  DARK.set(key, c);
+  return c;
 }
 
 function drawOps(g, ops, bb) {
@@ -488,23 +510,29 @@ function drawOps(g, ops, bb) {
       if (X < bb[0]) bb[0] = X; if (Y < bb[1]) bb[1] = Y; if (X > bb[2]) bb[2] = X; if (Y > bb[3]) bb[3] = Y;
     }
   };
+  const base = g.getTransform();
   for (const o of ops) {
     if (o.strip) {
       const part = P(o.sp, 'body');
       const L = part.length;
       const h = part.h / up;
       // column c of the strip (tail tip at c=0) sits at spine sample s = L - c
-      for (let c = 0; c < L; c++) {
+      // 3-column slices (each overlapping the next by one column) follow the spine closely
+      // at a third of the blits of one slice per column
+      const ST = 3;
+      for (let c = 0; c < L; c += ST) {
         const s = L - c;
-        const a = o.pts[Math.min(L, s)], b = o.pts[Math.max(0, s - 1)];
+        const a = o.pts[Math.min(L, s)], b = o.pts[Math.max(0, s - ST)];
         const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        g.save();
-        g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+        const wc = Math.min(ST + 1, L - c);
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.setTransform(base);
+        g.translate(a[0], a[1]);
         g.rotate(ang);
-        g.drawImage(img, (part.x + c * up) / k, part.y / k, (Math.min(2, L - c) * up) / k, part.h / k, -0.5, -part.pivot[1], Math.min(2, L - c), h);
-        if (bb && (c & 3) === 0) grow(g.getTransform(), 2, h);
-        g.restore();
+        g.drawImage(img, (part.x + c * up) / k, part.y / k, (wc * up) / k, part.h / k, 0, -part.pivot[1], wc, h);
+        if (bb) grow(g.getTransform(), wc, h);
       }
+      g.setTransform(base);
       continue;
     }
     const part = P(o.sp, o.p);
@@ -519,10 +547,10 @@ function drawOps(g, ops, bb) {
       if (o.sx || o.sy) g.scale(o.sx || 1, o.sy || 1);
     }
     g.translate(-part.pivot[0], -part.pivot[1]);
-    if (o.dark && o.dark < 1) g.filter = `brightness(${o.dark})`;
-    g.drawImage(img, part.x / k, part.y / k, part.w / k, part.h / k, 0, 0, part.w / up, part.h / up);
+    // shaded far-side parts come from a pre-darkened copy of the atlas (no per-part filter)
+    const src = o.dark && o.dark < 1 ? darkAtlas(img, o.dark) : img;
+    g.drawImage(src, part.x / k, part.y / k, part.w / k, part.h / k, 0, 0, part.w / up, part.h / up);
     if (bb) grow(g.getTransform(), part.w / up, part.h / up);
-    if (o.dark && o.dark < 1) g.filter = 'none';
     g.restore();
   }
 }
@@ -541,10 +569,17 @@ export function drawAnimal(ctx, sp, pose, x, y, scale, opts = {}) {
   const oy0 = OY - (def.fly ? 60 : 0);
   const key = opts.bake ? sp + opsKey(ops) : null;
   let src, rx = 0, ry = 0, rw = BOX, rh = BOX;
-  const hit = key && BAKE.get(key);
+  let hit = key && BAKE.get(key);
   if (key) animalBakeStats[hit ? 'hit' : 'miss']++;
+  // miss budget: compositing a new frame (many part blits + a read-back) is the costly path
+  // on WebKit; past the per-frame budget a critter keeps its previous baked frame for a tick
+  if (key && !hit && opts.slot && opts.slot.bk && missesThisFrame >= missBudget()) {
+    hit = opts.slot.bk;
+    animalBakeStats.deferred++;
+  } else if (key && !hit) missesThisFrame++;
   if (hit) {
-    BAKE.delete(key); BAKE.set(key, hit);
+    if (opts.slot) opts.slot.bk = hit;
+    if (BAKE.get(key) === hit) { BAKE.delete(key); BAKE.set(key, hit); }
     ({ c: src, rx, ry, w: rw, h: rh } = hit);
   } else {
     const sc = scratch(BOX, BOX);
@@ -569,22 +604,26 @@ export function drawAnimal(ctx, sp, pose, x, y, scale, opts = {}) {
     g.putImageData(id, rx, ry);
     src = sc;
     if (key) {
-      const c = document.createElement('canvas');
-      c.width = rw; c.height = rh;
+      const c = bakeCanvas(rw, rh);
       c.getContext('2d').drawImage(sc, rx, ry, rw, rh, 0, 0, rw, rh);
       BAKE.set(key, { c, rx, ry, w: rw, h: rh });
-      if (BAKE.size > BAKE_MAX) BAKE.delete(BAKE.keys().next().value);
+      if (opts.slot) opts.slot.bk = BAKE.get(key);
+      if (BAKE.size > BAKE_MAX) { const k0 = BAKE.keys().next().value; bakeRecycle(BAKE.get(k0).c); BAKE.delete(k0); }
       src = c;
     }
   }
   ctx.save();
   ctx.translate(x, y);
   if (opts.flip) ctx.scale(-1, 1);
-  if (opts.filter) ctx.filter = opts.filter;
   ctx.imageSmoothingEnabled = false;
   const sx0 = src === SC ? rx : 0, sy0 = src === SC ? ry : 0;
-  ctx.drawImage(src, sx0, sy0, rw, rh, (rx - OX) * scale, (ry - oy0) * scale, rw * scale, rh * scale);
-  ctx.filter = 'none';
+  if (opts.filter && src !== SC) {
+    ctx.drawImage(filteredFrame(src, 0, 0, rw, rh, opts.filter), 0, 0, rw, rh, (rx - OX) * scale, (ry - oy0) * scale, rw * scale, rh * scale);
+  } else {
+    if (opts.filter) ctx.filter = opts.filter;
+    ctx.drawImage(src, sx0, sy0, rw, rh, (rx - OX) * scale, (ry - oy0) * scale, rw * scale, rh * scale);
+    if (opts.filter) ctx.filter = 'none';
+  }
   ctx.restore();
   return true;
 }
@@ -705,7 +744,7 @@ export function drawAnimalRig(ctx, e, dx, flash) {
   }
   drawAnimal(ctx, sp, pose, Math.round(ax), Math.round(ay), sc, {
     flip: e.facing < 0,
-    filter: flash ? 'brightness(1.9) saturate(0.6)' : undefined, bake: true,
+    filter: flash ? 'brightness(1.9) saturate(0.6)' : undefined, bake: true, slot: r,
   });
   return true;
 }
@@ -736,4 +775,10 @@ export function quadStats(sp, speed = 34, dur = 4) {
     }
   }
   return { samples, maxPlantedDriftPx: +drift.toFixed(3), maxReachGapPx: +Math.max(0, gap).toFixed(2) };
+}
+
+export function animalBakeBytes() {
+  let b = 0;
+  for (const v of BAKE.values()) b += v.c.width * v.c.height * 4;
+  return b;
 }

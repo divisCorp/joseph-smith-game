@@ -104,14 +104,28 @@ export function updateKnives(knives, dt, camX, levelWidthPx) {
   updatePlates(knives, dt, camX, levelWidthPx);
 }
 
+const DARK_STONE = {};
+function darkStone(facing) {
+  const f = facing < 0 ? -1 : 1;
+  if (!DARK_STONE[f]) {
+    const c = document.createElement('canvas');
+    c.width = 28; c.height = 16;
+    const g = c.getContext('2d');
+    g.filter = 'hue-rotate(240deg) saturate(1.6) brightness(0.7)';
+    drawKnife(g, 4, 4, f);
+    DARK_STONE[f] = c;
+  }
+  return DARK_STONE[f];
+}
+
 export function drawKnives(ctx, knives, camX) {
   for (const k of knives) {
     if (!k.alive) continue;
     if (k.dark) {
+      // the tinted stone is baked once per facing (no per-frame canvas filter)
       ctx.save();
       ctx.globalAlpha = 0.9;
-      ctx.filter = 'hue-rotate(240deg) saturate(1.6) brightness(0.7)';
-      drawKnife(ctx, k.x - camX, k.y, k.facing);
+      ctx.drawImage(darkStone(k.facing), Math.floor(k.x - camX) - 4, Math.floor(k.y) - 4);
       ctx.restore();
     } else {
       drawKnife(ctx, k.x - camX, k.y, k.facing);

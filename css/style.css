@@ -2386,3 +2386,16 @@ html, body { overflow: hidden; overscroll-behavior: none; }
   margin-top: 0.6rem; padding: 0.7em 1.6em; border-radius: 999px; border: 2px solid #d4a84b;
   background: rgba(212, 168, 75, 0.15); color: #f0e6d0; font: inherit; font-size: 0.75em; cursor: pointer;
 }
+
+/* iOS / iPadOS: backdrop blur over the live title canvas is re-blurred every frame by
+   WebKit; use the same tint, a little more opaque, with no blur */
+html.pq-ios .pqt-best,
+html.pq-ios .pqt-icon-btn,
+html.pq-ios .pqt-secondary,
+html.pq-ios .pqt-settings,
+html.pq-ios .ui-panel {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.pq-ios .pqt-best { background: rgba(10, 8, 6, 0.58); }
+html.pq-ios .pqt-icon-btn { background: rgba(12, 10, 8, 0.6); }
