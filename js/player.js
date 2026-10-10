@@ -1,20 +1,20 @@
-import { landOnSlopes } from './hill.js?v=77';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=77';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=77';
-import { isDown, justPressed } from './input.js?v=77';
-import { sfx } from './audio.js?v=77';
-import { isEasy, reduceFlash } from './save.js?v=77';
+import { landOnSlopes } from './hill.js?v=78';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=78';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=78';
+import { isDown, justPressed } from './input.js?v=78';
+import { sfx } from './audio.js?v=78';
+import { isEasy, reduceFlash } from './save.js?v=78';
 import {
   loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose, applyThrow, applyThrust, handPoint,
   gaitParams, JUMP_T,
-} from './rig.js?v=77';
+} from './rig.js?v=78';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=77';
+} from './projectiles.js?v=78';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 

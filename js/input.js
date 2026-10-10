@@ -435,7 +435,7 @@ export function initVirtualControls() {
   const blockScroll = (e) => {
     if (!document.body.classList.contains('touch-ui') && !document.documentElement.classList.contains('touch-ui')) return;
     const t = e.target;
-    if (t && t.closest && t.closest('a, button, [data-ui-share], [data-ui-start], [data-ui-mute], .ui-share-btn, .ui-start-btn, .ui-panel, #mute-btn')) {
+    if (t && t.closest && t.closest('a, button, [data-ui-share], [data-ui-start], [data-ui-mute], .ui-share-btn, .ui-start-btn, .ui-panel, .ui-parchment, .ui-intro-card, .ui-scroll, #mute-btn')) {
       // Allow real clicks on overlay controls (Share on X, etc.)
       return;
     }

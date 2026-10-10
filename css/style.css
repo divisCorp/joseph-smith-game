@@ -2399,3 +2399,58 @@ html.pq-ios .ui-panel {
 }
 html.pq-ios .pqt-best { background: rgba(10, 8, 6, 0.58); }
 html.pq-ios .pqt-icon-btn { background: rgba(12, 10, 8, 0.6); }
+
+/* v78: popups always fit the visible viewport (iPhone landscape with the toolbar showing is
+   ~330px tall): capped to the live height, body scrolls inside, the action button stays put */
+.ui-screen--dim {
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+#ui-journal:not([hidden]), #ui-pause:not([hidden]), #ui-controls:not([hidden]), #ui-chapters:not([hidden]) { pointer-events: auto; }
+.ui-screen--dim:not([hidden]) > .ui-panel,
+.ui-parchment {
+  pointer-events: auto;
+  max-height: min(100%, calc(var(--app-h, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  flex-shrink: 1;
+  min-height: 0;
+}
+.ui-parch-btn {
+  position: sticky;
+  bottom: -10px;
+  z-index: 1;
+  margin: 4px auto 0;
+  box-shadow: 0 -10px 14px 4px rgba(236, 216, 164, 0.95);
+}
+.ui-intro-card {
+  max-height: calc(var(--app-h, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 48px);
+  overflow: hidden;
+}
+@media (max-height: 420px) {
+  .ui-parchment { padding: 8px 16px 10px; }
+  .ui-parch-kicker { font-size: 10px; margin-top: 2px; }
+  .ui-parch-title { font-size: 16px; margin: 3px 0 1px; }
+  .ui-parch-place { font-size: 11px; margin-bottom: 3px; }
+  .ui-parch-body { font-size: 13px; line-height: 1.32; margin-bottom: 4px; }
+  .ui-parch-body::first-letter { font-size: 26px; }
+  .ui-parch-tip { font-size: 12px; padding: 4px 8px; margin-bottom: 4px; }
+  .ui-intro-title { font-size: 22px; }
+  .ui-intro-story { font-size: 13px; line-height: 1.35; }
+  .ui-panel { padding: 0.7em 0.9em 0.8em; gap: 0.25em; }
+}
+/* action rows stay in view at the bottom of scrolling panels */
+.ui-chapters-panel > .ui-actions,
+.ui-controls-panel > .ui-ctl-actions {
+  position: sticky;
+  bottom: -0.8em;
+  z-index: 1;
+  padding: 6px 0 4px;
+  background: linear-gradient(180deg, rgba(12, 8, 6, 0), rgba(12, 8, 6, 0.96) 35%);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+@media (max-height: 420px) { .ui-chapters-panel > .ui-menu-hint { display: none; } }

@@ -3,18 +3,18 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js?v=77';
-import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=77';
-import { isStandalone } from './fullscreen.js?v=77';
-import { initVirtualControls, setAction } from './input.js?v=77';
-import { initOverlays, syncOverlays } from './ui.js?v=77';
-import { preloadSprites } from './sprites.js?v=77';
-import { fxFrameTime, fxPerf } from './fx.js?v=77';
-import { psAdd, psTake, PERF_ON, NO_READBACK, RES, NO_HUD } from './perfstat.js?v=77';
-import { bakeBytes, bakeStats } from './rig.js?v=77';
-import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=77';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=77';
-import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=77';
+import { STATES } from './constants.js?v=78';
+import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=78';
+import { isStandalone } from './fullscreen.js?v=78';
+import { initVirtualControls, setAction } from './input.js?v=78';
+import { initOverlays, syncOverlays } from './ui.js?v=78';
+import { preloadSprites } from './sprites.js?v=78';
+import { fxFrameTime, fxPerf } from './fx.js?v=78';
+import { psAdd, psTake, PERF_ON, NO_READBACK, RES, NO_HUD } from './perfstat.js?v=78';
+import { bakeBytes, bakeStats } from './rig.js?v=78';
+import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=78';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=78';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=78';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');

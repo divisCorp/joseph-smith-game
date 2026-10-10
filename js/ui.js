@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=77';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=77';
-import { unlockAudio, syncMuteButton } from './audio.js?v=77';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=77';
-import { JOURNAL } from './journal.js?v=77';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=77';
-import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=77';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=78';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=78';
+import { unlockAudio, syncMuteButton } from './audio.js?v=78';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=78';
+import { JOURNAL } from './journal.js?v=78';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=78';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=78';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -173,6 +173,22 @@ function bindCmdButtons() {
 export function initOverlays(game) {
   gameRef = game;
   bindCmdButtons();
+  // tap on the dimmed backdrop (outside the panel) closes the popup
+  [['ui-journal', 'journal-close'], ['ui-pause', 'resume'], ['ui-controls', 'controls-back'], ['ui-chapters', 'back']].forEach(([id, cmd]) => {
+    const root = document.getElementById(id);
+    if (!root) return;
+    let down = false;
+    root.addEventListener('pointerdown', (e) => { down = e.target === root; });
+    // pointerup, not click: the touch blocker cancels touchstart here, which drops the click
+    root.addEventListener('pointerup', (e) => {
+      if (e.target !== root || !down) return;
+      down = false;
+      if (id === 'ui-controls' && gameRef?.ctlListen) return; // waiting for a key: ignore
+      e.preventDefault();
+      e.stopPropagation();
+      sendCmd(cmd);
+    });
+  });
   document.querySelectorAll('[data-ui-bind]').forEach((el) => {
     el.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
