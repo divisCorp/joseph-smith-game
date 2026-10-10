@@ -17,9 +17,9 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (v) => ((v % 1) + 1) % 1;
 const angDown = (a, b) => Math.atan2(-(b[0] - a[0]), b[1] - a[1]);
 
-import { halfAtlas, bakeCanvas, bakeRecycle, filteredFrame } from './rig.js?v=79';
-import { fxLow } from './fx.js?v=79';
-import { timed, psCount, NO_READBACK } from './perfstat.js?v=79';
+import { halfAtlas, bakeCanvas, bakeRecycle, filteredFrame } from './rig.js?v=80';
+import { fxLow } from './fx.js?v=80';
+import { timed, psCount, NO_READBACK } from './perfstat.js?v=80';
 
 let RIG = null;
 let loading = null;

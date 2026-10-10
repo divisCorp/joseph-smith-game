@@ -3,16 +3,16 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=79';
-import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=79';
-import { createEnemy } from './enemy.js?v=79';
-import { STAND_H } from './player.js?v=79';
-import { drawRect } from './sprites.js?v=79';
-import { initSetPieces, buildDock } from './setpieces.js?v=79';
-import { reduceFlash } from './save.js?v=79';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=79';
-import { initGrove } from './grove.js?v=79';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=79';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=80';
+import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=80';
+import { createEnemy } from './enemy.js?v=80';
+import { STAND_H } from './player.js?v=80';
+import { drawRect } from './sprites.js?v=80';
+import { initSetPieces, buildDock } from './setpieces.js?v=80';
+import { reduceFlash } from './save.js?v=80';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=80';
+import { initGrove } from './grove.js?v=80';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=80';
 
 function emptyTiles(cols, rows) {
   const tiles = [];

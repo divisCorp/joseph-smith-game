@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=79';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=79';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=79';
+import { slopeFloor } from './hill.js?v=80';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=80';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=80';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=79';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=79';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=79';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=79';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=79';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=79';
+} from './player.js?v=80';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=80';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=80';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=80';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=80';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=80';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=79';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=79';
+} from './sprites.js?v=80';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=80';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=79';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=79';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=79';
-import { drawMoroniRig } from './rig-cast.js?v=79';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=79';
+} from './save.js?v=80';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=80';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=80';
+import { drawMoroniRig } from './rig-cast.js?v=80';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=80';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
