@@ -4,13 +4,13 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { bindText } from './input.js?v=78';
-import { W, H, TILE, SCALE } from './constants.js?v=78';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=78';
-import { drawText, measureText, drawRect } from './sprites.js?v=78';
-import { sfx } from './audio.js?v=78';
-import { isEasy, reduceFlash } from './save.js?v=78';
-import { drawCarthageRig } from './rig-cast.js?v=78';
+import { bindText, isDown } from './input.js?v=79';
+import { W, H, TILE, SCALE } from './constants.js?v=79';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=79';
+import { drawText, measureText, drawRect } from './sprites.js?v=79';
+import { sfx } from './audio.js?v=79';
+import { isEasy, reduceFlash } from './save.js?v=79';
+import { drawCarthageRig } from './rig-cast.js?v=79';
 
 const S = SCALE;
 
@@ -227,8 +227,14 @@ function updateFinale(game, dt) {
   const need = isEasy() ? FINALE_NEED * 0.7 : FINALE_NEED;
   const cx = p.x + p.w / 2;
   f.inZone = cx >= f.zoneX0 && cx <= f.zoneX1 && p.alive;
+  // bracing = holding the push direction (toward the door) or the action button while in the light
+  f.bracing = f.inZone && (isDown('right') || isDown('attack'));
   f.t += dt;
-  if (f.inZone) f.courage = Math.min(need, f.courage + dt);
+  // courage rises steadily in the light, faster while bracing; a push only stalls it if you let go
+  if (f.inZone) {
+    const rate = f.bracing ? 1.5 : f.mode === 'push' ? 0 : 1;
+    f.courage = Math.min(need, f.courage + dt * rate);
+  }
   f.wave = f.courage < need / 3 ? 0 : f.courage < (2 * need) / 3 ? 1 : 2;
   f.need = need;
   const calmT = [150, 120, 96][f.wave];
@@ -256,14 +262,15 @@ function updateFinale(game, dt) {
       f.t = 0;
       if (!f.toldHold) {
         f.toldHold = true;
-        game.message = game.touchUi ? 'Hold ▶ to brace the door' : `Hold ${bindText('right', ' or ')} to brace the door`;
+        game.message = game.touchUi ? 'Hold ▶ or B to brace the door' : `Hold ${bindText('right', ' or ')} or ${bindText('attack', ' or ')} to brace the door`;
         game.messageT = 90;
       }
     }
   } else if (f.mode === 'push') {
     const pushT = 60 + f.wave * 12;
     const strength = (1.0 + 0.2 * f.wave) * S * (isEasy() ? 0.7 : 1);
-    if (p.alive && p.x < f.doorX) p.extVx = -strength * Math.min(1, f.t / 10);
+    // bracing holds Joseph firm against the door; otherwise the push drives him back
+    if (p.alive && p.x < f.doorX) p.extVx = f.bracing ? 0 : -strength * Math.min(1, f.t / 10);
     if (f.t % 18 < dt) f.rattle = 8;
     if (f.t > pushT) {
       f.mode = 'calm';

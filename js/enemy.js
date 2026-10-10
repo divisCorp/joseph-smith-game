@@ -1,17 +1,17 @@
-import { landOnSlopes } from './hill.js?v=78';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=78';
+import { landOnSlopes } from './hill.js?v=79';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=79';
 import {
   drawBrigand,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=78';
-import { aabb } from './player.js?v=78';
-import { createKnife, KNIFE_W } from './projectiles.js?v=78';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=78';
-import { sfx } from './audio.js?v=78';
-import { isEasy, reduceFlash } from './save.js?v=78';
+} from './sprites.js?v=79';
+import { aabb } from './player.js?v=79';
+import { createKnife, KNIFE_W } from './projectiles.js?v=79';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=79';
+import { sfx } from './audio.js?v=79';
+import { isEasy, reduceFlash } from './save.js?v=79';
 import {
   drawSnake,
   drawBobcat,
@@ -20,9 +20,9 @@ import {
   drawTorchProp,
   drawClubProp,
   drawMusketProp,
-} from './critters.js?v=78';
-import { drawEnemyRig } from './rig-cast.js?v=78';
-import { drawAnimalRig } from './rig-animals.js?v=78';
+} from './critters.js?v=79';
+import { drawEnemyRig } from './rig-cast.js?v=79';
+import { drawAnimalRig } from './rig-animals.js?v=79';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
@@ -261,7 +261,12 @@ function updateMelee(e, player, dt) {
 /** Can this foe hurt Joseph by touch right now? */
 export function foeCanHurt(e) {
   if (!e.alive || !(e.damage > 0) || e.hitCd > 0) return false;
-  if (e.type === 'boss' || e.type === 'wisp') return true; // bosses telegraph their own attacks
+  if (e.type === 'wisp') return true;
+  if (e.type === 'boss') {
+    // no touch damage before the fight has begun and its first tell has played
+    const bs = e.bs;
+    return !!bs && bs.engaged && bs.idx > 0 && bs.mode !== 'tell' && bs.mode !== 'roar' && bs.mode !== 'idle';
+  }
   return e.melee === 'lunge';
 }
 
@@ -503,7 +508,7 @@ BOSS_DEF.ringleader = BOSS_DEF.overseer;
 BOSS_DEF.sentinel = BOSS_DEF.warden;
 
 function bossState(e) {
-  if (!e.bs) e.bs = { mode: 'walk', t: 0, phase: 1, idx: 0, attack: null, sub: 0, tellT: 40, clock: 0, did: 0 };
+  if (!e.bs) e.bs = { mode: 'idle', engaged: false, t: 0, phase: 1, idx: 0, attack: null, sub: 0, tellT: 40, clock: 0, did: 0 };
   return e.bs;
 }
 
@@ -557,6 +562,19 @@ function updateBossAI(e, player, dt, world) {
   const spd = e.speed * (p2 ? 1.35 : 1);
   const dx = player.x + player.w / 2 - (e.x + e.w / 2);
   const face = () => { e.facing = dx > 0 ? 1 : -1; };
+  // waits, facing Joseph, until the arena fight begins; then opens with a telegraphed move
+  if (!bs.engaged) {
+    e.vx *= FRICTION;
+    face();
+    e.invuln = true;
+    if (world.active && player.alive) {
+      bs.engaged = true;
+      e.invuln = false;
+      beginTell(e, def);
+    }
+    e.telling = false;
+    return;
+  }
   checkPhase(e, world);
   e.telling = bs.mode === 'tell' || bs.mode === 'roar' || (bs.mode === 'attack' && bs.mini > 0);
 

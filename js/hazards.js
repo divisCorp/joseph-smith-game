@@ -3,8 +3,8 @@
  * Everything here is drawn procedurally on the canvas; sprite sheets are untouched.
  * A hazard with `warn > 0` is only a telegraph (shadow / marker) and cannot hurt yet.
  */
-import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js?v=78';
-import { drawKnife } from './sprites.js?v=78';
+import { SCALE, GRAVITY, MAX_FALL, H, W } from './constants.js?v=79';
+import { drawKnife } from './sprites.js?v=79';
 
 const S = SCALE;
 
@@ -257,6 +257,9 @@ export function drawHazards(ctx, list, camX, tick) {
         ctx.quadraticCurveTo(x + h.w + 2, h.y + h.h, x + h.w / 2, h.y + h.h);
         ctx.quadraticCurveTo(x - 2, h.y + h.h, x + h.w / 2, h.y);
         ctx.fill();
+        ctx.lineWidth = 1.5 * S;
+        ctx.strokeStyle = '#f2e6ff'; // pale rim so it reads on dark ground without relying on hue
+        ctx.stroke();
         ell(ctx, x + h.w / 2 - 1 * S, h.y + h.h - 5 * S, 1.5 * S, 2 * S, '#b080e0');
         break;
       }

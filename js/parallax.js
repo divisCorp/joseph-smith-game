@@ -7,7 +7,7 @@
  * the bluff with scaffolding (it was still under construction in June 1844), Carthage Jail's
  * upper room (plastered walls, plank floor, sash windows).
  */
-import { W, H, TILE } from './constants.js?v=78';
+import { W, H, TILE } from './constants.js?v=79';
 
 const LW = 1620; // layer width (tileable)
 const GY = 13 * TILE; // ground top

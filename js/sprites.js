@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=78';
+import { COLORS, W, SCALE } from './constants.js?v=79';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -1024,21 +1024,52 @@ const HEART_EMPTY = [
 ];
 
 
-/** Small floating dark wisp orb */
+/**
+ * Wisp: a four-pointed spark of cold light. Readable without colour: a near-white core,
+ * a hard dark outline and a pulsing halo, plus a shape no other object uses.
+ */
 export function drawWisp(ctx, x, y, frame = 0, flash = false) {
-  const ox = Math.floor(x);
-  const oy = Math.floor(y);
-  const pulse = 1 + Math.sin(frame * 2) * 0.08;
-  const r = 10 * pulse;
+  const cx = Math.floor(x) + 14;
+  const cy = Math.floor(y) + 14;
+  const t = frame * 0.5;
+  const pulse = 0.5 + 0.5 * Math.sin(frame * 1.6);
+  const r = 13 + pulse * 1.5;
   ctx.save();
-  ctx.globalAlpha = flash ? 0.9 : 0.85;
-  ellipse(ctx, ox + 14, oy + 14, r + 6, r + 6, 'rgba(40,0,60,0.35)');
-  ellipse(ctx, ox + 14, oy + 14, r + 2, r + 2, '#1a0828');
-  ellipse(ctx, ox + 14, oy + 14, r * 0.75, r * 0.75, '#2a1040');
-  ellipse(ctx, ox + 12, oy + 11, r * 0.35, r * 0.3, flash ? '#c080ff' : '#6a30a0');
-  if (frame % 2 === 0) {
-    ellipse(ctx, ox + 18, oy + 8, 3, 2, 'rgba(120,60,180,0.5)');
-  }
+  // halo: wide, soft, pulsing (luminance cue, no hue needed)
+  const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r * 2.1);
+  g.addColorStop(0, `rgba(255,255,255,${0.5 + 0.3 * pulse})`);
+  g.addColorStop(0.45, `rgba(200,170,255,${0.18 + 0.12 * pulse})`);
+  g.addColorStop(1, 'rgba(200,170,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - r * 2.2, cy - r * 2.2, r * 4.4, r * 4.4);
+  // four-pointed star, slowly turning
+  const star = (R, k) => {
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = t * 0.15 + (i * Math.PI) / 4;
+      const rr = i % 2 === 0 ? R : R * k;
+      ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+  };
+  star(r, 0.42);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#120618';
+  ctx.stroke();
+  ctx.fillStyle = flash ? '#ffffff' : '#b48cff';
+  ctx.fill();
+  star(r * 0.62, 0.45);
+  ctx.fillStyle = '#f4ecff';
+  ctx.fill();
+  // bright core with its own dark ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3.6 + pulse, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#120618';
+  ctx.stroke();
   ctx.restore();
 }
 

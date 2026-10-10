@@ -4,7 +4,7 @@
  * run into a solid pile (tile 5) that rests on the ground (or the riverbed), adding
  * a lower step pile beside any stack taller than a comfortable jump. Nothing floats.
  */
-import { TILE } from './constants.js?v=78';
+import { TILE } from './constants.js?v=79';
 
 export const STACK = 5;
 const MAX_RISE = 3; // tiles a jump can climb (jump apex ≈ 3.4 tiles)

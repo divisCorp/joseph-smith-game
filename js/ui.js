@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=78';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=78';
-import { unlockAudio, syncMuteButton } from './audio.js?v=78';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=78';
-import { JOURNAL } from './journal.js?v=78';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=78';
-import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=78';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=79';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=79';
+import { unlockAudio, syncMuteButton } from './audio.js?v=79';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=79';
+import { JOURNAL } from './journal.js?v=79';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=79';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=79';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -603,6 +603,8 @@ function syncChapters(game) {
   if (hint) hint.hidden = anyJournal;
   const sum = document.querySelector('[data-ui-chapters-sum]');
   if (sum) sum.textContent = `${totalStars} / ${MAX_LEVEL * 3} stars · ${totalPages} / ${MAX_LEVEL * 3} journal pages`;
+  const how = document.querySelector('[data-ui-stars-how]');
+  if (how) how.textContent = 'A star for each: finish within par time · lose 1 heart or fewer · find all 3 journal pages';
 }
 
 function syncResults(root, game) {
@@ -622,9 +624,17 @@ function syncResults(root, game) {
     li.textContent = `${ok(good)} ${text}`;
     li.classList.toggle('is-met', !!good);
   };
-  set('time', `Time ${fmtTime(r.time)} (par ${fmtTime(r.par * 60)})`, r.timeOk);
-  set('hearts', `Hearts lost ${r.heartsLost} (1 or fewer)`, r.heartsOk);
-  set('pages', `Journal pages ${r.pages}/3`, r.pagesOk);
+  // each line names its star's criterion; a missed one shows how far off it was
+  const over = Math.max(0, r.time - r.par * 60);
+  set('time', r.timeOk
+    ? `Swift: finished in ${fmtTime(r.time)} (par ${fmtTime(r.par * 60)})`
+    : `Swift: finish within ${fmtTime(r.par * 60)} · yours ${fmtTime(r.time)}, ${fmtTime(over)} over`, r.timeOk);
+  set('hearts', r.heartsOk
+    ? `Steadfast: ${r.heartsLost} heart${r.heartsLost === 1 ? '' : 's'} lost (1 or fewer)`
+    : `Steadfast: lose 1 heart or fewer · ${r.heartsLost} lost`, r.heartsOk);
+  set('pages', r.pagesOk
+    ? `Faithful record: journal pages 3/3`
+    : `Faithful record: find all journal pages · ${r.pages}/3 found`, r.pagesOk);
   const best = root.querySelector('[data-ui-res-best]');
   if (best) best.textContent = r.improved ? '· New best stars!' : `· Best ${starText(r.bestStars)}`;
   const st = root.querySelector('[data-ui-stars]');

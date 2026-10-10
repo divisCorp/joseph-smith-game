@@ -1564,6 +1564,8 @@ body.touch-ui .ui-menu-hint { display: none; }
 .ui-results { list-style: none; margin: 0.2em 0; padding: 0; text-align: left; font-size: 14px; line-height: 1.5; }
 .ui-results li { color: #b8a888; }
 .ui-results li.is-met { color: #f0e6d0; }
+.ui-results li:not(.is-met) { color: #f2c46a; }
+.ui-stars-how { font-size: 12px; margin: 0.1em 0 0.3em; opacity: 0.9; }
 .ui-res-best { color: #f0d078; font-size: 0.9em; }
 .ui-clear-next { font-size: 13px; margin: 0.2em 0 0.3em; }
 

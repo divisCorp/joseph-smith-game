@@ -5,7 +5,7 @@
 import {
   poseIdle, poseWalk, poseJump, kneelFrom, drawRig, soleContacts, applyThrow,
   WALK, RUN, JUMP_T, jumpHeight, JUMP_PHYS, RIG_GROUND,
-} from './rig.js?v=78';
+} from './rig.js?v=79';
 
 export const GAME_K = 56 / 64; // model px → in-game px
 const OLD_WALK = [2, 3, 4, 5, 6, 7, 8, 9];

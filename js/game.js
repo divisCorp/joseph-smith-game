@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=78';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=78';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=78';
+import { slopeFloor } from './hill.js?v=79';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=79';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=79';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=78';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=78';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=78';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=78';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=78';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=78';
+} from './player.js?v=79';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=79';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=79';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=79';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=79';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=79';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=78';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=78';
+} from './sprites.js?v=79';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=79';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=78';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=78';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=78';
-import { drawMoroniRig } from './rig-cast.js?v=78';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=78';
+} from './save.js?v=79';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=79';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=79';
+import { drawMoroniRig } from './rig-cast.js?v=79';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=79';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -191,6 +191,7 @@ export function startLevel(game, num, resetScore = false, opts = {}) {
   game.introT = 0;
   game.stateT = 0;
   game.bossIntro = false;
+  game.arenaX0 = null;
   game.message = '';
   game.messageT = 0;
   game.clearTimer = 0;
@@ -835,10 +836,21 @@ function tickPlay(game, dt) {
 
   if (!game.bossIntro && level.bossTitle && player.x >= level.bossZoneX) {
     game.bossIntro = true;
+    // the arena: its left edge closes behind Joseph and the foe may range over all of it,
+    // so there is no corner it cannot reach
+    const boss = level.enemies.find((e) => e.type === 'boss');
+    if (boss) boss.patrolMin = Math.min(boss.patrolMin, level.bossZoneX);
+    if (boss) boss.patrolMax = Math.max(boss.patrolMax, level.widthPx - TILE - boss.w);
+    game.arenaX0 = level.bossZoneX;
     // Entrance banner takes the top slot first; the health bar fades in after it
     game.bossBannerT = BANNER_T;
     game.bossBarA = 0;
     sfx('tell');
+  }
+
+  if (game.arenaX0 != null && level.enemies.some((e) => e.type === 'boss' && e.alive) && player.x < game.arenaX0) {
+    player.x = game.arenaX0;
+    if (player.vx < 0) player.vx = 0;
   }
 
   // Story beats (Carthage): quiet lines as Joseph walks
@@ -961,6 +973,22 @@ function tickPlay(game, dt) {
     }
   }
   updatePlates(player.plates, dt, game.camX, level.widthPx);
+  // thrown plates and stones stop at crates, flour sacks, stacks and walls (not thin ledges)
+  const blockShot = (box) => {
+    for (const s of level.solids) {
+      if (s.kind === 'plat') continue;
+      if (box.x < s.x + s.w && box.x + box.w > s.x && box.y < s.y + s.h && box.y + box.h > s.y) return true;
+    }
+    return false;
+  };
+  for (const plate of player.plates) {
+    if (plate.alive && blockShot(plateHitbox(plate))) {
+      plate.alive = false;
+      sfx('hit');
+      fxBurst('hit', plate.x + plate.w / 2, plate.y + plate.h / 2);
+    }
+  }
+  for (const e of level.enemies) for (const k of e.knives || []) if (k.alive && blockShot(knifeHitbox(k))) k.alive = false;
   for (const e of level.enemies) {
     if (!e.knives) continue;
     updateKnives(e.knives, dt, game.camX, level.widthPx);
@@ -1150,7 +1178,7 @@ export function drawGame(ctx, game) {
     }
     const f = game.level.finale;
     if (f && f.state === 'active') {
-      drawBossBar(ctx, { type: 'finale', hp: f.courage, maxHp: f.need || 1 }, 'HOLD THE DOOR', 1, 1);
+      drawBossBar(ctx, { type: 'finale', hp: f.courage, maxHp: f.need || 1 }, f.bracing ? 'HOLD THE DOOR · BRACING' : f.inZone ? 'HOLD THE DOOR' : 'STAND IN THE LIGHT', 1, 1);
     }
   }
 

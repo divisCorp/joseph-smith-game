@@ -1,20 +1,20 @@
-import { landOnSlopes } from './hill.js?v=78';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=78';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=78';
-import { isDown, justPressed } from './input.js?v=78';
-import { sfx } from './audio.js?v=78';
-import { isEasy, reduceFlash } from './save.js?v=78';
+import { landOnSlopes } from './hill.js?v=79';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=79';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=79';
+import { isDown, justPressed } from './input.js?v=79';
+import { sfx } from './audio.js?v=79';
+import { isEasy, reduceFlash } from './save.js?v=79';
 import {
   loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose, applyThrow, applyThrust, handPoint,
   gaitParams, JUMP_T,
-} from './rig.js?v=78';
+} from './rig.js?v=79';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=78';
+} from './projectiles.js?v=79';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 
@@ -171,9 +171,15 @@ export function playerAttackBox(p) {
   const reach = 22 * SCALE;
   const boxW = 20 * SCALE;
   const boxH = 16 * SCALE;
+  if (p.downThrust && !p.onGround) {
+    // holding down in the air: the tines point straight down under Joseph's feet
+    return { x: p.x - 4 * SCALE, y: p.y + p.h - 6 * SCALE, w: p.w + 8 * SCALE, h: 20 * SCALE, reach };
+  }
   const x = p.facing > 0 ? p.x + p.w - 2 * SCALE : p.x - boxW + 2 * SCALE;
   const y = p.y + (p.crouching ? 1 : 8) * SCALE * (p.bodyScale || 1);
-  return { x, y, w: boxW, h: boxH, reach };
+  // the low sweep reaches down to the ground in front, so snakes and dogs are easy to strike
+  const h = Math.max(boxH, p.y + p.h + 3 * SCALE - y);
+  return { x, y, w: boxW, h, reach };
 }
 
 function tryStand(p, solids) {
@@ -278,6 +284,7 @@ export function updatePlayer(p, solids, dt) {
     } else {
       p.attackTimer = FORK_POSE;
       p.attackCooldown = FORK_COOLDOWN;
+      p.downThrust = !p.onGround && isDown('down');
       p.forkHits = new Set();
       sfx('swing');
     }
