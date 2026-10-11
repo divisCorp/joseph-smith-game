@@ -5,12 +5,12 @@
  * shafts, the rigged Joseph, painted grove trees framing the edges (parallax), drifting
  * motes, ambient leaves, vignette. A gentle camera drift plus pointer parallax gives depth.
  */
-import { timed } from './perfstat.js?v=80';
-import { W, H, STATES } from './constants.js?v=80';
-import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js?v=80';
-import { createPlayer, drawPlayer } from './player.js?v=80';
-import { fxUpdate, drawFxBack, drawFxFront, drawFxForegroundGrass } from './fx.js?v=80';
-import { reduceFlash } from './save.js?v=80';
+import { timed } from './perfstat.js?v=81';
+import { W, H, STATES } from './constants.js?v=81';
+import { createLevel, drawLevelBackground, drawLevelTiles } from './level.js?v=81';
+import { createPlayer, drawPlayer } from './player.js?v=81';
+import { fxUpdate, drawFxBack, drawFxFront, drawFxForegroundGrass } from './fx.js?v=81';
+import { reduceFlash } from './save.js?v=81';
 
 let cv = null;
 let ctx = null;

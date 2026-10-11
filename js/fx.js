@@ -9,9 +9,9 @@
  *  - darkness/light layer rendered at half resolution, light sprites pre-rendered once
  *  - gradients / vignettes / beams cached per chapter, never rebuilt per frame
  */
-import { W, H, TILE, SCALE } from './constants.js?v=80';
-import { reduceFlash } from './save.js?v=80';
-import { timed, NO_FX } from './perfstat.js?v=80';
+import { W, H, TILE, SCALE } from './constants.js?v=81';
+import { reduceFlash } from './save.js?v=81';
+import { timed, NO_FX } from './perfstat.js?v=81';
 
 const S = SCALE;
 const GROUND_Y = 13 * TILE;

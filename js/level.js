@@ -3,16 +3,16 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=80';
-import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=80';
-import { createEnemy } from './enemy.js?v=80';
-import { STAND_H } from './player.js?v=80';
-import { drawRect } from './sprites.js?v=80';
-import { initSetPieces, buildDock } from './setpieces.js?v=80';
-import { reduceFlash } from './save.js?v=80';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=80';
-import { initGrove } from './grove.js?v=80';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=80';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=81';
+import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=81';
+import { createEnemy } from './enemy.js?v=81';
+import { STAND_H } from './player.js?v=81';
+import { drawRect } from './sprites.js?v=81';
+import { initSetPieces, buildDock } from './setpieces.js?v=81';
+import { reduceFlash } from './save.js?v=81';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=81';
+import { initGrove } from './grove.js?v=81';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=81';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -1321,6 +1321,7 @@ export function drawLevelTiles(ctx, camX, level, opts = {}) {
   const startC = Math.max(0, Math.floor(camX / TILE) - 1);
   const endC = Math.min(level.cols, Math.ceil((camX + W) / TILE) + 1);
   const theme = level.theme || 'woods';
+  drawPits(ctx, camX, level, startC, endC);
   for (let r = 0; r < level.rows; r++) {
     for (let c = startC; c < endC; c++) {
       const t = level.tiles[r][c];
@@ -1335,6 +1336,63 @@ export function drawLevelTiles(ctx, camX, level, opts = {}) {
   }
   if (!opts.noStacks) drawStacks(ctx, level, camX);
   if (level.hill) drawHill(ctx, level, camX, drawTree);
+}
+
+/** Runs of columns with no ground (pits), found once per level. */
+function pitRuns(level) {
+  if (level._pits) return level._pits;
+  const { tiles, rows, cols } = level;
+  let gr = rows - 2, best = -1;
+  for (let r = Math.floor(rows / 2); r < rows; r++) {
+    let n = 0;
+    for (let c = 0; c < cols; c++) if (tiles[r][c] === 1 || tiles[r][c] === 4) n++;
+    if (n > best) { best = n; gr = r; }
+  }
+  const hill = level.hill;
+  const open = (c) => {
+    if (hill && c * TILE + TILE > hill.x0 && c * TILE < hill.x1) return false;
+    for (let r = gr; r < rows; r++) if (tiles[r][c]) return false;
+    return true;
+  };
+  const runs = [];
+  for (let c = 0; c < cols; c++) {
+    if (!open(c)) continue;
+    const c0 = c;
+    while (c + 1 < cols && open(c + 1)) c++;
+    runs.push({ c0, c1: c, y: gr * TILE });
+  }
+  level._pits = runs;
+  return runs;
+}
+
+/** Pits read as deep holes: near-black to the bottom of the view, dark soil walls and lip. */
+function drawPits(ctx, camX, level, startC, endC) {
+  for (const p of pitRuns(level)) {
+    if (p.c1 < startC - 1 || p.c0 > endC + 1) continue;
+    const x = p.c0 * TILE - camX;
+    const w = (p.c1 - p.c0 + 1) * TILE;
+    const y = p.y;
+    ctx.fillStyle = '#070504';
+    ctx.fillRect(x, y, w, H - y + 2);
+    // soil lip fading into the dark
+    const g = ctx.createLinearGradient(0, y, 0, y + 26 * SCALE);
+    g.addColorStop(0, 'rgba(58,38,22,0.95)');
+    g.addColorStop(1, 'rgba(7,5,4,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, w, 26 * SCALE);
+    // dark earthen side walls
+    const sw = 6 * SCALE;
+    const gl = ctx.createLinearGradient(x, 0, x + sw, 0);
+    gl.addColorStop(0, 'rgba(48,31,18,0.95)');
+    gl.addColorStop(1, 'rgba(7,5,4,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(x, y, sw, H - y);
+    const gr = ctx.createLinearGradient(x + w, 0, x + w - sw, 0);
+    gr.addColorStop(0, 'rgba(48,31,18,0.95)');
+    gr.addColorStop(1, 'rgba(7,5,4,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(x + w - sw, y, sw, H - y);
+  }
 }
 
 function drawGroundTile(ctx, x, y, c, r, level, theme) {
