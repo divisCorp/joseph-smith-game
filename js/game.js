@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=81';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=81';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=81';
+import { slopeFloor } from './hill.js?v=82';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=82';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=82';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=81';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=81';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=81';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard } from './hazards.js?v=81';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=81';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=81';
+} from './player.js?v=82';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=82';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=82';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=82';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=82';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=82';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=81';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=81';
+} from './sprites.js?v=82';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=82';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=81';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=81';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=81';
-import { drawMoroniRig } from './rig-cast.js?v=81';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=81';
+} from './save.js?v=82';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=82';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=82';
+import { drawMoroniRig } from './rig-cast.js?v=82';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=82';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -154,6 +154,47 @@ export function startCampaign(game, fromChapter = 1) {
   // The plates are received in chapter 3; later chapters start with them.
   game.hasPlates = num > 3;
   startLevel(game, num, true);
+}
+
+function spawnHeart(level, boss, player) {
+  // drops on the far side of the arena from the boss, so reaching it takes a moment's courage
+  const mid = (boss.patrolMin + boss.patrolMax) / 2;
+  const x = boss.x + boss.w / 2 > mid ? boss.patrolMin + 4 * TILE : boss.patrolMax - 3 * TILE;
+  (level.hearts ||= []).push({ x, y: 4 * TILE, vy: 0.5, taken: false });
+}
+
+function drawHearts(ctx, level, camX, tick) {
+  for (const h of level.hearts || []) {
+    if (h.taken) continue;
+    const x = h.x - camX + 8 * SCALE;
+    const y = h.y + 8 * SCALE + (h.vy === 0 ? Math.sin(tick * 0.08) * 2 * SCALE : 0);
+    const r = 5 * SCALE;
+    ctx.save();
+    const g = ctx.createRadialGradient(x, y, 1, x, y, r * 2.4);
+    g.addColorStop(0, 'rgba(255,240,200,0.55)');
+    g.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
+    ctx.beginPath();
+    ctx.moveTo(x, y + r * 1.1);
+    ctx.bezierCurveTo(x - r * 1.6, y - r * 0.1, x - r * 0.9, y - r * 1.4, x, y - r * 0.5);
+    ctx.bezierCurveTo(x + r * 0.9, y - r * 1.4, x + r * 1.6, y - r * 0.1, x, y + r * 1.1);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#1a0806';
+    ctx.stroke();
+    ctx.fillStyle = '#e8303a';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(x - r * 0.7, y - r * 0.6, r * 0.4, r * 0.4);
+    ctx.restore();
+  }
+}
+
+/** Damage log (read by QA): what hurt Joseph, where, and where he stood. */
+function logHurt(game, src, o) {
+  const p = game.player;
+  (game.dmgLog ||= []).push({ src, ch: game.levelNum, at: [o.x | 0, o.y | 0], p: [p.x | 0, p.y | 0], onStack: !!p.onGround && p.y + p.h < 13 * TILE - 4, dy: ((o.y + (o.h || 0)) - (p.y + p.h)) | 0, t: game.chapterT | 0 });
+  if (game.dmgLog.length > 200) game.dmgLog.shift();
 }
 
 export function startLevel(game, num, resetScore = false, opts = {}) {
@@ -796,6 +837,7 @@ function tickPlay(game, dt) {
   if (game.state !== STATES.PLAYING) return;
 
   updateSetPieces(game, dt);
+  player.longIframes = !!game.bossIntro; // more breathing room after a hit in boss fights
   if (!locked) updatePlayer(player, level.solids, dt);
 
   // Remember solid footing; a fall into a gap costs one heart, not the whole run.
@@ -806,6 +848,7 @@ function tickPlay(game, dt) {
     player.fellOut = false;
     if (player.hp > 1 && game.safe) {
       player.hp -= 1;
+      logHurt(game, 'fall', player);
       player.x = game.safe.x;
       player.y = game.safe.y;
       player.vx = 0;
@@ -915,6 +958,8 @@ function tickPlay(game, dt) {
     solids: level.solids,
     active: game.bossIntro && game.bossBannerT <= 40, // bosses wait out most of their entrance
     onPhase: (e) => {
+      // a heart appears in the arena at the turn of the fight
+      spawnHeart(level, e, player);
       game.message = PHASE_LINES[e.bossKind] || 'The foe grows desperate!';
       game.messageT = 70;
       game.shake = Math.max(game.shake, 18);
@@ -930,9 +975,12 @@ function tickPlay(game, dt) {
     }
     updateEnemy(e, level.solids, player, dt, world);
 
-    // Touch damage only from a telegraphed lunge (or a boss / wisp), never twice in a row
-    if (player.alive && foeCanHurt(e) && aabb(playerHurtbox(player), enemyHitbox(e))) {
+    // Touch damage only from a telegraphed lunge (or a boss / wisp), never twice in a row.
+    // A ground foe can't reach Joseph through a pile he stands on: charges pass underneath.
+    const above = player.onGround && !e.noGravity && !e.fly && e.y + e.h - (player.y + player.h) > 12 * SCALE;
+    if (player.alive && !above && foeCanHurt(e) && aabb(playerHurtbox(player), enemyHitbox(e))) {
       if (hurtPlayer(player, e.damage, e.x + e.w / 2)) {
+        logHurt(game, 'contact:' + e.type + (e.bs ? ':' + e.bs.mode : e.melee ? ':' + e.melee : ''), e);
         foeLandedHit(e);
         game.hitStop = Math.max(game.hitStop, 6);
         game.shake = Math.max(game.shake, 16);
@@ -964,12 +1012,29 @@ function tickPlay(game, dt) {
     }
     if (player.alive && aabb(pbox, hazardHitbox(h))) {
       if (hurtPlayer(player, h.damage, h.vx > 0 ? -1e9 : h.vx < 0 ? 1e9 : h.x + (h.w || 0) / 2)) {
+        logHurt(game, 'hazard:' + h.kind, h);
         game.hitStop = Math.max(game.hitStop, 5);
         game.shake = Math.max(game.shake, 14);
         if (h.kind === 'barrel' || h.kind === 'knife' || h.kind === 'drop' || h.kind === 'brick' || h.kind === 'torch') {
           h.alive = false;
         }
       }
+    }
+  }
+  // heart pickups (boss phase change)
+  for (const h of level.hearts || []) {
+    if (h.taken) continue;
+    if (h.vy !== 0) {
+      h.vy += 0.25 * SCALE * dt;
+      h.y += h.vy * dt;
+      const top = groundTopBelow(level.solids, h.x + 8 * SCALE, h.y - 4, true);
+      if (top != null && h.y + 16 * SCALE >= top) { h.y = top - 16 * SCALE; h.vy = 0; }
+    }
+    if (player.alive && aabb(playerHitbox(player), { x: h.x, y: h.y, w: 16 * SCALE, h: 16 * SCALE })) {
+      h.taken = true;
+      player.hp = Math.min(player.maxHp, player.hp + 1);
+      sfx('heal');
+      fxBurst('flare', h.x + 8 * SCALE, h.y + 8 * SCALE);
     }
   }
   updatePlates(player.plates, dt, game.camX, level.widthPx);
@@ -1000,6 +1065,7 @@ function tickPlay(game, dt) {
         if (player.invuln > 0) continue;
         k.alive = false;
         if (hurtPlayer(player, k.damage, k.facing > 0 ? -1e9 : 1e9)) {
+          logHurt(game, 'knife:' + e.type, k);
           game.hitStop = Math.max(game.hitStop, 6);
           game.shake = Math.max(game.shake, 16);
         }
@@ -1126,6 +1192,7 @@ export function drawGame(ctx, game) {
   drawSetPiecesMid(ctx, game);
   drawGroveBack(ctx, game);
   drawPages(ctx, game.level, game.camX, game.tick);
+  drawHearts(ctx, game.level, game.camX, game.tick);
 
   // Plate chest
   if (game.level.pickup) {

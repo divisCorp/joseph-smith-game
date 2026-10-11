@@ -1,17 +1,17 @@
-import { landOnSlopes } from './hill.js?v=81';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=81';
+import { landOnSlopes } from './hill.js?v=82';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=82';
 import {
   drawBrigand,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=81';
-import { aabb } from './player.js?v=81';
-import { createKnife, KNIFE_W } from './projectiles.js?v=81';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=81';
-import { sfx } from './audio.js?v=81';
-import { isEasy, reduceFlash } from './save.js?v=81';
+} from './sprites.js?v=82';
+import { aabb } from './player.js?v=82';
+import { createKnife, KNIFE_W } from './projectiles.js?v=82';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=82';
+import { sfx } from './audio.js?v=82';
+import { isEasy, reduceFlash } from './save.js?v=82';
 import {
   drawSnake,
   drawBobcat,
@@ -20,9 +20,9 @@ import {
   drawTorchProp,
   drawClubProp,
   drawMusketProp,
-} from './critters.js?v=81';
-import { drawEnemyRig } from './rig-cast.js?v=81';
-import { drawAnimalRig } from './rig-animals.js?v=81';
+} from './critters.js?v=82';
+import { drawEnemyRig } from './rig-cast.js?v=82';
+import { drawAnimalRig } from './rig-animals.js?v=82';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;
@@ -133,22 +133,23 @@ export function createEnemy(type, x, y, opts = {}) {
       base.damage = 2;
       base.score = 1200;
     } else if (kind === 'captain') {
-      base.hp = base.maxHp = 15;
-      base.speed = 0.78 * SCALE;
+      base.hp = base.maxHp = 11;
+      base.speed = 0.72 * SCALE;
       base.damage = 1;
       base.score = 1400;
     } else if (kind === 'warden') {
-      base.hp = base.maxHp = 16;
-      base.speed = 0.8 * SCALE;
+      base.hp = base.maxHp = 11;
+      base.speed = 0.72 * SCALE;
       base.damage = 1;
       base.score = 1600;
     } else if (kind === 'overseer') {
-      base.hp = base.maxHp = 20;
-      base.speed = 0.85 * SCALE;
+      base.hp = base.maxHp = 14;
+      base.speed = 0.76 * SCALE;
       base.damage = 1;
       base.score = 2500;
     }
   }
+  if (type === 'boss' && isEasy()) base.hp = base.maxHp = Math.ceil(base.maxHp * 0.75);
   return base;
 }
 
@@ -320,7 +321,11 @@ export function updateEnemy(e, solids, player, dt, world = null) {
     // birds fly over everything; no tile collision
     e.x += e.vx * pace;
     e.y += e.vy * pace;
-    if (!e.telling) e.animT += dt;
+    if (e.leash) {
+    if (e.x < e.patrolMin) { e.x = e.patrolMin; if (e.vx < 0) e.vx = 0; }
+    if (e.x > e.patrolMax) { e.x = e.patrolMax; if (e.vx > 0) e.vx = 0; }
+  }
+  if (!e.telling) e.animT += dt;
     if (e.animT > 7) {
       e.animT = 0;
       e.anim = (e.anim + 1) % 8;
@@ -342,13 +347,24 @@ export function updateEnemy(e, solids, player, dt, world = null) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
     const range = e.type === 'boss' ? 170 * SCALE : 130 * SCALE;
-    if (Math.abs(dx) < range && Math.abs(dy) < 50 * SCALE) {
+    // only at Joseph's own footing (a stone thrown at chest height can't reach him up on a pile),
+    // and always after a visible wind-up ("!" over the thrower)
+    const feet = Math.abs(player.y + player.h - (e.y + e.h));
+    if (!e.throwWind && Math.abs(dx) < range && feet < 14 * SCALE && Math.abs(dy) < 50 * SCALE) {
+      e.throwWind = isEasy() ? 30 : 22;
       e.facing = dx > 0 ? 1 : -1;
+    }
+  }
+  if (e.throwWind > 0) {
+    e.throwWind -= dt;
+    e.vx *= 0.8;
+    if (e.throwWind <= 0) {
+      e.throwWind = 0;
       const kx = e.facing > 0 ? e.x + e.w - 2 : e.x - KNIFE_W;
       const ky = e.y + e.h * 0.35;
       const dmg = e.type === 'boss' ? 2 : 1;
       e.knives.push(createKnife(kx, ky, e.facing, dmg));
-      e.attackCd = e.type === 'boss' ? 70 : e.type === 'scout' ? 75 : 100;
+      e.attackCd = e.type === 'boss' ? 70 : e.type === 'scout' ? 90 : 115;
     }
   }
 
@@ -488,20 +504,20 @@ const BOSS_DEF = {
   captain: {
     p1: ['charge', 'torches'],
     p2: ['charge2', 'torches', 'charge'],
-    tell: [44, 30],
-    walk: [80, 54],
+    tell: [58, 42],
+    walk: [96, 68],
   },
   warden: {
     p1: ['slam', 'keys'],
     p2: ['slam2', 'keys2', 'slam'],
-    tell: [46, 32],
-    walk: [80, 54],
+    tell: [60, 44],
+    walk: [96, 68],
   },
   overseer: {
     p1: ['fan', 'summon', 'fan'],
     p2: ['dash', 'fan5', 'summon', 'fan5'],
-    tell: [42, 30],
-    walk: [74, 50],
+    tell: [56, 42],
+    walk: [90, 64],
   },
 };
 BOSS_DEF.ringleader = BOSS_DEF.overseer;
@@ -524,7 +540,7 @@ function beginTell(e, def) {
   bs.idx++;
   bs.mode = 'tell';
   bs.t = 0;
-  bs.tellT = def.tell[bs.phase - 1] * (isEasy() ? 1.25 : 1);
+  bs.tellT = def.tell[bs.phase - 1] * (isEasy() ? 1.5 : 1);
   sfx('tell');
 }
 
@@ -612,7 +628,7 @@ function updateBossAI(e, player, dt, world) {
       break;
     default:
       e.vx *= FRICTION;
-      if (bs.t > (p2 ? 26 : 40)) {
+      if (bs.t > (p2 ? 38 : 56) * (isEasy() ? 1.4 : 1)) {
         bs.mode = 'walk';
         bs.t = 0;
       }
@@ -642,7 +658,7 @@ function runBossAttack(e, player, dt, world, dx, face, p2) {
       face();
       sfx('dash');
     }
-    e.vx = e.facing * (p2 ? 6 : 5.2) * SCALE;
+    e.vx = e.facing * (p2 ? 5.2 : 4.5) * SCALE;
     const atEdge = (e.facing > 0 && e.x >= e.patrolMax - 2) || (e.facing < 0 && e.x <= e.patrolMin + 2);
     if (bs.t > 60 || atEdge) {
       e.vx = 0;
@@ -728,20 +744,28 @@ function runBossAttack(e, player, dt, world, dx, face, p2) {
     if (bs.t > 36) endAttack(e);
   } else if (a === 'summon') {
     if (bs.sub === 0) {
+      // at most 2 helpers; new ones only after both are driven off and a pause has passed
       const allies = (world.enemies || []).filter((x) => x.alive && x.summoned).length;
-      const want = Math.max(0, 2 - allies);
+      const ready = allies === 0 && bs.clock - (bs.lastSummon ?? -1e9) > (isEasy() ? 720 : 480);
+      const want = ready ? 2 : 0;
+      if (ready) bs.lastSummon = bs.clock;
       for (let i = 0; i < want; i++) {
-        const side = i % 2 ? e.patrolMax : e.patrolMin;
+        // helpers keep to the arena floor between the two refuge piles (they never climb them)
+        const lo = e.patrolMin + 4 * TILE_SAFE();
+        const hi = e.patrolMax - 5 * TILE_SAFE();
+        const side = i % 2 ? hi : lo;
         const ally = createEnemy(i % 2 ? 'thug' : 'brigand', side, e.y - 40 * SCALE, {
-          patrolMin: e.patrolMin,
-          patrolMax: e.patrolMax,
+          patrolMin: lo,
+          patrolMax: hi,
         });
+        ally.leash = true;
         ally.summoned = true;
         ally.score = 50;
         ally.hp = ally.maxHp = 1;
         world.enemies?.push(ally);
       }
-      sfx('whistle');
+      if (want) sfx('whistle');
+      else bs.t = 30;
       bs.sub = 1;
     }
     e.vx *= FRICTION;
@@ -915,6 +939,7 @@ function drawEnemyBody(ctx, e, camX) {
     const ay = e.critter ? e.y - (e.fly ? 6 : 14) * SCALE : e.y;
     drawAlert(ctx, dx + e.w / 2 + e.facing * 3 * SCALE, ay, windT - e.meleeT);
   }
+  if (e.throwWind > 0) drawAlert(ctx, dx + e.w / 2, e.y, 22 - e.throwWind);
 }
 
 /** Torch, club or shouldered musket held in the foe's forward hand. */

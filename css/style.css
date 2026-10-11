@@ -2458,3 +2458,19 @@ html.pq-ios .pqt-icon-btn { background: rgba(12, 10, 8, 0.6); }
   gap: 8px;
 }
 @media (max-height: 420px) { .ui-chapters-panel > .ui-menu-hint { display: none; } }
+
+/* v82: larger invisible touch zones with a faint resting outline (controls never move) */
+.touch-btn { position: relative; }
+.touch-btn::after,
+.touch-stick::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(240, 230, 208, 0.16);
+  pointer-events: auto;
+}
+.touch-stick::after { inset: -22px; }
+.touch-jump::after { top: -20px; bottom: -20px; left: -20px; right: -5px; }
+.touch-attack::after { top: -20px; bottom: -20px; left: -5px; right: -20px; }
+.touch-btn:not(.touch-jump):not(.touch-attack)::after { inset: -8px; border-color: transparent; }
+.touch-btn.is-active, .touch-btn:active { transform: none; }

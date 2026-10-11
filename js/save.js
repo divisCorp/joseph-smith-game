@@ -2,7 +2,7 @@
  * Local progress (localStorage). Every read is validated and every write is
  * wrapped so private-mode / quota errors can never break the game.
  */
-import { MAX_LEVEL } from './constants.js?v=81';
+import { MAX_LEVEL } from './constants.js?v=82';
 
 const KEY = 'palmyraQuest.save.v1';
 

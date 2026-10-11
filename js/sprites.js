@@ -3,7 +3,7 @@
  * Respectful stylized characters — not photoreal likenesses.
  * Drawn at 2× NES scale for phone-friendly crisp detail.
  */
-import { COLORS, W, SCALE } from './constants.js?v=81';
+import { COLORS, W, SCALE } from './constants.js?v=82';
 
 export function drawRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -528,10 +528,17 @@ export function drawKnife(ctx, x, y, facing = 1) {
     ctx.scale(-1, 1);
     ctx.translate(-ox, -oy);
   }
-  // A field stone: the mobs throw rocks, not blades (hitbox unchanged)
+  // A field stone: the mobs throw rocks, not blades (hitbox unchanged).
+  // A pale motion streak and a hard outline keep it readable on any ground.
+  ctx.fillStyle = 'rgba(255,244,220,0.55)';
+  ctx.fillRect(ox - 12, oy + 2, 12, 1.5);
+  ctx.fillRect(ox - 7, oy + 4.5, 7, 1.2);
   ctx.fillStyle = '#6a6258';
   ctx.beginPath();
   ctx.ellipse(ox + 7, oy + 3.5, 7, 3.4, 0.2, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#120c06';
+  ctx.stroke();
   ctx.fill();
   ctx.fillStyle = '#9a9286';
   ctx.beginPath();

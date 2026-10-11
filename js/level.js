@@ -3,16 +3,16 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=81';
-import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=81';
-import { createEnemy } from './enemy.js?v=81';
-import { STAND_H } from './player.js?v=81';
-import { drawRect } from './sprites.js?v=81';
-import { initSetPieces, buildDock } from './setpieces.js?v=81';
-import { reduceFlash } from './save.js?v=81';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=81';
-import { initGrove } from './grove.js?v=81';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=81';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=82';
+import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=82';
+import { createEnemy } from './enemy.js?v=82';
+import { STAND_H } from './player.js?v=82';
+import { drawRect } from './sprites.js?v=82';
+import { initSetPieces, buildDock } from './setpieces.js?v=82';
+import { reduceFlash } from './save.js?v=82';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=82';
+import { initGrove } from './grove.js?v=82';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=82';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -615,7 +615,9 @@ function buildLevel(num) {
 export function createLevel(num) {
   const level = buildLevel(num);
   // Platforms become grounded piles (logs, hay, crates, rocks…) — nothing floats
+  if (level.bossZoneX && LEVEL_META[level.num]?.bossTitle) addArenaRefuges(level);
   level.stacks = convertStacks(level.tiles, level.num);
+  if (!level.finale) fillNarrowWells(level);
   level.solids = tilesToSolids(level.tiles).concat([{ x: -TILE, y: 0, w: TILE, h: level.rows * TILE, kind: 'wall' }]);
   settleEnemies(level);
   // Spawn on clear ground just right of the on-screen D-pad, never inside a pile
@@ -1336,6 +1338,44 @@ export function drawLevelTiles(ctx, camX, level, opts = {}) {
   }
   if (!opts.noStacks) drawStacks(ctx, level, camX);
   if (level.hill) drawHill(ctx, level, camX, drawTree);
+}
+
+/**
+ * Boss arenas get two low piles to stand on (one beside the left wall, one near the
+ * far end): ground charges and the summoned helpers pass underneath them.
+ */
+function addArenaRefuges(level) {
+  const z = Math.round(level.bossZoneX / TILE);
+  const end = level.cols - 2;
+  for (const c0 of [z + 1, end - 4]) {
+    for (let c = c0; c < c0 + 3; c++) if (level.tiles[11][c] || level.tiles[12][c]) return;
+  }
+  placePlatform(level.tiles, z + 1, 11, 3);
+  placePlatform(level.tiles, end - 4, 11, 3);
+  level.refuges = [z + 1, end - 4];
+}
+
+/**
+ * A ground "well" one or two tiles wide between two piles leaves no room to land.
+ * Fill it to the lower pile's height so the tops join into one wide landing.
+ */
+function fillNarrowWells(level) {
+  const G = 13;
+  const { tiles, cols } = level;
+  const top = (c) => { let r = 0; while (r < G && tiles[r][c] !== STACK) r++; return r; };
+  for (let c = 1; c < cols - 3; c++) {
+    if (tiles[G][c] !== 1 || tiles[G - 1][c] || top(c - 1) >= G) continue;
+    let e = c;
+    while (e + 1 < cols && tiles[G][e + 1] === 1 && !tiles[G - 1][e + 1] && e - c < 3) e++;
+    if (e - c + 1 > 2 || top(e + 1) >= G) { c = e; continue; }
+    const r0 = Math.max(top(c - 1), top(e + 1));
+    const kind = (level.stacks.find((s) => s.c1 === c - 1) || level.stacks.find((s) => s.c0 === e + 1))?.kind;
+    if (!kind) { c = e; continue; }
+    for (let k = c; k <= e; k++) for (let r = r0; r < G; r++) tiles[r][k] = STACK;
+    level.stacks.push({ c0: c, c1: e, r0, r1: G - 1, kind, water: false, filled: true });
+    (level.filledWells ||= []).push([c, e, G - r0]);
+    c = e;
+  }
 }
 
 /** Runs of columns with no ground (pits), found once per level. */

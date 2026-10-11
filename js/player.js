@@ -1,20 +1,20 @@
-import { landOnSlopes } from './hill.js?v=81';
-import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=81';
-import { drawJoseph, drawPitchfork } from './sprites.js?v=81';
-import { isDown, justPressed } from './input.js?v=81';
-import { sfx } from './audio.js?v=81';
-import { isEasy, reduceFlash } from './save.js?v=81';
+import { landOnSlopes } from './hill.js?v=82';
+import { GRAVITY, FRICTION, MAX_FALL, SCALE, H, TILE } from './constants.js?v=82';
+import { drawJoseph, drawPitchfork } from './sprites.js?v=82';
+import { isDown, justPressed } from './input.js?v=82';
+import { sfx } from './audio.js?v=82';
+import { isEasy, reduceFlash } from './save.js?v=82';
 import {
   loadRig, drawRig, solve as solveRig, poseIdle, poseWalk, poseJump, kneelFrom, blendPose, applyThrow, applyThrust, handPoint,
   gaitParams, JUMP_T,
-} from './rig.js?v=81';
+} from './rig.js?v=82';
 import {
   createPlate,
   PLATE_COOLDOWN,
   THROW_POSE,
   PLATE_H,
   PLATE_W,
-} from './projectiles.js?v=81';
+} from './projectiles.js?v=82';
 
 export const STAND_H = 56 * SCALE; // 112px — matches JOSEPH_DH
 
@@ -406,7 +406,7 @@ function resolve(p, solids, horizontal) {
 export function hurtPlayer(p, dmg = 1, fromX = null) {
   if (p.invuln > 0 || !p.alive) return false;
   p.hp -= isEasy() ? Math.min(1, dmg) : dmg;
-  p.invuln = HURT_IFRAMES;
+  p.invuln = HURT_IFRAMES * (p.longIframes ? 1.4 : 1);
   sfx('hurt');
   p.vy = -3 * SCALE;
   if (fromX != null) {
