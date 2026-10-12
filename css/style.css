@@ -1350,8 +1350,8 @@ body.touch-ui .ui-menu-hint { display: none; }
 .ui-tip {
   position: absolute;
   left: 50%;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  transform: translate(-50%, 6px);
+  top: calc(max(8px, env(safe-area-inset-top)) + 9%);
+  transform: translate(-50%, -6px);
   z-index: 5;
   max-width: min(86%, 520px);
   padding: 6px 14px;
@@ -1362,8 +1362,8 @@ body.touch-ui .ui-menu-hint { display: none; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: rgba(12, 8, 6, 0.78);
-  border: 1px solid rgba(212, 168, 75, 0.55);
+  background: rgba(12, 8, 6, 0.55);
+  border: 1px solid rgba(212, 168, 75, 0.45);
   border-radius: 999px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
   opacity: 0;
@@ -1371,9 +1371,10 @@ body.touch-ui .ui-menu-hint { display: none; }
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .ui-tip.is-shown {
-  opacity: 1;
+  opacity: 0.92;
   transform: translate(-50%, 0);
 }
+.ui-tip.is-shown.is-faded { opacity: 0.3; }
 @media (orientation: landscape) and (max-height: 500px) {
   .ui-tip { font-size: 12px; max-width: min(52%, 460px); white-space: normal; }
   .ui-intro-story { font-size: 14px; }

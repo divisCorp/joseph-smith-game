@@ -1,8 +1,8 @@
 /**
  * Gold-plate projectiles — engraved metallic sheets.
  */
-import { W, SCALE } from './constants.js?v=83';
-import { drawGoldPlate, drawKnife } from './sprites.js?v=83';
+import { W, SCALE } from './constants.js?v=84';
+import { drawGoldPlate, drawKnife } from './sprites.js?v=84';
 
 export const PLATE_SPEED = 3.8 * SCALE;
 export const PLATE_MAX_TRAVEL = 130 * SCALE;

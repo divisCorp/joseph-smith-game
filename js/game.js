@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=83';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=83';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=83';
+import { slopeFloor } from './hill.js?v=84';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=84';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=84';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=83';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=83';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=83';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=83';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=83';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=83';
+} from './player.js?v=84';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=84';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=84';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=84';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=84';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=84';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=83';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=83';
+} from './sprites.js?v=84';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=84';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=83';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=83';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=83';
-import { drawMoroniRig } from './rig-cast.js?v=83';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=83';
+} from './save.js?v=84';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=84';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=84';
+import { drawMoroniRig } from './rig-cast.js?v=84';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=84';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -189,6 +189,15 @@ function drawHearts(ctx, level, camX, tick) {
     ctx.restore();
   }
 }
+
+/** Is Joseph or any living foe (incl. flyers / wisps) on screen inside this rect? */
+function overlapsActors(game, x, y, w, h) {
+  const cam = game.camX || 0;
+  const hit = (o) => o.x - cam < x + w && o.x - cam + o.w > x && o.y < y + h && o.y + o.h > y;
+  if (game.player && hit(game.player)) return true;
+  return (game.level?.enemies || []).some((e) => e.alive && hit(e));
+}
+export { overlapsActors };
 
 /** Damage log (read by QA): what hurt Joseph, where, and where he stood. */
 function logHurt(game, src, o) {
@@ -1262,12 +1271,25 @@ export function drawGame(ctx, game) {
   }
 
   if (game.messageT > 0) {
-    const mw = W - 56 * SCALE;
-    drawPanel(ctx, 28 * SCALE, 86 * SCALE, mw, 32 * SCALE);
-    // long story lines drop to the smaller font size so they always fit the panel
-    const big = measureText(game.message, 12) <= mw - 12 * SCALE;
-    drawCentered(ctx, game.message, (big ? 96 : 98) * SCALE, COLORS.uiGold, big ? 12 : 8);
-  }
+    // compact, translucent strip near the top (below the HUD, or below a boss / door bar)
+    const maxW = W - 56 * SCALE;
+    const big = measureText(game.message, 10) <= maxW - 16 * SCALE;
+    const size = big ? 10 : 8;
+    const mw = Math.min(maxW, measureText(game.message, size) + 20 * SCALE);
+    const mh = 18 * SCALE;
+    const barUp = (game.bossIntro && game.bossBarA > 0) || game.bossBannerT > 0 || game.level?.finale?.state === 'active';
+    const my = (barUp ? 62 : 40) * SCALE; // below the HUD row and the top-right buttons
+    const mx = (W - mw) / 2;
+    game.msgBox = { x: mx, y: my, w: mw, h: mh };
+    // fade further while Joseph or a foe is behind it, so nothing is hidden
+    const behind = overlapsActors(game, mx, my - 6 * SCALE, mw, mh + 12 * SCALE);
+    const fade = Math.min(1, game.messageT / 12);
+    ctx.save();
+    ctx.globalAlpha = (behind ? 0.32 : 0.86) * fade;
+    drawPanel(ctx, mx, my, mw, mh, 'rgba(12,8,6,0.62)');
+    drawCentered(ctx, game.message, my + (big ? 5 : 6) * SCALE, COLORS.uiGold, size);
+    ctx.restore();
+  } else game.msgBox = null;
 
   if (game.introFade > 0) {
     drawRect(ctx, 0, 0, W, H, `rgba(6,4,2,${Math.min(0.85, game.introFade / 36)})`);

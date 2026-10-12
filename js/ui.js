@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=83';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=83';
-import { unlockAudio, syncMuteButton } from './audio.js?v=83';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=83';
-import { JOURNAL } from './journal.js?v=83';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=83';
-import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=83';
+import { STATES, LEVEL_META, MAX_LEVEL, W } from './constants.js?v=84';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=84';
+import { unlockAudio, syncMuteButton } from './audio.js?v=84';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=84';
+import { JOURNAL } from './journal.js?v=84';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=84';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS, overlapsActors } from './game.js?v=84';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -534,6 +534,18 @@ function syncTip(game) {
   }
   const show = !!tip && tip.t < 290;
   el.classList.toggle('is-shown', show);
+  // the tip sits at the top; fade it while Joseph or a foe passes behind it
+  if (show) {
+    const r = el.getBoundingClientRect();
+    const cv = document.querySelector('#stage canvas, canvas');
+    const cr = cv?.getBoundingClientRect();
+    let behind = false;
+    if (cr && cr.width) {
+      const k = W / cr.width;
+      behind = overlapsActors(game, (r.left - cr.left) * k, (r.top - cr.top) * k - 8, r.width * k, r.height * k + 16);
+    }
+    el.classList.toggle('is-faded', behind);
+  }
 }
 
 // ── Round 3: options, chapter select, results card ─────────

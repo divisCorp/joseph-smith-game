@@ -3,18 +3,18 @@
  * HD illustrated 1080×480 canvas, scaled via CSS.
  * Title / pause / win / lose use HTML overlays for sharp phone text.
  */
-import { STATES } from './constants.js?v=83';
-import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=83';
-import { isStandalone } from './fullscreen.js?v=83';
-import { initVirtualControls, setAction } from './input.js?v=83';
-import { initOverlays, syncOverlays } from './ui.js?v=83';
-import { preloadSprites } from './sprites.js?v=83';
-import { fxFrameTime, fxPerf } from './fx.js?v=83';
-import { psAdd, psTake, PERF_ON, NO_READBACK, RES, NO_HUD } from './perfstat.js?v=83';
-import { bakeBytes, bakeStats } from './rig.js?v=83';
-import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=83';
-import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=83';
-import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=83';
+import { STATES } from './constants.js?v=84';
+import { createGame, updateGame, drawGame, titleTapBegins, setFullscreenOffered } from './game.js?v=84';
+import { isStandalone } from './fullscreen.js?v=84';
+import { initVirtualControls, setAction } from './input.js?v=84';
+import { initOverlays, syncOverlays } from './ui.js?v=84';
+import { preloadSprites } from './sprites.js?v=84';
+import { fxFrameTime, fxPerf } from './fx.js?v=84';
+import { psAdd, psTake, PERF_ON, NO_READBACK, RES, NO_HUD } from './perfstat.js?v=84';
+import { bakeBytes, bakeStats } from './rig.js?v=84';
+import { animalBakeBytes, animalBakeStats, animalBakeFrame } from './rig-animals.js?v=84';
+import { unlockAudio, toggleMute, bindMuteButton } from './audio.js?v=84';
+import { justPressed, pollGamepads, onGamepadChange } from './input.js?v=84';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,7 +101,7 @@ onGamepadChange((kind) => {
 function frame(now) {
   pollGamepads();
   if (justPressed('mute')) toggleMute();
-  const interval = now - last;
+  const interval = Math.min(250, Math.max(0, now - last));
   acc += interval;
   last = now;
   const t0 = performance.now();
@@ -114,6 +114,9 @@ function frame(now) {
     acc -= STEP;
     steps++;
   }
+  // Drop any backlog the catch-up cap couldn't clear (a long frame while a chapter loads
+  // or caches bake): otherwise later frames keep running 5 steps each and the game races.
+  if (acc > STEP) acc = STEP;
   // 120Hz (ProMotion): the sim runs at 60 steps/s, so skip redraws when nothing advanced
   if (steps === 0) {
     requestAnimationFrame(frame);
