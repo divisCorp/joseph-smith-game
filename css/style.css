@@ -2474,3 +2474,10 @@ html.pq-ios .pqt-icon-btn { background: rgba(12, 10, 8, 0.6); }
 .touch-attack::after { top: -20px; bottom: -20px; left: -5px; right: -20px; }
 .touch-btn:not(.touch-jump):not(.touch-attack)::after { inset: -8px; border-color: transparent; }
 .touch-btn.is-active, .touch-btn:active { transform: none; }
+
+/* v83: Retry beside Continue on the star screen (Continue stays primary) */
+.ui-clear-actions { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 0.9em; }
+.ui-clear-actions .ui-start-btn--compact { margin-top: 0; }
+.ui-retry-btn { min-height: 36px; padding: 0.35em 0.9em; font-size: clamp(12px, 3.2vw, 14px); }
+.ui-retry-btn.is-selected { outline: 2px solid #fff4c8; outline-offset: 2px; }
+@media (max-height: 420px) { .ui-clear-actions { margin-top: 0.5em; } }

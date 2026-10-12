@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=82';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=82';
-import { unlockAudio, syncMuteButton } from './audio.js?v=82';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=82';
-import { JOURNAL } from './journal.js?v=82';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=82';
-import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=82';
+import { STATES, LEVEL_META, MAX_LEVEL } from './constants.js?v=83';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=83';
+import { unlockAudio, syncMuteButton } from './audio.js?v=83';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=83';
+import { JOURNAL } from './journal.js?v=83';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=83';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS } from './game.js?v=83';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -44,7 +44,7 @@ function bindStartTarget(el) {
   const down = (e) => {
     if (e.button != null && e.button !== 0) return;
     // Share (and other non-dismiss controls) must not trigger start/dismiss
-    if (e.target?.closest?.('[data-ui-share]')) return;
+    if (e.target?.closest?.('[data-ui-share], [data-ui-cmd]')) return;
     e.preventDefault();
     e.stopPropagation();
     try {
@@ -604,7 +604,7 @@ function syncChapters(game) {
   const sum = document.querySelector('[data-ui-chapters-sum]');
   if (sum) sum.textContent = `${totalStars} / ${MAX_LEVEL * 3} stars · ${totalPages} / ${MAX_LEVEL * 3} journal pages`;
   const how = document.querySelector('[data-ui-stars-how]');
-  if (how) how.textContent = 'A star for each goal (max 3): within par time · 1 heart or fewer lost · all 3 journal pages. Clearing always earns at least 1.';
+  if (how) how.textContent = 'A star for each goal (max 3): within par time · lose 1 heart or fewer (3 in boss chapters) · all 3 journal pages. Clearing always earns at least 1.';
 }
 
 function syncResults(root, game) {
@@ -614,7 +614,7 @@ function syncResults(root, game) {
   stars.forEach((el, i) => {
     el.classList.toggle('is-lit', i < r.shown);
   });
-  const sig = `${r.chapter}:${r.time}:${r.pages}:${r.heartsLost}:${r.shown}`;
+  const sig = `${r.chapter}:${r.time}:${r.pages}:${r.heartsLost}:${r.shown}:${game.clearSel || 0}`;
   if (root.dataset.resSig === sig) return;
   root.dataset.resSig = sig;
   const ok = (b) => (b ? '✓' : '☆');
@@ -635,9 +635,12 @@ function syncResults(root, game) {
   set('time', r.timeOk
     ? `Swift: finished in ${fmtTime(r.time)} (par ${fmtTime(r.par * 60)})`
     : `Swift: finish within ${fmtTime(r.par * 60)} · yours ${fmtTime(r.time)}, ${fmtTime(over)} over`, r.timeOk);
+  const hm = r.heartsMax ?? 1;
   set('hearts', r.heartsOk
-    ? `Steadfast: ${r.heartsLost} heart${r.heartsLost === 1 ? '' : 's'} lost (1 or fewer)`
-    : `Steadfast: lose 1 heart or fewer · ${r.heartsLost} lost`, r.heartsOk);
+    ? `Steadfast: ${r.heartsLost} heart${r.heartsLost === 1 ? '' : 's'} lost (${hm} or fewer)`
+    : `Steadfast: lose ${hm} heart${hm === 1 ? '' : 's'} or fewer · ${r.heartsLost} lost`, r.heartsOk);
+  root.querySelector('.ui-retry-btn')?.classList.toggle('is-selected', game.clearSel === 1);
+  root.querySelector('[data-ui-start]')?.classList.toggle('is-selected', game.clearSel === 1 ? false : true);
   set('pages', r.pagesOk
     ? `Faithful record: journal pages 3/3`
     : `Faithful record: find all journal pages · ${r.pages}/3 found`, r.pagesOk);

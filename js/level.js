@@ -3,16 +3,16 @@
  * Tile codes: 0 empty, 1 solid ground, 2 platform (authoring only — converted to a
  * grounded stack at build time, see stacks.js), 3 wall, 4 water, 5 stack (solid pile).
  */
-import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=82';
-import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=82';
-import { createEnemy } from './enemy.js?v=82';
-import { STAND_H } from './player.js?v=82';
-import { drawRect } from './sprites.js?v=82';
-import { initSetPieces, buildDock } from './setpieces.js?v=82';
-import { reduceFlash } from './save.js?v=82';
-import { convertStacks, drawStacks, STACK } from './stacks.js?v=82';
-import { initGrove } from './grove.js?v=82';
-import { makeHill, drawHill, drawHillDistant } from './hill.js?v=82';
+import { TILE, W, H, COLORS, LEVEL_META, SCALE } from './constants.js?v=83';
+import { drawParallax, groundTile, buildingSprite } from './parallax.js?v=83';
+import { createEnemy } from './enemy.js?v=83';
+import { STAND_H } from './player.js?v=83';
+import { drawRect } from './sprites.js?v=83';
+import { initSetPieces, buildDock } from './setpieces.js?v=83';
+import { reduceFlash } from './save.js?v=83';
+import { convertStacks, drawStacks, STACK } from './stacks.js?v=83';
+import { initGrove } from './grove.js?v=83';
+import { makeHill, drawHill, drawHillDistant } from './hill.js?v=83';
 
 function emptyTiles(cols, rows) {
   const tiles = [];
@@ -624,6 +624,7 @@ export function createLevel(num) {
   const sp = findStand(level, Math.round(W * 0.28), { minX: Math.round(6.5 * TILE), maxX: 12 * TILE });
   level.spawn = { x: sp.x, y: sp.y - STAND_H };
   clearSafeZone(level, level.spawn.x);
+  level.patrolFixes = giveRoomToRoam(level);
   level.checkpoints = (CHECKPOINT_COLS[level.num] || []).map((c) => {
     const st = findStand(level, c * TILE + 2 * SCALE, { minX: (c - 3) * TILE, maxX: (c + 3) * TILE, rStart: 12 });
     return {
@@ -685,6 +686,59 @@ export function clearSafeZone(level, x0) {
       e.y += 16;
     }
   }
+}
+
+/**
+ * A walking foe boxed into a ledge only a tile or two wide just turns on the spot,
+ * and can't be fought without taking a hit. Each ground foe needs a flat run of at
+ * least MIN_RUN tiles at its own footing; otherwise it moves to the nearest open
+ * stretch of ground and patrols that. Returns what was changed (QA reads it).
+ */
+const MIN_RUN = 4;
+function giveRoomToRoam(level) {
+  const { tiles, cols, rows } = level;
+  const topRow = (c) => { for (let r = 0; r < rows; r++) { const t = tiles[r][c]; if (t === 1 || t === 3 || t === STACK || t === 4) return t === 4 ? -1 : r; } return -1; };
+  const runAt = (c) => {
+    const r = topRow(c);
+    if (r < 0) return null;
+    let a = c, b = c;
+    while (a - 1 >= 0 && topRow(a - 1) === r) a--;
+    while (b + 1 < cols && topRow(b + 1) === r) b++;
+    return { a, b, r, w: b - a + 1 };
+  };
+  const fixes = [];
+  const taken = [];
+  for (const e of level.enemies) {
+    if (e.noGravity || e.fly || e.type === 'boss' || e.type === 'npc') continue;
+    const c = Math.floor((e.x + e.w / 2) / TILE);
+    const need = Math.max(MIN_RUN, Math.ceil(e.w / TILE) + 2);
+    let run = runAt(c);
+    const before = `${e.type}@${c}`;
+    if (!run || run.w < need) {
+      let best = null;
+      for (let pass = 0; pass < 2 && !best; pass++)
+      for (let d = 1; d <= 30 && !best; d++) {
+        for (const cc of [c + d, c - d]) {
+          if (cc < 2 || cc >= cols - 2) continue;
+          const r2 = runAt(cc);
+          if (r2 && r2.w >= need && r2.r === 13 && ((pass === 1 && r2.w >= 2 * need) || !taken.some(([a, b]) => a === r2.a && b === r2.b)) && cc * TILE > (level.spawn?.x ?? 0) + SAFE_ZONE && (!level.bossZoneX || !LEVEL_META[level.num]?.bossTitle || (r2.b + 1) * TILE < level.bossZoneX - 2 * TILE)) { best = r2; break; }
+        }
+      }
+      if (!best) continue;
+      run = best;
+      e.x = ((run.a + run.b + 1) / 2) * TILE - e.w / 2;
+      e.y = run.r * TILE - e.h - 1;
+      fixes.push(`${before} boxed in (${runAt(c)?.w ?? 0}-tile ledge) -> moved to cols ${run.a}-${run.b}`);
+    }
+    const lo = Math.max(run.a * TILE + 2, e.x - 5 * TILE);
+    const hi = Math.min((run.b + 1) * TILE - e.w - 2, e.x + 5 * TILE);
+    if (e.patrolMax - e.patrolMin < 3 * TILE || e.patrolMin < lo - TILE || e.patrolMax > hi + TILE) {
+      e.patrolMin = lo;
+      e.patrolMax = Math.max(lo, hi);
+    }
+    taken.push([run.a, run.b]);
+  }
+  return fixes;
 }
 
 /** Foes authored at old platform heights: lift any that start inside a pile. */

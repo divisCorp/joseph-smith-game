@@ -1,17 +1,17 @@
-import { landOnSlopes } from './hill.js?v=82';
-import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=82';
+import { landOnSlopes } from './hill.js?v=83';
+import { GRAVITY, MAX_FALL, FRICTION, SCALE, H, W } from './constants.js?v=83';
 import {
   drawBrigand,
   drawBoss,
   drawScout,
   drawThug,
   drawWisp,
-} from './sprites.js?v=82';
-import { aabb } from './player.js?v=82';
-import { createKnife, KNIFE_W } from './projectiles.js?v=82';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=82';
-import { sfx } from './audio.js?v=82';
-import { isEasy, reduceFlash } from './save.js?v=82';
+} from './sprites.js?v=83';
+import { aabb } from './player.js?v=83';
+import { createKnife, KNIFE_W } from './projectiles.js?v=83';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=83';
+import { sfx } from './audio.js?v=83';
+import { isEasy, reduceFlash } from './save.js?v=83';
 import {
   drawSnake,
   drawBobcat,
@@ -20,9 +20,9 @@ import {
   drawTorchProp,
   drawClubProp,
   drawMusketProp,
-} from './critters.js?v=82';
-import { drawEnemyRig } from './rig-cast.js?v=82';
-import { drawAnimalRig } from './rig-animals.js?v=82';
+} from './critters.js?v=83';
+import { drawEnemyRig } from './rig-cast.js?v=83';
+import { drawAnimalRig } from './rig-animals.js?v=83';
 
 /**
  * Wildlife of 1820s western New York (chapters 1–3). Sizes are hitbox sizes in art px;

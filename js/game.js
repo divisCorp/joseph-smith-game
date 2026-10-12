@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=82';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=82';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=82';
+import { slopeFloor } from './hill.js?v=83';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=83';
+import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=83';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=82';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=82';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=82';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=82';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=82';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=82';
+} from './player.js?v=83';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=83';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=83';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=83';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=83';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=83';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=82';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=82';
+} from './sprites.js?v=83';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=83';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=82';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=82';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=82';
-import { drawMoroniRig } from './rig-cast.js?v=82';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=82';
+} from './save.js?v=83';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=83';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=83';
+import { drawMoroniRig } from './rig-cast.js?v=83';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=83';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -390,6 +390,9 @@ function runCommand(game, cmd) {
       if (reduceFlash()) game.shake = 0;
       sfx('select');
       break;
+    case 'retry':
+      if (game.state === STATES.CLEAR && game.clearTimer > 20) restartChapter(game);
+      break;
     case 'next':
       if (game.state === STATES.CLEAR && game.clearTimer > 20) advanceFromClear(game);
       break;
@@ -625,7 +628,12 @@ export function updateGame(game, dt) {
       game.result.shown++;
       sfx('star');
     }
-    if (confirmPressed() && game.clearTimer > 45) advanceFromClear(game);
+    // left/right picks Continue or Retry (keyboard, d-pad, stick); confirm runs it
+    if (justPressed('left') || justPressed('right')) { game.clearSel = game.clearSel === 1 ? 0 : 1; sfx('select'); }
+    if (confirmPressed() && game.clearTimer > 45) {
+      if (game.clearSel === 1) restartChapter(game);
+      else advanceFromClear(game);
+    }
     return;
   }
 
@@ -743,7 +751,9 @@ function computeResult(game) {
   const time = Math.max(1, Math.round(game.chapterT));
   const pages = [0, 1, 2].filter((i) => game.pagesGot & (1 << i)).length;
   const timeOk = time <= par * 60;
-  const heartsOk = game.heartsLost <= 1;
+  // boss chapters allow 3 hearts lost for Steadfast; others 1
+  const heartsMax = LEVEL_META[game.levelNum]?.bossTitle ? 3 : 1;
+  const heartsOk = game.heartsLost <= heartsMax;
   const pagesOk = pages >= 3;
   const met = (timeOk ? 1 : 0) + (heartsOk ? 1 : 0) + (pagesOk ? 1 : 0);
   const stars = Math.max(1, met);
@@ -758,6 +768,7 @@ function computeResult(game) {
     pages,
     timeOk,
     heartsOk,
+    heartsMax,
     pagesOk,
     bestStars: rec.next.stars,
     improved: rec.improved,
@@ -768,6 +779,7 @@ function computeResult(game) {
 function goClear(game) {
   game.result = computeResult(game);
   game.state = STATES.CLEAR;
+  game.clearSel = 0;
   game.clearTimer = 0;
   game.stateT = 0;
   game.messageT = 0;

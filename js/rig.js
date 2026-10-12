@@ -1,4 +1,4 @@
-import { timed, psCount, NO_READBACK } from './perfstat.js?v=82';
+import { timed, psCount, NO_READBACK } from './perfstat.js?v=83';
 /**
  * Palmyra Quest — painted cut-out skeletal rigs (no Spine: our own JSON format).
  *
