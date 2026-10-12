@@ -1,6 +1,6 @@
-import { slopeFloor } from './hill.js?v=84';
-import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=84';
-import { justPressed, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=84';
+import { slopeFloor } from './hill.js?v=85';
+import { W, H, STATES, COLORS, MAX_LEVEL, SCALE, TILE, LEVEL_META } from './constants.js?v=85';
+import { justPressed, swallowHeld, clearAll, bindText, captureNextKey, cancelCapture, isCapturing, setBinding, clearBinding, resetBindings, ACTIONS, keyName } from './input.js?v=85';
 import {
   createPlayer,
   updatePlayer,
@@ -10,12 +10,12 @@ import {
   hurtPlayer,
   playerHurtbox,
   aabb,
-} from './player.js?v=84';
-import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=84';
-import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=84';
-import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=84';
-import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=84';
-import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=84';
+} from './player.js?v=85';
+import { updateEnemy, drawEnemy, enemyHitbox, hurtEnemy, foeCanHurt, foeLandedHit, tickDefeat } from './enemy.js?v=85';
+import { createLevel, drawLevelBackground, drawLevelTiles, drawPages, clearSafeZone } from './level.js?v=85';
+import { updateHazards, drawHazards, hazardHitbox, hazardActive, createHazard, groundTopBelow } from './hazards.js?v=85';
+import { updateSetPieces, drawSetPiecesBack, drawSetPiecesMid, drawSetPiecesFront, drawBossBar, drawBossBanner } from './setpieces.js?v=85';
+import { updatePlates, drawPlates, plateHitbox, updateKnives, drawKnives, knifeHitbox } from './projectiles.js?v=85';
 import {
   drawHeart,
   drawText,
@@ -27,8 +27,8 @@ import {
   drawMoroni,
   drawPlateChest,
   measureText,
-} from './sprites.js?v=84';
-import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=84';
+} from './sprites.js?v=85';
+import { sfx, syncAudio, tickMusic, toggleMute } from './audio.js?v=85';
 import {
   unlockChapter,
   unlockedChapter,
@@ -42,11 +42,11 @@ import {
   recordChapter,
   journalUnlocked,
   unlockJournal,
-} from './save.js?v=84';
-import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=84';
-import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=84';
-import { drawMoroniRig } from './rig-cast.js?v=84';
-import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=84';
+} from './save.js?v=85';
+import { fxUpdate, fxBurst, fxIris, fxReset, drawFxBack, drawFxWorld, drawFxFront, drawFxForegroundGrass, drawFxScreen } from './fx.js?v=85';
+import { updateGrove, drawGroveBack, drawGroveNpcs, drawGroveBubbles, drawGroveUi } from './grove.js?v=85';
+import { drawMoroniRig } from './rig-cast.js?v=85';
+import { drawTitleBackdrop, setTitleBackdrop, wantsTitleBackdrop } from './title.js?v=85';
 
 const BANNER_T = 110;
 export const EASY_HP = 7;
@@ -638,7 +638,9 @@ export function updateGame(game, dt) {
       sfx('star');
     }
     // left/right picks Continue or Retry (keyboard, d-pad, stick); confirm runs it
-    if (justPressed('left') || justPressed('right')) { game.clearSel = game.clearSel === 1 ? 0 : 1; sfx('select'); }
+    // ~400 ms lockout, then only fresh left/right presses move the selection
+    const lr = justPressed('left') | justPressed('right');
+    if (lr && game.clearTimer > 24) { game.clearSel = game.clearSel === 1 ? 0 : 1; sfx('select'); }
     if (confirmPressed() && game.clearTimer > 45) {
       if (game.clearSel === 1) restartChapter(game);
       else advanceFromClear(game);
@@ -788,7 +790,8 @@ function computeResult(game) {
 function goClear(game) {
   game.result = computeResult(game);
   game.state = STATES.CLEAR;
-  game.clearSel = 0;
+  game.clearSel = 0; // always opens on Continue
+  swallowHeld();
   game.clearTimer = 0;
   game.stateT = 0;
   game.messageT = 0;

@@ -242,8 +242,10 @@ export function justPressed(action) {
 }
 
 export function clearAll() {
-  for (const k of Object.keys(keys)) keys[k] = false;
+  // a key / stick still held when a screen changes must not count as a fresh press
+  // (key repeat or the next stick move would otherwise fire it): mark it handled
   for (const k of Object.keys(pressed)) pressed[k] = false;
+  for (const k of Object.keys(keys)) { if (keys[k]) pressed[k] = true; keys[k] = false; }
   for (const k of Object.keys(tapped)) tapped[k] = false;
 }
 
@@ -511,4 +513,13 @@ export function pollGamepads() {
     want.pause ||= start;
   }
   for (const a of Object.keys(want)) setPad(a, want[a]);
+}
+
+/**
+ * A popup just opened: any key / button / stick direction still held from gameplay
+ * counts as already handled, so only a fresh press after this moment registers.
+ */
+export function swallowHeld() {
+  for (const a in keys) pressed[a] = !!keys[a];
+  for (const a in tapped) tapped[a] = false;
 }

@@ -4,13 +4,13 @@
  *  ch5 Far West Road  — winter snowstorm; telegraphed gusts push Joseph back
  *  ch6 Nauvoo         — temple-building scaffolds with falling bricks, river dock with sinking planks
  */
-import { bindText, isDown } from './input.js?v=84';
-import { W, H, TILE, SCALE } from './constants.js?v=84';
-import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=84';
-import { drawText, measureText, drawRect } from './sprites.js?v=84';
-import { sfx } from './audio.js?v=84';
-import { isEasy, reduceFlash } from './save.js?v=84';
-import { drawCarthageRig } from './rig-cast.js?v=84';
+import { bindText, isDown } from './input.js?v=85';
+import { W, H, TILE, SCALE } from './constants.js?v=85';
+import { createHazard, groundTopBelow, drawAlert } from './hazards.js?v=85';
+import { drawText, measureText, drawRect } from './sprites.js?v=85';
+import { sfx } from './audio.js?v=85';
+import { isEasy, reduceFlash } from './save.js?v=85';
+import { drawCarthageRig } from './rig-cast.js?v=85';
 
 const S = SCALE;
 

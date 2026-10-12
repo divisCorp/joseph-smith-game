@@ -2,13 +2,13 @@
  * HTML overlay menus — sharp system fonts over the pixel canvas.
  * Show/hide synced from game state; Start buttons feed the same input map.
  */
-import { STATES, LEVEL_META, MAX_LEVEL, W } from './constants.js?v=84';
-import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=84';
-import { unlockAudio, syncMuteButton } from './audio.js?v=84';
-import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=84';
-import { JOURNAL } from './journal.js?v=84';
-import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=84';
-import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS, overlapsActors } from './game.js?v=84';
+import { STATES, LEVEL_META, MAX_LEVEL, W } from './constants.js?v=85';
+import { setAction, getBindings, keyName, bindText, ACTIONS, ACTION_LABELS, onBindingsChange } from './input.js?v=85';
+import { unlockAudio, syncMuteButton } from './audio.js?v=85';
+import { unlockedChapter, bestScore, isEasy, reduceFlash, chapterRecord, journalUnlocked } from './save.js?v=85';
+import { JOURNAL } from './journal.js?v=85';
+import { toggleFullscreen, initFullscreen } from './fullscreen.js?v=85';
+import { titleOptions, titleTapBegins, titleSettingsOpen, PAUSE_OPTIONS, overlapsActors } from './game.js?v=85';
 
 const SCREENS = {
   [STATES.TITLE]: 'ui-title',
@@ -226,8 +226,13 @@ export function initOverlays(game) {
     sendCmd('skip');
   });
   document.querySelectorAll('[data-ui-start]').forEach(bindStartTarget);
-  // Whole-screen dismiss for win/clear (START keys + touch START still work via input map)
-  bindStartTarget(document.getElementById('ui-clear'));
+  // Star screen: each button acts only for itself (no tap-anywhere while buttons show);
+  // hovering or pressing a button selects it for keyboard / pad too
+  document.querySelectorAll('#ui-clear .ui-clear-actions button').forEach((el) => {
+    const sel = () => { if (gameRef?.state === STATES.CLEAR) gameRef.clearSel = el.classList.contains('ui-retry-btn') ? 1 : 0; };
+    el.addEventListener('pointerenter', sel);
+    el.addEventListener('pointerdown', sel);
+  });
   bindShareLinks();
   // Leaving the tab / app mid-chapter pauses instead of letting enemies act
   document.addEventListener('visibilitychange', () => {
@@ -652,7 +657,7 @@ function syncResults(root, game) {
     ? `Steadfast: ${r.heartsLost} heart${r.heartsLost === 1 ? '' : 's'} lost (${hm} or fewer)`
     : `Steadfast: lose ${hm} heart${hm === 1 ? '' : 's'} or fewer · ${r.heartsLost} lost`, r.heartsOk);
   root.querySelector('.ui-retry-btn')?.classList.toggle('is-selected', game.clearSel === 1);
-  root.querySelector('[data-ui-start]')?.classList.toggle('is-selected', game.clearSel === 1 ? false : true);
+  root.querySelector('.ui-clear-continue')?.classList.toggle('is-selected', game.clearSel !== 1);
   set('pages', r.pagesOk
     ? `Faithful record: journal pages 3/3`
     : `Faithful record: find all journal pages · ${r.pages}/3 found`, r.pagesOk);
